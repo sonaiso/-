@@ -43,6 +43,14 @@ def min_rank(a: Rank, b: Rank) -> Rank:
     return a if a.value <= b.value else b
 
 
+def rank_from_residuals(residuals: List[Residual]) -> Rank:
+    if has_blocking_residuals(residuals):
+        return Rank.ZERO
+    if residuals:
+        return Rank.FORM
+    return Rank.CERT
+
+
 @dataclass(frozen=True)
 class Carrier:
     char: str
@@ -81,6 +89,7 @@ class AtomKind(Enum):
 
 ARABIC_LETTERS = set("ابتثجحخدذرزسشصضطظعغفقكلمنهويءآأؤإئاةى")
 SHORT_VOWELS = {"\u064e": "fatha", "\u064f": "damma", "\u0650": "kasra"}
+SHORT_VOWEL_NAMES = tuple(SHORT_VOWELS.values())
 MARKS = {
     "\u0652": "sukun",
     "\u0651": "shadda",
@@ -249,11 +258,25 @@ class ContextUnit:
 
 
 def build_context(units: List[OperativeUnit]) -> List[ContextUnit]:
+    def determine_position(index: int, total: int) -> str:
+        if index == 0:
+            return "start"
+        if index == total - 1:
+            return "end"
+        return "middle"
+
+    def determine_boundary(position: str) -> str:
+        if position == "start":
+            return "entry_gate"
+        if position == "end":
+            return "judgment_gate"
+        return "internal"
+
     result: List[ContextUnit] = []
     n = len(units)
     for i, unit in enumerate(units):
-        pos = "start" if i == 0 else "end" if i == n - 1 else "middle"
-        boundary = "entry_gate" if i == 0 else "judgment_gate" if i == n - 1 else "internal"
+        pos = determine_position(i, n)
+        boundary = determine_boundary(pos)
         residuals = []
         if not unit.marks:
             residuals.append(
@@ -290,8 +313,9 @@ class Syllable:
 
 def fold_syllables(units: List[OperativeUnit]) -> List[Syllable]:
     syllables: List[Syllable] = []
+    n = len(units)
     i = 0
-    while i < len(units):
+    while i < n:
         unit = units[i]
         names = unit.mark_names()
         if "sukun" in names and not syllables:
@@ -307,9 +331,9 @@ def fold_syllables(units: List[OperativeUnit]) -> List[Syllable]:
             i += 1
             continue
 
-        has_short_vowel = any(v in names for v in ("fatha", "damma", "kasra"))
+        has_short_vowel = any(v in names for v in SHORT_VOWEL_NAMES)
         if has_short_vowel:
-            if i + 1 < len(units) and units[i + 1].has_mark("sukun"):
+            if i + 1 < n and units[i + 1].has_mark("sukun"):
                 syllables.append(
                     Syllable(
                         units=[unit, units[i + 1]],
@@ -376,12 +400,7 @@ def build_d_form(text: str) -> DForm:
     for syll in syllables:
         residuals.extend(syll.residuals)
 
-    if has_blocking_residuals(residuals):
-        rank = Rank.ZERO
-    elif residuals:
-        rank = Rank.FORM
-    else:
-        rank = Rank.CERT
+    rank = rank_from_residuals(residuals)
 
     candidate = "".join(u.text() for u in units)
     return DForm(
@@ -555,6 +574,12 @@ class DMufrad:
 
 
 def close_mufrad(d_type: DType) -> DMufrad:
+    """Close dal-mufrad contract.
+
+    Required conditions:
+    1) no blocker residuals, 2) lexical type closed, 3) linguistic rank >= AHAD.
+    """
+
     residuals = list(d_type.residuals)
     if d_type.lexical_type == LexicalType.UNKNOWN:
         residuals.append(

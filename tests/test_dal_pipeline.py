@@ -48,3 +48,7 @@ def test_no_semantic_field_in_dal_pipeline():
     payload = result.explain()
     assert "meaning" not in payload
     assert "semantic" not in payload
+    assert "meaning" not in payload["trace"]
+    assert "semantic" not in payload["trace"]
+    assert "meaning" not in payload["trace"]["mufrad"]
+    assert "semantic" not in payload["trace"]["mufrad"]
