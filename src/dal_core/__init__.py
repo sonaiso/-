@@ -44,6 +44,19 @@ from .surface_effects import (
 )
 from .composition_readiness import CompositionReadiness
 from .operator_contract import OperatorContract
+from .case_signs import (
+    CaseSignFamily,
+    CaseSignValue,
+    CaseSignPotential,
+    CaseSignResidualType,
+)
+from .type_ids import (
+    NounTypeID,
+    VerbTypeID,
+    ParticleTypeID,
+    CompositeTypeID,
+)
+from .presyntax_vector import PreSyntaxMufradVector
 
 __all__ = [
     "Rank",
@@ -80,4 +93,14 @@ __all__ = [
     "SurfaceEffectVisibility",
     "CompositionReadiness",
     "OperatorContract",
+    # Case signs and type IDs
+    "CaseSignFamily",
+    "CaseSignValue",
+    "CaseSignPotential",
+    "CaseSignResidualType",
+    "NounTypeID",
+    "VerbTypeID",
+    "ParticleTypeID",
+    "CompositeTypeID",
+    "PreSyntaxMufradVector",
 ]

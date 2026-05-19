@@ -38,6 +38,7 @@ from dal_core.morph_features import (
 )
 from dal_core.surface_effects import SurfaceEffect
 from dal_core.composition_readiness import CompositionReadiness
+from dal_core.case_signs import CaseSignPotential
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,9 @@ class MufradProof:
 
     # Surface effects (ALLOWED)
     surface_effects: tuple[SurfaceEffect, ...] = field(default_factory=tuple)
+
+    # Case sign potentials (ALLOWED - these are observations, not effects)
+    case_sign_potentials: tuple[CaseSignPotential, ...] = field(default_factory=tuple)
 
     # Composition readiness
     composition_readiness: CompositionReadiness = CompositionReadiness.NOT_READY
@@ -234,6 +238,74 @@ class MufradProof:
     def __str__(self) -> str:
         readiness = self.composition_readiness.value
         return f"MufradProof({self.form.vocalization}, {readiness})"
+
+    def to_presyntax_vector(self) -> "PreSyntaxMufradVector":
+        """
+        Export MufradProof to PreSyntaxMufradVector.
+
+        This is the ONLY interface that nahw operators may consume.
+
+        The vector contains:
+        - Type identification codes
+        - Morphological feature summary
+        - Surface effects
+        - Case sign potentials (NOT case effects)
+        - Rank and residuals
+        - Composition readiness
+
+        It does NOT contain:
+        - meaning, semantic, murad
+        - syntax roles
+        - case effects
+        """
+        from dal_core.presyntax_vector import PreSyntaxMufradVector
+        from dal_core.type_ids import NounTypeID, VerbTypeID, ParticleTypeID
+
+        # Determine type_id from type value
+        type_id: NounTypeID | VerbTypeID | ParticleTypeID | None = None
+
+        # This is a stub - in full implementation, type_id would be
+        # determined from detailed morphological analysis
+        # For now, we leave it as None (unresolved)
+
+        # Generate unique ID
+        mufrad_id = f"mufrad_{id(self)}"
+
+        # Get span from form if available
+        raw_span = (0, len(self.form.vocalization))
+
+        # Get weakest rank
+        morph_rank = self.get_weakest_rank()
+        final_rank = self.rank if self.rank != LughaRank.ZERO else morph_rank
+
+        # Collect all residuals
+        all_residuals = self.collect_all_residuals()
+
+        # Generate trace ID
+        trace_id = self.trace.get("id", f"trace_{id(self)}")
+
+        # Count competitors
+        competitors_count = len(self.competitors)
+
+        return PreSyntaxMufradVector(
+            mufrad_id=mufrad_id,
+            raw_span=raw_span,
+            type_value=self.type.dal_type.value,
+            type_id=type_id,
+            type_rank=self.type.rank,
+            mabni_murab_status=self.mabni_murab_status,
+            noun_inflection_class=self.noun_inflection_class,
+            verb_features=self.verb_features,
+            particle_operator_potential=self.particle_operator_potential,
+            surface_effects=self.surface_effects,
+            case_sign_potentials=self.case_sign_potentials,
+            morph_rank=morph_rank,
+            final_rank=final_rank,
+            residuals=all_residuals,
+            trace_id=trace_id,
+            competitors_count=competitors_count,
+            composition_readiness=self.composition_readiness,
+        )
 
 
 def verify_no_semantic_leak(proof: MufradProof) -> list[Residual]:
