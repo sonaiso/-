@@ -1,0 +1,42 @@
+name: Operators Catalog CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  operators-catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Regenerate operators catalog (enriched)
+        run: |
+          bash scripts/generate_operators_catalog_enriched.sh
+
+      - name: QA enriched operators catalog
+        run: |
+          python3 scripts/qa_operators_enriched.py
+
+      # Option 1 policy: treat generated CSVs as build artifacts (no "fail on drift").
+      # This keeps CI validating that generation + QA succeed, without forcing commits of regenerated outputs.
+      - name: Show drift (informational)
+        run: |
+          git diff -- \
+            data/operators_catalog_split_project_enriched.csv \
+            data/operators_catalog_split_enriched.csv || true

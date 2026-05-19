@@ -1,0 +1,223 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Excel temporary files
+~$*.xlsx
+~$*.xls
+
+i3rab/
+src/bayan_fvafk.egg-info/
+src/*.egg-info/
+
+# Local Quran dataset (external / large)
+data/quran-simple-clean.txt
+
+# Local outputs
+out*.csv
+full_quran.csv
+pipeline.log
+
+
+# Local Quran dataset (external / large)
+data/quran-simple-clean.txt
+
+# Local outputs
+out*.csv
+full_quran.csv
+pipeline.log
+
+# Local scratch / outputs
+*.out
+*.log
+*.tar.gz
+*.zip
+*.csv
+*.json
+out*.txt
+output_final.json
+pipeline.log
+
+# Local env/editor
+.eab/
+
+
+# Local scratch / outputs (repo root)
+out*.csv
+out*.txt
+out_wazn_operators.txt
+out_wazn_ops.json
+output_final.json
+pipeline.log
+full_quran.csv
+quran_analysis_sample.csv
+extraction_results*.txt
+test_root_extractor.log
+claude.out
+code_snapshot.tar.gz
+src/fvafk/files.zip
+
+# Local env/editor
+.eab/
+
+# Coq build artifacts
+coq/Gates/*.vo
+coq/Gates/*.vos
+coq/Gates/*.vok
+coq/Gates/*.glob
+coq/Gates/*.aux
+
+
+# Local scratch / outputs (repo root)
+out*.csv
+out*.txt
+out_wazn_operators.txt
+out_wazn_ops.json
+output_final.json
+pipeline.log
+full_quran.csv
+quran_analysis_sample.csv
+extraction_results*.txt
+test_root_extractor.log
+claude.out
+code_snapshot.tar.gz
+src/fvafk/files.zip
+
+# Local env/editor
+.eab/
+
+# Coq build artifacts
+coq/Gates/*.vo
+coq/Gates/*.vos
+coq/Gates/*.vok
+coq/Gates/*.glob
+coq/Gates/*.aux
+
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+
+# Local experiments / scratch scripts (repo root)
+debug_*.py
+fix_*.py
+analyze_*.py
+add_*_fix.py
+trace_*.py
+awzan_analysis*.txt
+awzan_matcher*.py
+
+# Local root-level scratch tests (keep real tests under tests/)
+test_*.py
+
+# Script backups / legacy
+scripts/*-old.py
+scripts/*-backup.py
+
+# Local backups
+*.backup
+
+
+# allow real tests under /tests
+!tests/
+!tests/**/
+!tests/test_*.py
+!tests/**/test_*.py
+
+# Coq generated build artifacts (coq_makefile output)
+coq/Makefile
+coq/Makefile.conf
+coq/.Makefile.d
+coq/**/*.vo
+coq/**/*.vos
+coq/**/*.vok
+coq/**/*.glob
+coq/**/*.aux
