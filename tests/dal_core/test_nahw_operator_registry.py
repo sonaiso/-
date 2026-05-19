@@ -1,5 +1,5 @@
 """
-Tests for NahwOperatorRegistry (PR #15).
+Tests for NahwOperatorRegistry (PR #15 + PR #16a).
 
 The registry is post-trigger, pre-operator: it returns typed
 `NahwOperatorEntry` candidates for each `OperatorTriggerFamily` in an
@@ -21,6 +21,8 @@ I. Residual inheritance: lookup.inherited ⊇ trigger.get_all_residuals().
 J. Rank ceiling: every lookup.rank ≤ trigger.rank.
 K. frame_id / matrix_id / trigger_id propagation.
 L. Cross-layer non-regression — uses real frame/matrix/trigger pipeline.
+M. Immutability hardening (PR #16a) — internal indexes are MappingProxyType,
+   reassignment/deletion prevented, mutation attempts fail cleanly.
 """
 
 from __future__ import annotations
