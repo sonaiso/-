@@ -20,7 +20,7 @@ Pipeline: **U → A → O → S → F → L → T → D**
 2. **A** (ArabicAtom) → Classification into letters, vowels, marks
 3. **O** (OperativeUnit) → حرف + حركة combinations
 4. **Context** → Entry/judgment gates, wasl/waqf
-5. **S** (Syllable) → CV, CVC, CVV, CVVC patterns
+5. **S** (Syllable) → CV, CVC, CVV, CVVC, CVCC patterns
 6. **F** (FormCandidate) → Morphological forms
 7. **L** (LughaAttestation) → Linguistic attestation (رواية، سماع، قياس)
 8. **T** (TypedDal) → Classification (اسم، فعل، حرف)
@@ -38,47 +38,74 @@ Pipeline: **U → A → O → S → F → L → T → D**
 ## Usage
 
 ```python
-from dal_core import DalPipeline
+from dal_core import analyze_dal_mufrad
 
-pipeline = DalPipeline()
-dclosed, residuals = pipeline.process("كِتَابٌ")
+# Analyze vocalized Arabic word
+result = analyze_dal_mufrad("كِتَابٌ")
 
 # Enforce Theorem 5: No meaning in output
-assert dclosed.meaning is None
-assert dclosed.murad is None
-assert dclosed.haqiqa_majaz is None
+assert not hasattr(result, 'meaning')
+assert not hasattr(result, 'murad')
+assert not hasattr(result, 'haqiqa_majaz')
+
+# Access signifier-only analysis
+print(result.typed_dal.dal_type)  # ISM
+print(result.final_rank)  # TAWATUR (if attested)
+print(result.all_residuals)  # Empty if clean
 ```
 
 ## Installation
 
 ```bash
 # From repository root
+pip install -e .
+# Or directly
 python3 -c "import sys; sys.path.insert(0, 'src'); import dal_core"
 ```
 
 ## Testing
 
 ```bash
-python3 tests/dal_core/test_runner.py
+# All dal_core tests
+pytest tests/dal_core/ -v
+
+# Specific test suites
+pytest tests/dal_core/test_theorems.py -v       # 21 theorem tests
+pytest tests/dal_core/test_syllables.py -v      # 16 syllable tests
+pytest tests/dal_core/test_witness_store.py -v  # 27 witness tests
+pytest tests/dal_core/test_golden_dataset.py -v # 26 dataset tests
 ```
 
 ## Core Modules
 
+### Phase 1 (Complete)
 - `carriers.py` - Contract 1: Unicode → Carrier
 - `atoms.py` - Contract 2: Carrier → ArabicAtom
 - `units.py` - Contract 3: Atoms → OperativeUnit
-- `context.py` - Contract 4: Context enrichment
-- `syllables.py` - Contract 5: Units → Syllables
-- `d_form.py` - Contract 6: Syllables → FormCandidate
-- `d_lugha.py` - Contract 7: Form → LughaAttestation
-- `d_type.py` - Contract 8: Attestation → TypedDal
+- `context.py` - Contract 4: Context enrichment (stub)
+- `d_form.py` - Contract 6: Syllables → FormCandidate (stub)
+- `d_lugha.py` - Contract 7: Form → LughaAttestation (stub)
+- `d_type.py` - Contract 8: Attestation → TypedDal (stub)
 - `d_mufrad.py` - Contract 9: TypedDal → DClosed
 - `pipeline.py` - Full pipeline orchestrator
+- `ranks.py` - Linguistic attestation ranks
+- `residuals.py` - Residual types and utilities
+- `evidence.py` - Evidence tracking
+
+### Phase 2 (Complete)
+- `syllables.py` - Contract 5: Units → Syllables (expanded)
+  - CV/CVC/CVV/CVVC/CVCC patterns
+  - Shadda, tanwin, madd, sukun handling
+- `witness_store.py` - Linguistic attestation database (new)
+  - 16 seed attestations
+  - TAWATUR/AHAD/SAMA/QIYAS/FORM/ZERO ranks
+  - Source provenance
 
 ## Success Criteria
 
 The system succeeds if:
 
+### Phase 1 Criteria ✅
 - ✅ Unicode ≠ Letter enforced
 - ✅ D_form ⊄ D_lugha enforced
 - ✅ Pattern alone insufficient for attestation
@@ -88,16 +115,53 @@ The system succeeds if:
 - ✅ Full trace graph available
 - ✅ ML ranks but doesn't create
 
+### Phase 2 Criteria ✅
+- ✅ Syllable patterns tested (CV/CVC/CVV/CVVC/CVCC)
+- ✅ Shadda/tanwin/madd/sukun traces operational
+- ✅ Witness store with explicit ranks
+- ✅ Theorem 3 verified: Pattern ≠ attestation
+- ✅ Golden dataset validates end-to-end behavior
+- ✅ 122 tests passing (100% pass rate)
+
 ## Documentation
 
 - [SPEC_DAL_CORE.md](../../docs/SPEC_DAL_CORE.md) - Complete specification
+- [DAL_CORE_COMPLIANCE.md](../../docs/DAL_CORE_COMPLIANCE.md) - Phase 1 compliance report
+- [DAL_CORE_PHASE2_COMPLETION_PLAN.md](../../docs/DAL_CORE_PHASE2_COMPLETION_PLAN.md) - Phase 2 implementation plan
+- [DAL_CORE_PHASE2_STATUS.md](../../docs/DAL_CORE_PHASE2_STATUS.md) - Phase 2 status report
 
 ## Version
 
-0.1.0 - Initial implementation (Phase 0 & 1 complete)
+**2.0** - Phase 2 Complete (Syllable + Witness Expansion)
+- 122 tests passing
+- Syllable patterns operational
+- Witness store with 16 attestations
+- Golden dataset for validation
+
+**1.0** - Phase 1 Complete (Proof Spine)
+- 51 tests passing
+- Governed contracts
+- Semantic leak prevention
 
 ## Status
 
-**Phase 1 Complete**: Core foundation implemented and tested.
+**Phase 2 Complete**: Core syllable and witness expansion implemented.
 
-Next: Implement full pipeline stages (Units → Syllables → Form → Lugha → Type → Mufrad)
+**Allowed Claims**:
+```text
+dal_core implements governed proof spine for الدال وحده (signifier-only).
+dal_core supports syllable analysis (CV/CVC/CVV/CVVC/CVCC) with trace.
+dal_core provides linguistic attestation via witness store with explicit ranks.
+dal_core enforces Theorem 3: Pattern ≠ attestation (D_form ⊄ D_lugha).
+dal_core enforces Theorem 5: No semantic fields (لا معنى داخل الدال).
+```
+
+**Forbidden Claims**:
+```text
+dal_core fully analyzes all Arabic texts.        ❌ (limited witness coverage)
+dal_core performs complete morphology.           ❌ (MorphFeatures pending)
+dal_core handles sentence composition.           ❌ (syntax is future work)
+dal_core infers semantic meaning.                ❌ (violates Theorem 5)
+```
+
+**Next**: Documentation updates, optional contract hardening (D_type, MorphFeatures).
