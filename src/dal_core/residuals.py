@@ -144,6 +144,15 @@ class ResidualType(Enum):
     TRIGGER_PARTICLE_TYPE_UNRESOLVED = "نوع الحرف غير محسوم: لا محفز محدد"
     TRIGGER_COMPETING_FAMILIES_PRESERVED = "محفزات عوامل متنافسة محفوظة دون حسم"
 
+    # NahwOperatorRegistry governance residuals (PR #15)
+    # Registry is post-trigger, pre-operator: typed operator ENTRIES lookup
+    # only. Never applies an operator, never resolves competing entries,
+    # never produces a relation or a case effect.
+    REGISTRY_FAMILY_HAS_NO_ENTRIES = "عائلة المحفز لا تحوي مدخلات في السجل"
+    REGISTRY_FAMILY_HAS_MULTIPLE_ENTRIES_PRESERVED = "عدة مدخلات في عائلة واحدة محفوظة دون حسم"
+    REGISTRY_ENTRY_HAS_SCHOOL_DISAGREEMENT = "خلاف مدارس في مدخل عامل"
+    REGISTRY_LOOKUP_RANK_CEILED = "تعليق رتبة في استعلام السجل"
+
 
 @dataclass
 class Residual:

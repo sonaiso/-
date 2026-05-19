@@ -89,6 +89,20 @@ from .operator_trigger import (
     OperatorTriggerPotentialBuilder,
     build_operator_trigger_potential,
 )
+from .nahw_operator_registry import (
+    OperatorSource,
+    NahwSchool,
+    ExpectedRelationFamily,
+    CaseEffectPolicyFamily,
+    ActivationCondition,
+    BlockingCondition,
+    OperatorInputSignature,
+    Citation,
+    NahwOperatorEntry,
+    OperatorRegistryLookupResult,
+    NahwOperatorRegistry,
+    build_default_nahw_operator_registry,
+)
 
 __all__ = [
     "Rank",
@@ -162,4 +176,17 @@ __all__ = [
     "OperatorTriggerPotential",
     "OperatorTriggerPotentialBuilder",
     "build_operator_trigger_potential",
+    # NahwOperatorRegistry (PR #15)
+    "OperatorSource",
+    "NahwSchool",
+    "ExpectedRelationFamily",
+    "CaseEffectPolicyFamily",
+    "ActivationCondition",
+    "BlockingCondition",
+    "OperatorInputSignature",
+    "Citation",
+    "NahwOperatorEntry",
+    "OperatorRegistryLookupResult",
+    "NahwOperatorRegistry",
+    "build_default_nahw_operator_registry",
 ]
