@@ -46,6 +46,7 @@ def test_unknown_type_blocks_mufrad_certificate():
 def test_no_semantic_field_in_dal_pipeline():
     result = analyze_dal_mufrad("كَتَبَ", SEED_LEXICON)
     payload = result.explain()
+    # Guard both API-level payload and internal trace tree from semantic leakage.
     assert "meaning" not in payload
     assert "semantic" not in payload
     assert "meaning" not in payload["trace"]

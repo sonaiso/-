@@ -87,6 +87,8 @@ class AtomKind(Enum):
     UNKNOWN = "unknown"
 
 
+# Seed letter inventory for dal-form carrier classification.
+# This table is intentionally scoped to core Arabic letters used by the seed pipeline.
 ARABIC_LETTERS = set("ابتثجحخدذرزسشصضطظعغفقكلمنهويءآأؤإئاةى")
 SHORT_VOWELS = {"\u064e": "fatha", "\u064f": "damma", "\u0650": "kasra"}
 SHORT_VOWEL_NAMES = tuple(SHORT_VOWELS.values())
@@ -466,6 +468,12 @@ def prove_lugha(d_form: DForm, lexicon: Dict[str, LexiconRecord]) -> DLugha:
     key = d_form.normalized_text
     if key in lexicon:
         record = lexicon[key]
+        trace = dict(d_form.trace)
+        trace["lugha"] = {
+            "status": "attested",
+            "source": record.evidence.source,
+            "rank": record.evidence.rank.name,
+        }
         return DLugha(
             candidate=key,
             form=d_form,
@@ -473,14 +481,7 @@ def prove_lugha(d_form: DForm, lexicon: Dict[str, LexiconRecord]) -> DLugha:
             evidence=[record.evidence],
             rank=record.evidence.rank,
             residuals=list(d_form.residuals),
-            trace={
-                **d_form.trace,
-                "lugha": {
-                    "status": "attested",
-                    "source": record.evidence.source,
-                    "rank": record.evidence.rank.name,
-                },
-            },
+            trace=trace,
         )
 
     residuals = list(d_form.residuals)
@@ -491,6 +492,8 @@ def prove_lugha(d_form: DForm, lexicon: Dict[str, LexiconRecord]) -> DLugha:
             Severity.WARNING,
         )
     )
+    trace = dict(d_form.trace)
+    trace["lugha"] = {"status": "unattested_in_seed_lexicon", "rank": "FORM"}
     return DLugha(
         candidate=key,
         form=d_form,
@@ -498,7 +501,7 @@ def prove_lugha(d_form: DForm, lexicon: Dict[str, LexiconRecord]) -> DLugha:
         evidence=[Evidence("seed_lexicon_lookup", "No attestation found", Rank.FORM)],
         rank=min_rank(d_form.rank, Rank.FORM),
         residuals=residuals,
-        trace={**d_form.trace, "lugha": {"status": "unattested_in_seed_lexicon", "rank": "FORM"}},
+        trace=trace,
     )
 
 
@@ -585,7 +588,7 @@ def close_mufrad(d_type: DType) -> DMufrad:
         residuals.append(
             Residual("mufrad_requires_closed_type", "Dal mufrad requires closed lexical type", Severity.WARNING)
         )
-    if d_type.lugha.rank in {Rank.ZERO, Rank.FORM}:
+    if d_type.lugha.rank.value < Rank.AHAD.value:
         residuals.append(
             Residual("mufrad_requires_lugha_rank", "Dal mufrad requires linguistic attestation rank", Severity.WARNING)
         )
