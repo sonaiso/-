@@ -1,0 +1,44 @@
+[
+  {
+    "root": "ضرب",
+    "class": "transitive_one_object",
+    "required_roles": ["فاعل", "مفعول به"],
+    "optional_roles": []
+  },
+  {
+    "root": "ظلم",
+    "class": "transitive_one_object",
+    "required_roles": ["فاعل", "مفعول به"],
+    "optional_roles": []
+  },
+  {
+    "root": "كتب",
+    "class": "transitive_one_object",
+    "required_roles": ["فاعل", "مفعول به"],
+    "optional_roles": []
+  },
+  {
+    "root": "عاش",
+    "class": "intransitive_basic",
+    "required_roles": ["فاعل"],
+    "optional_roles": []
+  },
+  {
+    "root": "توكل",
+    "class": "intransitive_prepositional",
+    "required_roles": ["فاعل"],
+    "optional_roles": ["جار ومجرور"]
+  },
+  {
+    "root": "انتمى",
+    "class": "intransitive_prepositional",
+    "required_roles": ["فاعل"],
+    "optional_roles": ["جار ومجرور"]
+  },
+  {
+    "root": "أعطى",
+    "class": "double_object",
+    "required_roles": ["فاعل", "مفعول به أول", "مفعول به ثان"],
+    "optional_roles": []
+  }
+]
