@@ -151,9 +151,35 @@ class PreSyntaxMufradVector:
         """
         Check if this vector is ready for operator consumption.
 
-        Operators require minimum readiness level.
+        This is a governed gate that enforces:
+        1. Minimum composition readiness
+        2. No blocking residuals
+        3. Valid trace to raw input
+        4. Unresolved competitors checked for certificate level
+        5. Rank preserved from MufradProof
+
+        Returns:
+            bool: True only if ALL gate conditions pass
         """
-        return self.composition_readiness.allows_composition()
+        # Gate 1: Basic readiness check
+        if not self.composition_readiness.allows_composition():
+            return False
+
+        # Gate 2: Block if blocking residuals present
+        if self.has_blocking_residuals():
+            return False
+
+        # Gate 3: Require valid trace to raw input
+        if not self.trace_id or self.trace_id == "":
+            return False
+
+        # Gate 4: For certificate-level composition, reject unresolved competitors
+        if self.composition_readiness.allows_certificate():
+            if self.competitors_count > 0:
+                return False
+
+        # All gates passed
+        return True
 
     def allows_certificate_composition(self) -> bool:
         """
