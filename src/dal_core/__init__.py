@@ -72,6 +72,15 @@ from .frame_builder import (
     FrameBuilder,
     build_sentence_frames,
 )
+from .case_sign_matrix import (
+    CaseCompatibilityFamily,
+    SurfaceSignObservation,
+    CaseSignMatrixRow,
+    CaseSignMatrixTrace,
+    CaseSignMatrix,
+    CaseSignMatrixBuilder,
+    build_case_sign_matrix,
+)
 
 __all__ = [
     "Rank",
@@ -130,4 +139,12 @@ __all__ = [
     "collect_inherited_residuals",
     "FrameBuilder",
     "build_sentence_frames",
+    # CaseSignMatrix (PR #13)
+    "CaseCompatibilityFamily",
+    "SurfaceSignObservation",
+    "CaseSignMatrixRow",
+    "CaseSignMatrixTrace",
+    "CaseSignMatrix",
+    "CaseSignMatrixBuilder",
+    "build_case_sign_matrix",
 ]

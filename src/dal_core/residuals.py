@@ -118,6 +118,18 @@ class ResidualType(Enum):
     COMPOSITION_ERASED_MUFRAD_RESIDUAL = "محو بقية مفردية في التركيب"
     COMPOSITION_BLOCKER = "مانع تركيبي"  # Frame composition blocker
 
+    # CaseSignMatrix governance residuals (PR #13)
+    # Matrix is post-frame, pre-operator: compatibilities only, never judgments.
+    MATRIX_REQUIRES_SENTENCE_FRAME = "المصفوفة تتطلب إطار جملة"
+    MATRIX_RANK_CEILING_VIOLATION = "خرق سقف الرتبة في المصفوفة"
+    MATRIX_RESIDUAL_INHERITANCE_VIOLATION = "محو بقايا الإطار في المصفوفة"
+    MATRIX_UNRESOLVED_REQUIRED_SIGN = "علامة لازمة غير محسومة في المصفوفة"
+    MATRIX_ROW_TRACE_MISSING_VECTOR = "صف المصفوفة يفتقد شعاع المفرد"
+    SUBSTITUTE_SIGN_REQUIRES_INFLECTION_CLASS = "علامة فرعية تتطلب فئة صرفية"
+    CASE_SIGN_COMPATIBILITY_UNRESOLVED = "توافق العلامة الإعرابية غير محسوم"
+    ESTIMATED_SIGN_REQUIRES_TRACE_IN_MATRIX = "علامة مقدرة في المصفوفة تتطلب أثرًا"
+    MATRIX_BUILDING_STATUS_UNRESOLVED = "حال البناء غير محسوم في المصفوفة"
+
 
 @dataclass
 class Residual:
