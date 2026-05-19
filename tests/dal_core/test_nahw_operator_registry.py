@@ -1,5 +1,5 @@
 """
-Tests for NahwOperatorRegistry (PR #15).
+Tests for NahwOperatorRegistry (PR #15 + PR #16a).
 
 The registry is post-trigger, pre-operator: it returns typed
 `NahwOperatorEntry` candidates for each `OperatorTriggerFamily` in an
@@ -21,9 +21,13 @@ I. Residual inheritance: lookup.inherited ⊇ trigger.get_all_residuals().
 J. Rank ceiling: every lookup.rank ≤ trigger.rank.
 K. frame_id / matrix_id / trigger_id propagation.
 L. Cross-layer non-regression — uses real frame/matrix/trigger pipeline.
+M. Immutability hardening (PR #16a) — internal indexes are MappingProxyType,
+   reassignment/deletion prevented, mutation attempts fail cleanly.
 """
 
 from __future__ import annotations
+
+from types import MappingProxyType
 
 import pytest
 
@@ -730,3 +734,69 @@ def test_registry_is_immutable():
     public = {n for n in dir(reg) if not n.startswith("_")}
     setters = {n for n in public if n.startswith("add_") or n.startswith("set_") or n == "register"}
     assert setters == set()
+
+
+# ===========================================================================
+# (M) Immutability hardening (PR #16a)
+# ===========================================================================
+
+
+def test_registry_internal_indexes_are_mapping_proxy():
+    """Internal _by_id and _by_family dictionaries must be
+    MappingProxyType to prevent mutation."""
+    reg = build_default_nahw_operator_registry()
+    assert isinstance(reg._by_id, MappingProxyType)
+    assert isinstance(reg._by_family, MappingProxyType)
+
+
+def test_registry_by_id_cannot_be_mutated():
+    """Attempting to mutate _by_id must raise TypeError."""
+    reg = build_default_nahw_operator_registry()
+    with pytest.raises(TypeError):
+        reg._by_id["FAKE"] = next(iter(reg.all_entries()))
+
+
+def test_registry_by_family_cannot_be_mutated():
+    """Attempting to mutate _by_family must raise TypeError."""
+    reg = build_default_nahw_operator_registry()
+    fam = next(iter(reg.all_families()))
+    with pytest.raises(TypeError):
+        reg._by_family[fam] = ()
+
+
+def test_registry_internal_slots_cannot_be_reassigned():
+    """Attempting to reassign internal storage slots must raise
+    AttributeError."""
+    reg = build_default_nahw_operator_registry()
+    with pytest.raises(AttributeError):
+        reg._by_id = {}
+
+
+def test_registry_internal_slots_cannot_be_deleted():
+    """Attempting to delete internal storage slots must raise
+    AttributeError."""
+    reg = build_default_nahw_operator_registry()
+    with pytest.raises(AttributeError):
+        del reg._by_id
+
+
+def test_registry_mutation_attempts_do_not_affect_lookup_results():
+    """Even after attempting mutation (which fails), lookup results
+    remain unchanged."""
+    reg = build_default_nahw_operator_registry()
+    # Snapshot original lookup result.
+    original_jarr = reg.entries_for_family(
+        OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY
+    )
+    original_jarr_ids = {e.operator_id for e in original_jarr}
+
+    # Attempt mutation (will fail).
+    with pytest.raises(TypeError):
+        reg._by_family[OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY] = ()
+
+    # Verify lookup still returns original data.
+    after_attempt = reg.entries_for_family(
+        OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY
+    )
+    after_attempt_ids = {e.operator_id for e in after_attempt}
+    assert after_attempt_ids == original_jarr_ids

@@ -54,6 +54,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from types import MappingProxyType
 from typing import Optional
 
 from dal_core.operator_trigger import OperatorTriggerFamily, OperatorTriggerPotential
@@ -507,7 +508,7 @@ class NahwOperatorRegistry:
     or `rank_entries` method by design.
     """
 
-    __slots__ = ("_entries", "_by_family", "_by_id")
+    __slots__ = ("_entries", "_by_family", "_by_id", "_frozen")
 
     def __init__(self, entries: tuple[NahwOperatorEntry, ...]):
         if not isinstance(entries, tuple):
@@ -530,14 +531,32 @@ class NahwOperatorRegistry:
             by_id[e.operator_id] = e
             by_family.setdefault(e.family, []).append(e)
 
-        # Freeze internals into immutable tuples.
+        # Freeze internals into immutable tuples and wrap dicts with
+        # MappingProxyType to prevent mutation.
         object.__setattr__(self, "_entries", tuple(entries))
         object.__setattr__(
             self,
             "_by_family",
-            {fam: tuple(es) for fam, es in by_family.items()},
+            MappingProxyType({fam: tuple(es) for fam, es in by_family.items()}),
         )
-        object.__setattr__(self, "_by_id", dict(by_id))
+        object.__setattr__(self, "_by_id", MappingProxyType(dict(by_id)))
+        object.__setattr__(self, "_frozen", True)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Prevent post-init reassignment of internal storage."""
+        if getattr(self, "_frozen", False):
+            raise AttributeError(
+                "NahwOperatorRegistry is immutable after construction; "
+                f"cannot set attribute {name!r}."
+            )
+        object.__setattr__(self, name, value)
+
+    def __delattr__(self, name: str) -> None:
+        """Prevent deletion of internal storage."""
+        raise AttributeError(
+            "NahwOperatorRegistry is immutable; "
+            f"cannot delete attribute {name!r}."
+        )
 
     # ----- read-only accessors ------------------------------------------
 
