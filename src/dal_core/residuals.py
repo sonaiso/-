@@ -56,6 +56,20 @@ class ResidualType(Enum):
     NOT_PLACEABLE = "غير صالح للوضع"
     COMPOSITIONAL = "تركيبي"
 
+    # Morphological proof level (NEW: Phase 2.5)
+    MORPH_ANALYSIS_INCOMPLETE = "تحليل صرفي غير مكتمل"
+    ROOT_UNRESOLVED = "جذر غير محسوم"
+    WAZN_UNRESOLVED = "وزن غير محسوم"
+    MABNI_MURAB_COMPETING = "تنافس مبني/معرب"
+    MABNI_MURAB_UNRESOLVED = "مبني/معرب غير محسوم"
+    JAMID_MUSHTAQ_COMPETING = "تنافس جامد/مشتق"
+    DEFINITENESS_UNRESOLVED = "تعريف غير محسوم"
+    GENDER_UNRESOLVED = "جنس غير محسوم"
+    NUMBER_UNRESOLVED = "عدد غير محسوم"
+    VERB_FEATURES_INCOMPLETE = "خصائص فعلية ناقصة"
+    SURFACE_EFFECT_UNRESOLVED = "أثر سطحي غير محسوم"
+    NOT_COMPOSITION_READY = "غير جاهز للتركيب"
+
     # Additional required residuals for compliance
     MISSING_VISIBLE_HARAKA = "حركات مفقودة"
     INVALID_SYLLABLE_PATTERN = "نمط مقطعي غير صحيح"
