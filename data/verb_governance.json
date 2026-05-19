@@ -1,0 +1,43 @@
+{
+  "ضرب": {
+    "governance_family": "basic_transitive",
+    "transitivity": "متعدي",
+    "objects": 1
+  },
+  "عاش": {
+    "governance_family": "intransitive_basic",
+    "transitivity": "لازم",
+    "objects": 0
+  },
+  "انتمى": {
+    "governance_family": "intransitive_prepositional",
+    "transitivity": "لازم",
+    "objects": 0,
+    "prepositional_required": true,
+    "required_prepositions": ["إلى"]
+  },
+  "توكل": {
+    "governance_family": "intransitive_prepositional",
+    "transitivity": "لازم",
+    "objects": 0,
+    "prepositional_required": true,
+    "required_prepositions": ["على"]
+  },
+  "أعطى": {
+    "governance_family": "double_object",
+    "transitivity": "متعدي",
+    "objects": 2
+  },
+  "ظن": {
+    "governance_family": "mental_verb",
+    "transitivity": "متعدي",
+    "objects": 2,
+    "special_class": "أفعال القلوب"
+  },
+  "صير": {
+    "governance_family": "transformational_verb",
+    "transitivity": "متعدي",
+    "objects": 2,
+    "special_class": "أفعال التحويل"
+  }
+}
