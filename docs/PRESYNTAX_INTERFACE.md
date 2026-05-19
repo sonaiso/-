@@ -297,11 +297,17 @@ Residuals(Murakkab) ⊇ ⋃_i Residuals(Mufrad_i)
 
 This is PR #10 of 17. Remaining PreSyntax → MurakkabProof PRs:
 
-### PR #11: SentenceFrameProof
-- NominalFrameCandidate
-- VerbalFrameCandidate
-- ParticleLedFrameCandidate
-- FragmentFrameCandidate
+### PR #11: SentenceFrameProof ✅ IMPLEMENTED
+- ✅ NominalFrameCandidate (جملة اسمية مرشحة)
+- ✅ VerbalFrameCandidate (جملة فعلية مرشحة)
+- ✅ ParticleLedFrameCandidate (جملة بحرف مرشحة)
+- ✅ FragmentFrameCandidate (شبه جملة مرشحة)
+- ✅ UnresolvedFrameCandidate (إطار غير محسوم)
+- ✅ FrameBuilder: list[PreSyntaxMufradVector] → list[SentenceFrameCandidate]
+- ✅ Rank ceiling enforced (Theorem 5)
+- ✅ Residual inheritance enforced (Theorem 6)
+- ✅ 24/24 tests passing
+- See [SENTENCE_FRAME_PROOF.md](SENTENCE_FRAME_PROOF.md) for complete documentation
 
 ### PR #12: CaseSignMatrix
 - Original/Substitute sign mapping
@@ -317,11 +323,11 @@ This is PR #10 of 17. Remaining PreSyntax → MurakkabProof PRs:
 ### PR #14: OperatorCandidate + RelationCandidate
 - OperatorCandidate (not applied operator)
 - RelationCandidate (ISN, TADMN, TAQYID)
-- Operator consumes PreSyntaxVector
+- Operator consumes SentenceFrameCandidate (not PreSyntaxVector directly)
 
 ### PR #15: CaseEffectCandidate
 - CaseEffectCandidate from Operator + Relation + CaseSignMatrix
-- NOT in MufradProof (in composition only)
+- NOT in MufradProof or Frame (in composition only)
 
 ### PR #16: ParseCompetition
 - Competitor resolution
