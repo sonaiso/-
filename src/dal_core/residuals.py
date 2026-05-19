@@ -116,6 +116,7 @@ class ResidualType(Enum):
     OPERATOR_ON_TOKEN_FORBIDDEN = "منع العامل على الرمز المباشر"
     COMPOSITION_RANK_OVER_MUFRAD = "رتبة تركيبية تفوق المفرد"
     COMPOSITION_ERASED_MUFRAD_RESIDUAL = "محو بقية مفردية في التركيب"
+    COMPOSITION_BLOCKER = "مانع تركيبي"  # Frame composition blocker
 
 
 @dataclass
