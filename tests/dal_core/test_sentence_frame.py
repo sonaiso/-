@@ -48,7 +48,7 @@ def make_test_noun_vector(
         type_value="ISM",
         type_id=NounTypeID.ISM_COMMON,
         type_rank=rank,
-        mabni_murab_status=CandidateStatus.MURAB_CANDIDATE,
+        mabni_murab_status=CandidateStatus.RESOLVED_CERTAIN,  # Using actual enum value
         noun_inflection_class=None,
         verb_features=None,
         particle_operator_potential=None,
@@ -75,7 +75,7 @@ def make_test_verb_vector(
         type_value="FIIL",
         type_id=VerbTypeID.FIIL_MADI,
         type_rank=rank,
-        mabni_murab_status=CandidateStatus.MABNI_CANDIDATE,
+        mabni_murab_status=CandidateStatus.RESOLVED_CERTAIN,  # Using actual enum value
         noun_inflection_class=None,
         verb_features=None,
         particle_operator_potential=None,
@@ -103,7 +103,7 @@ def make_test_particle_vector(
         type_value="HARF",
         type_id=particle_type,
         type_rank=rank,
-        mabni_murab_status=CandidateStatus.MABNI_CANDIDATE,
+        mabni_murab_status=CandidateStatus.RESOLVED_CERTAIN,  # Using actual enum value
         noun_inflection_class=None,
         verb_features=None,
         particle_operator_potential=None,
@@ -219,32 +219,32 @@ class TestRankCeilingTheorem:
     def test_frame_rank_equals_min_constituent_rank(self):
         """Frame rank must equal minimum of constituent ranks"""
         noun1 = make_test_noun_vector("noun1", rank=LughaRank.SAMA)
-        noun2 = make_test_noun_vector("noun2", rank=LughaRank.ISTIQRA)
+        noun2 = make_test_noun_vector("noun2", rank=LughaRank.QIYAS)  # Lower rank
 
         frame = NominalFrameCandidate(
             frame_id="test_frame",
             frame_type=FrameType.NOMINAL,
             constituents=(noun1, noun2),
-            frame_rank=LughaRank.ISTIQRA,  # Should be min
+            frame_rank=LughaRank.QIYAS,  # Should be min
             inherited_residuals=(),
             frame_specific_residuals=(),
             trace_id="test_trace",
             lead_noun_index=0,
         )
 
-        assert frame.frame_rank == LughaRank.ISTIQRA
+        assert frame.frame_rank == LughaRank.QIYAS
 
     def test_frame_rank_violation_raises_error(self):
         """Frame rank higher than min constituent rank should raise error"""
-        noun1 = make_test_noun_vector("noun1", rank=LughaRank.ISTIQRA)
-        noun2 = make_test_noun_vector("noun2", rank=LughaRank.QIYAS)
+        noun1 = make_test_noun_vector("noun1", rank=LughaRank.QIYAS)  # Lower rank
+        noun2 = make_test_noun_vector("noun2", rank=LughaRank.FORM)   # Even lower
 
         with pytest.raises(ValueError, match="Rank ceiling violated"):
             NominalFrameCandidate(
                 frame_id="test_frame",
                 frame_type=FrameType.NOMINAL,
                 constituents=(noun1, noun2),
-                frame_rank=LughaRank.SAMA,  # Higher than min (QIYAS)
+                frame_rank=LughaRank.SAMA,  # Higher than min (FORM)
                 inherited_residuals=(),
                 frame_specific_residuals=(),
                 trace_id="test_trace",
@@ -253,12 +253,12 @@ class TestRankCeilingTheorem:
 
     def test_calculate_frame_rank_returns_minimum(self):
         """calculate_frame_rank should return minimum constituent rank"""
-        noun1 = make_test_noun_vector("noun1", rank=LughaRank.SAMA)
-        noun2 = make_test_noun_vector("noun2", rank=LughaRank.ISTIQRA)
-        noun3 = make_test_noun_vector("noun3", rank=LughaRank.QIYAS)
+        noun1 = make_test_noun_vector("noun1", rank=LughaRank.SAMA)      # 3
+        noun2 = make_test_noun_vector("noun2", rank=LughaRank.QIYAS)     # 2
+        noun3 = make_test_noun_vector("noun3", rank=LughaRank.FORM)      # 1
 
         rank = calculate_frame_rank((noun1, noun2, noun3))
-        assert rank == LughaRank.QIYAS  # Lowest
+        assert rank == LughaRank.FORM  # Lowest
 
 
 class TestResidualInheritance:
@@ -267,18 +267,14 @@ class TestResidualInheritance:
     def test_frame_inherits_all_constituent_residuals(self):
         """Frame must inherit ALL residuals from constituents"""
         residual1 = Residual(
-            residual_type=ResidualType.AMBIGUOUS_MORPHOLOGY,
-            severity=ResidualSeverity.WARN,
-            description="Test residual 1",
-            evidence=Evidence(source="test", reason="test", confidence=1.0),
-            suggested_repairs=[],
+            type=ResidualType.ROOT_UNRESOLVED,  # Using actual field name
+            severity=ResidualSeverity.WARNING,
+            message="Test residual 1",  # Using actual field name
         )
         residual2 = Residual(
-            residual_type=ResidualType.MISSING_LEXICON_ENTRY,
-            severity=ResidualSeverity.WARN,
-            description="Test residual 2",
-            evidence=Evidence(source="test", reason="test", confidence=1.0),
-            suggested_repairs=[],
+            type=ResidualType.NOT_ATTESTED,
+            severity=ResidualSeverity.WARNING,
+            message="Test residual 2",
         )
 
         noun1 = make_test_noun_vector("noun1", residuals=(residual1,))
@@ -292,11 +288,9 @@ class TestResidualInheritance:
     def test_frame_preserves_inherited_residuals(self):
         """Frame constructed with inherited residuals preserves them"""
         residual1 = Residual(
-            residual_type=ResidualType.AMBIGUOUS_MORPHOLOGY,
-            severity=ResidualSeverity.WARN,
-            description="Test residual",
-            evidence=Evidence(source="test", reason="test", confidence=1.0),
-            suggested_repairs=[],
+            type=ResidualType.ROOT_UNRESOLVED,  # Using actual field name
+            severity=ResidualSeverity.WARNING,
+            message="Test residual",  # Using actual field name
         )
 
         noun1 = make_test_noun_vector("noun1", residuals=(residual1,))

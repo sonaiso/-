@@ -330,15 +330,10 @@ class FrameBuilder:
 
         # Add frame-specific residual about blocking
         blocker = Residual(
-            residual_type=ResidualType.COMPOSITION_BLOCKER,
+            type=ResidualType.COMPOSITION_BLOCKER,
             severity=ResidualSeverity.BLOCKER,
-            description="Frame constituents not ready for composition",
-            evidence=Evidence(
-                source="FrameBuilder",
-                reason="One or more constituents failed allows_operator_consumption()",
-                confidence=1.0,
-            ),
-            suggested_repairs=[],
+            message="Frame constituents not ready for composition",
+            location="FrameBuilder",
         )
         frame_residuals = (blocker,)
 
