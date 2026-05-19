@@ -56,6 +56,28 @@ class ResidualType(Enum):
     NOT_PLACEABLE = "غير صالح للوضع"
     COMPOSITIONAL = "تركيبي"
 
+    # Additional required residuals for compliance
+    MISSING_VISIBLE_HARAKA = "حركات مفقودة"
+    INVALID_SYLLABLE_PATTERN = "نمط مقطعي غير صحيح"
+    FORM_ONLY_NOT_LUGHA = "صورة فقط لا لغة"
+    WEIGHT_NOT_ATTESTATION = "الوزن لا يثبت العربية"
+    LUGHA_WITNESS_MISSING = "شاهد لغوي مفقود"
+    TYPE_UNRESOLVED = "نوع غير محسوم"
+    TYPE_REQUIRES_LUGHA = "النوع يتطلب ثبوتًا لغويًا"
+    MUFRAD_REQUIRES_FORM = "المفرد يتطلب صورة"
+    MUFRAD_REQUIRES_LUGHA = "المفرد يتطلب ثبوتًا لغويًا"
+    MUFRAD_REQUIRES_TYPE = "المفرد يتطلب نوعًا"
+
+    # Contract violation detection
+    DAL_SEMANTIC_LEAK = "تسرب دلالي في الدال"
+    DAL_GROUNDING_LEAK = "تسرب إحالي في الدال"
+    DAL_MURAD_LEAK = "تسرب مرادي في الدال"
+    DAL_CONTRACT_SILENT_LEVEL_SKIP = "تخطي مستوى صامت"
+    REVERSE_TRACE_MISSING_RAW_INPUT = "أثر عكسي يفتقد المدخل الخام"
+    FOLD_TRACE_MISSING_SOURCE_UNITS = "أثر طي يفتقد الوحدات المصدر"
+    RANK_WEAKEST_LINK_VIOLATION = "خرق سقف أضعف حلقة"
+    RESIDUAL_ERASURE = "محو البقايا"
+
 
 @dataclass
 class Residual:
