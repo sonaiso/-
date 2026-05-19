@@ -81,6 +81,14 @@ from .case_sign_matrix import (
     CaseSignMatrixBuilder,
     build_case_sign_matrix,
 )
+from .operator_trigger import (
+    OperatorTriggerFamily,
+    TriggerSource,
+    OperatorTriggerTrace,
+    OperatorTriggerPotential,
+    OperatorTriggerPotentialBuilder,
+    build_operator_trigger_potential,
+)
 
 __all__ = [
     "Rank",
@@ -147,4 +155,11 @@ __all__ = [
     "CaseSignMatrix",
     "CaseSignMatrixBuilder",
     "build_case_sign_matrix",
+    # OperatorTriggerPotential (PR #14)
+    "OperatorTriggerFamily",
+    "TriggerSource",
+    "OperatorTriggerTrace",
+    "OperatorTriggerPotential",
+    "OperatorTriggerPotentialBuilder",
+    "build_operator_trigger_potential",
 ]
