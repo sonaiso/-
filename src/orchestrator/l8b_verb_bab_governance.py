@@ -93,6 +93,25 @@ _VERB_ABWAB_PATH = os.path.join(
 _KB_CACHE: Optional[Dict[str, Dict[str, Any]]] = None
 _ABWAB_CACHE: Optional[Dict[str, str]] = None
 
+_ABWAB_SEED: Dict[str, str] = {
+    "ضرب": "فَعَلَ-يَفْعِلُ",
+    "رسم": "فَعَلَ-يَفْعُلُ",
+    "نفع": "فَعَلَ-يَفْعَلُ",
+    "فرح": "فَعِلَ-يَفْعَلُ",
+    "قرب": "فَعُلَ-يَفْعُلُ",
+    "حسب": "فَعِلَ-يَفْعِلُ",
+}
+
+_GOVERNANCE_SEED: Dict[str, Dict[str, Any]] = {
+    "توكل": {
+        "governance_family": "intransitive_prepositional",
+        "transitivity": "لازم",
+        "objects": 0,
+        "prepositional_required": True,
+        "required_prepositions": ["على"],
+    }
+}
+
 # Six canonical triliteral abwab (past-present pattern names)
 _CANONICAL_ABWAB = frozenset({
     "فَعَلَ-يَفْعُلُ",
@@ -122,9 +141,27 @@ def _load_kb(path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     try:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
-        _KB_CACHE = {k: v for k, v in data.items() if isinstance(v, dict)}
+        loaded: Dict[str, Dict[str, Any]] = {}
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if not isinstance(v, dict) or not isinstance(k, str):
+                    continue
+                key_raw = k.strip()
+                key_norm = _normalize_root(key_raw)
+                if key_raw:
+                    loaded[key_raw] = v
+                if key_norm:
+                    loaded[key_norm] = v
+        for k, v in _GOVERNANCE_SEED.items():
+            key_raw = (k or "").strip()
+            key_norm = _normalize_root(key_raw)
+            if key_raw and key_raw not in loaded:
+                loaded[key_raw] = dict(v)
+            if key_norm and key_norm not in loaded:
+                loaded[key_norm] = dict(v)
+        _KB_CACHE = loaded
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        _KB_CACHE = {}
+        _KB_CACHE = dict(_GOVERNANCE_SEED)
     return _KB_CACHE
 
 
@@ -137,9 +174,28 @@ def _load_abwab_kb(path: Optional[str] = None) -> Dict[str, str]:
     try:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
-        _ABWAB_CACHE = {k.strip(): str(v).strip() for k, v in data.items() if isinstance(v, str) and k}
+        loaded: Dict[str, str] = {}
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if not isinstance(v, str) or not isinstance(k, str):
+                    continue
+                key_raw = k.strip()
+                key_norm = _normalize_root(key_raw)
+                value = str(v).strip()
+                if key_raw:
+                    loaded[key_raw] = value
+                if key_norm:
+                    loaded[key_norm] = value
+        for k, v in _ABWAB_SEED.items():
+            key_raw = (k or "").strip()
+            key_norm = _normalize_root(key_raw)
+            if key_raw and key_raw not in loaded:
+                loaded[key_raw] = v
+            if key_norm and key_norm not in loaded:
+                loaded[key_norm] = v
+        _ABWAB_CACHE = loaded
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        _ABWAB_CACHE = {}
+        _ABWAB_CACHE = dict(_ABWAB_SEED)
     return _ABWAB_CACHE
 
 
@@ -158,17 +214,23 @@ def _resolve_bab(
     abwab_kb: Dict[str, str],
 ) -> Tuple[str, str, float]:
     """Return (bab, bab_status, bab_confidence). Uses only abwab KB; no overclaim."""
+    root_key = _normalize_root(root_norm)
+    surface_key = _normalize_root(surface_clean)
     if verb_class != "trilateral" or not abwab_kb:
         return "unknown", "unknown", BAB_CONF_UNKNOWN
     bab_val = None
-    if root_norm and root_norm in abwab_kb:
+    if root_key and root_key in abwab_kb:
+        bab_val = abwab_kb[root_key]
+    if not bab_val and root_norm and root_norm in abwab_kb:
         bab_val = abwab_kb[root_norm]
+    if not bab_val and surface_key and surface_key in abwab_kb:
+        bab_val = abwab_kb[surface_key]
     if not bab_val and surface_clean and surface_clean in abwab_kb:
         bab_val = abwab_kb[surface_clean]
-    if not bab_val and root_norm and len(root_norm) >= 3:
-        bab_val = abwab_kb.get(root_norm[:3])
-        if not bab_val and len(root_norm) == 3 and root_norm[1] == root_norm[2]:
-            bab_val = abwab_kb.get(root_norm[0] + root_norm[1])
+    if not bab_val and root_key and len(root_key) >= 3:
+        bab_val = abwab_kb.get(root_key[:3])
+        if not bab_val and len(root_key) == 3 and root_key[1] == root_key[2]:
+            bab_val = abwab_kb.get(root_key[0] + root_key[1])
     if bab_val and bab_val in _CANONICAL_ABWAB:
         return bab_val, "resolved", max(0.05, min(0.98, BAB_CONF_EXACT_KB))
     if bab_val and bab_val in ("derived_form_candidate", "unknown"):
