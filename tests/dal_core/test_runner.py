@@ -50,7 +50,12 @@ def test_non_arabic_blocker():
     print("✓ test_non_arabic_blocker passed")
 
 def test_dclosed_enforces_no_meaning():
-    """Test DClosed enforces meaning=None"""
+    """
+    Test DClosed enforces meaning=None via field absence.
+
+    Theorem 5: لا معنى داخل الدال
+    DClosed must NOT contain fields: meaning, murad, haqiqa_majaz
+    """
     from dal_core.d_mufrad import DClosed
     from dal_core.d_type import TypedDal, DalType
     from dal_core.d_lugha import LughaAttestation, LughaRank
@@ -62,16 +67,11 @@ def test_dclosed_enforces_no_meaning():
     typed_dal = TypedDal(attestation=attestation, dal_type=DalType.ISM)
 
     d = DClosed(typed_dal=typed_dal)
-    assert d.meaning is None
-    assert d.murad is None
-    assert d.haqiqa_majaz is None
 
-    # Try to create with meaning - should fail
-    try:
-        d_bad = DClosed(typed_dal=typed_dal, meaning="some meaning")
-        assert False, "Should have raised ValueError"
-    except (ValueError, TypeError):
-        pass  # Expected
+    # Fields must be absent (not just None)
+    assert not hasattr(d, "meaning"), "DClosed must not have 'meaning' field"
+    assert not hasattr(d, "murad"), "DClosed must not have 'murad' field"
+    assert not hasattr(d, "haqiqa_majaz"), "DClosed must not have 'haqiqa_majaz' field"
 
     print("✓ test_dclosed_enforces_no_meaning passed")
 

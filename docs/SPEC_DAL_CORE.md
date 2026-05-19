@@ -1,5 +1,12 @@
 # مواصفة نظام الدال وحده (DAL Core Specification)
 
+## Implementation Status
+
+**Phase 0/1**: Contracts 1-3 IMPLEMENTED
+**Phase 2+**: Contracts 4-9 SPECIFIED but not implemented
+
+---
+
 ## 1. الهدف (Objective)
 
 ```
@@ -44,7 +51,51 @@ Where:
 
 ## 3. العقود التسعة (Nine Contracts)
 
-### Contract 1: Unicode Carrier
+### ✅ IMPLEMENTED: Contracts 1-3
+
+### Contract 1: Unicode Carrier ✅
+```python
+Carrier(char: str, codepoint: int, index: int, unicode_name: str)
+```
+**Constraint**: Unicode ≠ Letter (المبرهنة 1)
+**Implementation**: `src/dal_core/carriers.py`
+**Tests**: `tests/dal_core/test_carriers.py`
+
+### Contract 2: ArabicAtom ✅
+```python
+ArabicAtom(
+    kind: AtomKind,  # LETTER|VOWEL|MARK|SUKUN|SHADDA|TANWIN|...
+    carrier: Carrier,
+    features: Dict[str, Any],
+    evidence: List[str],
+    rank: float,
+    residuals: List[Residual]
+)
+```
+**Constraint**: ك ≠ "number 22", ك = Atom with recoverable features
+**Implementation**: `src/dal_core/atoms.py`
+**Tests**: `tests/dal_core/test_atoms.py`
+
+### Contract 3: OperativeUnit ✅
+```python
+OperativeUnit(
+    base_letter: ArabicAtom,
+    mark_bundle: List[ArabicAtom],
+    position: int,
+    residuals: List[Residual]
+)
+```
+**Constraint**: حرف + حركة only; orphan vowel → BLOCKER residual
+**Implementation**: `src/dal_core/units.py`
+**Tests**: Covered in test_runner.py
+
+---
+
+### ⚠️ SPECIFIED (Not Implemented): Contracts 4-9
+
+These contracts have data structures defined but lack complete implementation logic.
+
+### Contract 4: Context (PLANNED)
 ```python
 Carrier(char: str, codepoint: int, index: int, unicode_name: str)
 ```
@@ -138,25 +189,27 @@ TypedDal(
 ```
 **Constraint**: No mufrad without type (المبرهنة 4)
 
-### Contract 9: D_mufrad
+### Contract 9: D_mufrad (PLANNED)
 ```python
 DClosed(
     typed_dal: TypedDal,
     is_mufrad: bool,
     is_placeable: bool,
     final_rank: LughaRank,
-    all_residuals: List[Residual],
-    full_trace: Graph,
-    meaning: None = None,
-    murad: None = None,
-    haqiqa_majaz: None = None
+    all_residuals: tuple[Residual, ...],
+    full_trace: dict
 )
 ```
-**Constraint**: meaning|murad|haqiqa_majaz MUST be None (المبرهنة 5)
+**Constraint**: Does NOT contain fields: meaning|murad|haqiqa_majaz (المبرهنة 5)
+**Status**: Data structure defined, closure logic incomplete
+
+---
 
 ## 4. المبرهنات الست (Six Theorems)
 
-### Theorem 1: لا Unicode بلا عقد
+### ✅ ENFORCED: Theorems 1-3
+
+### Theorem 1: لا Unicode بلا عقد ✅
 ```
 ∀ u ∈ Unicode: u ∉ ArabicAtom unless u passes Carrier → Atom contracts
 ```
@@ -166,22 +219,29 @@ DClosed(
 ∀ a ∈ ArabicAtom: a ∉ DClosed
 ```
 
-### Theorem 3: لا عربية من الوزن وحده
+### Theorem 3: لا عربية من الوزن وحده ✅
 ```
 D_form(x) ⊄ D_lugha(x)
 ```
+**Status**: Enforced through separation of FormCandidate and LughaAttestation
 
-### Theorem 4: لا مفرد بلا نوع
+---
+
+### ⚠️ SPECIFIED (Not Tested): Theorems 4-6
+
+### Theorem 4: لا مفرد بلا نوع (PLANNED)
 ```
 ∀ d: DClosed(d) ⇒ ∃ t: D_type(d) = t ∧ t ≠ AMBIGUOUS
 ```
 
-### Theorem 5: لا معنى داخل الدال
+### Theorem 5: لا معنى داخل الدال ✅
 ```
-∀ d ∈ DClosed: d.meaning = None ∧ d.murad = None
+∀ d ∈ DClosed: NOT hasattr(d, 'meaning') ∧ NOT hasattr(d, 'murad')
 ```
+**Status**: ENFORCED - DClosed does not contain these fields
+**Test**: `tests/dal_core/test_runner.py::test_dclosed_enforces_no_meaning`
 
-### Theorem 6: التعلم لا يرفع الرتبة
+### Theorem 6: التعلم لا يرفع الرتبة (PLANNED)
 ```
 ML_rank(candidates) → ordering only
 ML_rank(candidates) ⊄ create(SAMA | TAWATUR | W)
