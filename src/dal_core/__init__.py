@@ -57,6 +57,21 @@ from .type_ids import (
     CompositeTypeID,
 )
 from .presyntax_vector import PreSyntaxMufradVector
+from .sentence_frame import (
+    FrameType,
+    SentenceFrameCandidate,
+    NominalFrameCandidate,
+    VerbalFrameCandidate,
+    ParticleLedFrameCandidate,
+    FragmentFrameCandidate,
+    UnresolvedFrameCandidate,
+    calculate_frame_rank,
+    collect_inherited_residuals,
+)
+from .frame_builder import (
+    FrameBuilder,
+    build_sentence_frames,
+)
 
 __all__ = [
     "Rank",
@@ -103,4 +118,16 @@ __all__ = [
     "ParticleTypeID",
     "CompositeTypeID",
     "PreSyntaxMufradVector",
+    # Sentence frames
+    "FrameType",
+    "SentenceFrameCandidate",
+    "NominalFrameCandidate",
+    "VerbalFrameCandidate",
+    "ParticleLedFrameCandidate",
+    "FragmentFrameCandidate",
+    "UnresolvedFrameCandidate",
+    "calculate_frame_rank",
+    "collect_inherited_residuals",
+    "FrameBuilder",
+    "build_sentence_frames",
 ]
