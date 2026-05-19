@@ -130,6 +130,20 @@ class ResidualType(Enum):
     ESTIMATED_SIGN_REQUIRES_TRACE_IN_MATRIX = "علامة مقدرة في المصفوفة تتطلب أثرًا"
     MATRIX_BUILDING_STATUS_UNRESOLVED = "حال البناء غير محسوم في المصفوفة"
 
+    # OperatorTriggerPotential governance residuals (PR #14)
+    # Trigger layer is post-matrix, pre-operator: candidate operator FAMILIES
+    # only, never operators, never relations, never case effects. Competing
+    # trigger families are PRESERVED, never silently resolved.
+    TRIGGER_REQUIRES_FRAME_AND_MATRIX = "محفز العامل يتطلب إطارًا ومصفوفة"
+    TRIGGER_FRAME_MATRIX_ID_MISMATCH = "عدم تطابق معرّف الإطار بين الإطار والمصفوفة"
+    TRIGGER_RANK_CEILING_VIOLATION = "خرق سقف الرتبة في محفزات العوامل"
+    TRIGGER_RESIDUAL_INHERITANCE_VIOLATION = "محو بقايا المصفوفة في محفزات العوامل"
+    TRIGGER_UNRESOLVED_FRAME = "إطار غير محسوم: لا محفز عامل ممكن"
+    TRIGGER_FRAGMENT_NO_FAMILY = "إطار شبه جملة لم يستدعِ أيّ عائلة عامل"
+    TRIGGER_BLOCKED_BY_MATRIX_RESIDUAL = "محفز عامل مع بقايا مانعة في المصفوفة"
+    TRIGGER_PARTICLE_TYPE_UNRESOLVED = "نوع الحرف غير محسوم: لا محفز محدد"
+    TRIGGER_COMPETING_FAMILIES_PRESERVED = "محفزات عوامل متنافسة محفوظة دون حسم"
+
 
 @dataclass
 class Residual:
