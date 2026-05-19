@@ -24,7 +24,7 @@ _VALENCY_SEED_FALLBACK: Dict[str, Dict[str, Any]] = {
 
 def _data_dir() -> Path:
     here = Path(__file__).resolve()
-    repo_root = here.parents[3] if len(here.parents) >= 4 else here.parent
+    repo_root = here.parents[3] if len(here.parents) >= 4 else Path.cwd()
     for base in [Path.cwd(), repo_root, here.parent.parent.parent]:
         d = base / "data" / "valency_seed.json"
         if d.exists():
