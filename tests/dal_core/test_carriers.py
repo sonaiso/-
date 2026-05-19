@@ -18,9 +18,12 @@ class TestCarrierContract:
         المبرهنة 1: Unicode ≠ حرف
         A Unicode character is NOT a letter until classified
         """
+        from dal_core.atoms import ArabicAtom
+
         # Raw string 'ك' is NOT an ArabicAtom
         char = 'ك'
-        assert not isinstance(char, object)  # It's just a string
+        assert isinstance(char, str)  # It's a string
+        assert not isinstance(char, ArabicAtom)  # NOT an atom yet
 
         # It becomes a Carrier through the contract
         carrier, residuals = make_carrier(char, 0)
