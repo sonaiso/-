@@ -114,7 +114,7 @@ _GOVERNANCE_SEED: Dict[str, Dict[str, Any]] = {
 
 
 def _insert_raw_and_normalized_keys(target: Dict[str, Any], source: Dict[str, Any]) -> None:
-    """Insert source entries under both raw and normalized keys without overwriting existing entries."""
+    """Insert entries under raw and normalized keys so both exact and normalized lookups stay deterministic."""
     for k, v in source.items():
         if not isinstance(k, str):
             continue

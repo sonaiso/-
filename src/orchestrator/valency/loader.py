@@ -60,7 +60,7 @@ def load_valency_kb(force_reload: bool = False) -> Dict[str, ValencyFrame]:
         except (json.JSONDecodeError, OSError):
             pass
     if not raw_items:
-        raw_items = [{"root": k, **v} for k, v in _VALENCY_SEED_FALLBACK.items()]
+        raw_items = [{"root": k, "_source": "fallback_seed", **v} for k, v in _VALENCY_SEED_FALLBACK.items()]
 
     for item in raw_items:
         if not isinstance(item, dict):
@@ -83,7 +83,7 @@ def load_valency_kb(force_reload: bool = False) -> Dict[str, ValencyFrame]:
             valency_class=valency_class,
             required_roles=required,
             optional_roles=optional,
-            source="valency_seed.json",
+            source=str(item.get("_source") or "valency_seed.json"),
             confidence=CONF_EXACT_KB,
         )
         out[root_norm] = frame
@@ -96,7 +96,7 @@ def load_valency_kb(force_reload: bool = False) -> Dict[str, ValencyFrame]:
             valency_class=str(seed_frame.get("class") or "unknown"),
             required_roles=list(seed_frame.get("required_roles") or []),
             optional_roles=list(seed_frame.get("optional_roles") or []),
-            source="valency_seed.json",
+            source="fallback_seed",
             confidence=CONF_EXACT_KB,
         )
     _VALENCY_CACHE = out
