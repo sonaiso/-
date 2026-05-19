@@ -92,6 +92,31 @@ class ResidualType(Enum):
     RANK_WEAKEST_LINK_VIOLATION = "خرق سقف أضعف حلقة"
     RESIDUAL_ERASURE = "محو البقايا"
 
+    # MufradProof residuals
+    MUFRAD_MORPH_PROOF_MISSING = "برهان صرفي مفقود للمفرد"
+    MUFRAD_SURFACE_PROOF_MISSING = "برهان سطحي مفقود للمفرد"
+    MUFRAD_SEGMENTATION_UNRESOLVED = "تقطيع غير محسوم للمفرد"
+    MUFRAD_STEM_UNRESOLVED = "جذع غير محسوم للمفرد"
+    MUFRAD_CLITICS_UNRESOLVED = "ملحقات غير محسومة للمفرد"
+    MUFRAD_ROOT_COMPETITION_UNRESOLVED = "تنافس جذور غير محسوم"
+    MUFRAD_WAZN_COMPETITION_UNRESOLVED = "تنافس أوزان غير محسوم"
+    MUFRAD_DERIVATION_UNRESOLVED = "اشتقاق غير محسوم"
+    MUFRAD_JAMID_MUSHTAQ_UNRESOLVED = "جامد/مشتق غير محسوم"
+    MUFRAD_MABNI_MURAB_UNRESOLVED = "مبني/معرب غير محسوم"
+    MUFRAD_DEFINITENESS_UNRESOLVED = "تعريف/تنكير غير محسوم"
+    MUFRAD_GENDER_UNRESOLVED = "جنس غير محسوم"
+    MUFRAD_NUMBER_UNRESOLVED = "عدد غير محسوم"
+    MUFRAD_VERB_FEATURES_REQUIRED = "خصائص فعلية مطلوبة"
+    MUFRAD_NOUN_INFLECTION_REQUIRED = "تصريف اسمي مطلوب"
+    MUFRAD_PARTICLE_OPERATOR_POTENTIAL_REQUIRED = "احتمال عملية حرفية مطلوب"
+    MUFRAD_COMPETITORS_UNRESOLVED = "منافسون غير محسومين للمفرد"
+    MUFRAD_NOT_READY_FOR_COMPOSITION = "المفرد غير جاهز للتركيب"
+    CASE_EFFECT_LEAK_IN_MUFRAD = "تسرب أثر إعرابي في المفرد"
+    SYNTAX_ROLE_LEAK_IN_MUFRAD = "تسرب دور نحوي في المفرد"
+    OPERATOR_ON_TOKEN_FORBIDDEN = "منع العامل على الرمز المباشر"
+    COMPOSITION_RANK_OVER_MUFRAD = "رتبة تركيبية تفوق المفرد"
+    COMPOSITION_ERASED_MUFRAD_RESIDUAL = "محو بقية مفردية في التركيب"
+
 
 @dataclass
 class Residual:

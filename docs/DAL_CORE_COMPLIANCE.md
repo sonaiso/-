@@ -418,6 +418,129 @@ class DClosed:
 
 ---
 
+## D_mufrad Distinction: Basic vs Composition-Ready
+
+**Added**: 2026-05-19
+
+The `dal_core` package now distinguishes between:
+
+### 1. DClosed (Basic D_mufrad)
+
+Basic closed signifier without morphological proof:
+
+```python
+@dataclass(frozen=True)
+class DClosed:
+    typed_dal: TypedDal
+    is_mufrad: bool
+    is_placeable: bool
+    final_rank: LughaRank
+    all_residuals: tuple[Residual, ...]
+    full_trace: dict
+```
+
+**Sufficient for**: Lexical closure only (الدال وحده)
+
+**Not sufficient for**: Syntax composition
+
+### 2. MufradProof (Composition-Ready D_mufrad)
+
+Composition-ready closed signifier with complete morphological and surface proof:
+
+```python
+@dataclass(frozen=True)
+class MufradProof:
+    # Core dal-mufrad data
+    form: FormCandidate
+    lugha: LughaAttestation
+    type: TypedDal
+
+    # Morphological proof (REQUIRED for composition)
+    segmentation: SegmentationProof
+    stem: StemProof
+    clitics: tuple[CliticProof, ...]
+    root_candidates: tuple[RootCandidate, ...]
+    wazn_candidates: tuple[WaznCandidate, ...]
+
+    # Morphological status
+    derivation_status: CandidateStatus
+    jamid_mushtaq_status: CandidateStatus
+    mabni_murab_status: CandidateStatus
+    definiteness_status: CandidateStatus
+    gender_status: CandidateStatus
+    number_status: CandidateStatus
+
+    # Type-specific features
+    verb_features: Optional[VerbFeatureProof]
+    noun_inflection_class: Optional[NounInflectionClass]
+    particle_operator_potential: Optional[ParticleOperatorPotential]
+
+    # Surface effects (ALLOWED)
+    surface_effects: tuple[SurfaceEffect, ...]
+
+    # Composition readiness
+    composition_readiness: CompositionReadiness
+
+    # Proof metadata
+    rank: LughaRank
+    residuals: tuple[Residual, ...]
+    trace: dict
+    competitors: tuple[MufradProof, ...]
+```
+
+**Sufficient for**: Syntax composition
+
+**Critical Principle**: D_mufrad هو أساس أرقام التركيب (D_mufrad is the foundation of composition ranks)
+
+### Key Differences
+
+| Aspect | DClosed | MufradProof |
+|--------|---------|-------------|
+| Morphological proof | Not required | Required (segmentation, stem, clitics) |
+| Surface effects | Not tracked | Tracked with evidence/rank |
+| Composition readiness | Not defined | Explicit state |
+| Root/pattern candidates | Not tracked | Tracked with competition |
+| Type-specific features | Not required | Required per type |
+| Syntax composition | Not allowed | Required input |
+
+### The 10 MufradProof Theorems
+
+1. **No composition before MufradProof**: Operators reject raw tokens
+2. **SurfaceEffect belongs to MufradProof**: Visible marks tracked
+3. **CaseEffect does not enter MufradProof**: Syntax effects forbidden
+4. **MorphFeatures belong as candidates**: Evidence + rank + residuals
+5. **SyntaxRole does not enter MufradProof**: Roles are outputs only
+6. **Operators work on MufradProof only**: Token consumption forbidden
+7. **Composition never raises rank**: Weakest-link ceiling preserved
+8. **Composition inherits residuals**: No residual erasure
+9. **No certificate with incomplete proof**: Blockers prevent certificate
+10. **No certificate with unresolved competitors**: Competition blocks certificate
+
+### Composition Readiness States
+
+- `NOT_READY`: Missing form/lugha/type or blockers
+- `READY_AS_HYPOTHESIS`: Basic proof, some features unresolved
+- `READY_FOR_COMPOSITION`: Sufficient for syntax, some residuals remain
+- `READY_FOR_CERTIFICATE_COMPOSITION`: Full proof, no blockers, rank sufficient
+
+### Implementation Status
+
+**Phase**: Composition-Ready D_mufrad
+**Status**: ✅ IMPLEMENTED
+**Tests**: 15/15 passing (`test_mufrad_proof.py`)
+**Documentation**: `docs/DAL_CORE_MUFRAD_PROOF.md`
+
+**Files**:
+- `src/dal_core/mufrad_proof.py` - MufradProof structure
+- `src/dal_core/morph_features.py` - Morphological proof types
+- `src/dal_core/surface_effects.py` - Surface effect types
+- `src/dal_core/composition_readiness.py` - Readiness states
+- `src/dal_core/operator_contract.py` - Operator stub enforcing MufradProof consumption
+
+**Next Phase**: Full syntax composition (not implemented)
+
+---
+
 ### ✅ Condition 9: Every theorem has a test
 
 **Status**: **COMPLIANT**
