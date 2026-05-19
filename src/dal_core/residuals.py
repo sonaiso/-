@@ -153,6 +153,17 @@ class ResidualType(Enum):
     REGISTRY_ENTRY_HAS_SCHOOL_DISAGREEMENT = "خلاف مدارس في مدخل عامل"
     REGISTRY_LOOKUP_RANK_CEILED = "تعليق رتبة في استعلام السجل"
 
+    # OperatorCandidate governance residuals (PR #17)
+    # Candidate layer is post-registry: typed (TriggerSource, RegistryEntry)
+    # pairs only. Never applies operators, never produces relations/case effects.
+    # Preserves ALL competing sources and entries without resolution.
+    OPERATOR_CANDIDATE_REQUIRES_TRIGGER_AND_REGISTRY = "المرشح العاملي يتطلب محفزًا وسجلًا"
+    OPERATOR_CANDIDATE_RANK_CEILING_VIOLATION = "خرق سقف الرتبة في المرشح العاملي"
+    OPERATOR_CANDIDATE_RESIDUAL_INHERITANCE_VIOLATION = "محو بقايا في المرشح العاملي"
+    OPERATOR_CANDIDATE_NO_REGISTRY_ENTRIES = "لا مدخلات سجلية للمرشح العاملي"
+    OPERATOR_CANDIDATE_COMPETITION_PRESERVED = "منافسة مرشحين عامليين محفوظة دون حسم"
+    OPERATOR_CANDIDATE_TRACE_MISSING = "أثر المرشح العاملي مفقود"
+
 
 @dataclass
 class Residual:

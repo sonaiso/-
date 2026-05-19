@@ -103,6 +103,12 @@ from .nahw_operator_registry import (
     NahwOperatorRegistry,
     build_default_nahw_operator_registry,
 )
+from .operator_candidate import (
+    OperatorCandidateTrace,
+    OperatorCandidate,
+    OperatorCandidateSet,
+    build_operator_candidates,
+)
 
 __all__ = [
     "Rank",
@@ -189,4 +195,9 @@ __all__ = [
     "OperatorRegistryLookupResult",
     "NahwOperatorRegistry",
     "build_default_nahw_operator_registry",
+    # OperatorCandidate (PR #17)
+    "OperatorCandidateTrace",
+    "OperatorCandidate",
+    "OperatorCandidateSet",
+    "build_operator_candidates",
 ]
