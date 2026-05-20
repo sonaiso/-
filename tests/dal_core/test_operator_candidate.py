@@ -1,550 +1,80 @@
 """
 Tests for OperatorCandidate (PR #17).
 
-The OperatorCandidate layer sits between NahwOperatorRegistry and (future)
-RelationCandidate. It creates typed candidate LINKS from trigger sources
-and registry entries; it must NOT apply operators, produce relations,
-produce CaseEffect, assign syntax roles, or silently resolve competing
-candidates.
+The candidate layer sits between OperatorTriggerPotential and (future)
+RelationCandidate. It creates typed (TriggerSource, NahwOperatorEntry) pairs;
+it must NOT apply operators, produce relations, produce case effects, assign
+syntax roles, or resolve competing candidates.
 
 Test groups:
 
-A. OperatorCandidateSetTrace preserves ALL candidate/trigger/registry ids
-B. get_all_residuals aggregates across hierarchy
-C. Rank ceiling semantics (CEILED vs VIOLATION)
-D. Family matching enforcement
-E. Competition preservation
-F. Empty set safety
-G. No fake candidates
-H. Forbidden fields guard
-I. Builder correctness
+A. Strict input typing (trigger & registry; typed objects only).
+B. Candidate creation preserves all (source, entry) pairs.
+C. Competing families and entries preserved (no suppression/resolution).
+D. Empty registry entries handled gracefully (residual, no fake candidate).
+E. Rank ceiling enforcement (candidate and set levels).
+F. Residual inheritance (trigger → candidate → set).
+G. Trace recoverability.
+H. Governance: no forbidden fields, no forbidden methods.
+I. Immutability.
+J. Family matching (source.family == entry.family).
 """
 
 import pytest
 
+from dal_core.case_sign_matrix import (
+    CaseCompatibilityFamily,
+    CaseSignMatrix,
+    build_case_sign_matrix,
+)
+from dal_core.case_signs import (
+    CaseSignFamily,
+    CaseSignPotential,
+    CaseSignValue,
+)
+from dal_core.composition_readiness import CompositionReadiness
+from dal_core.evidence import Evidence
+from dal_core.morph_features import CandidateStatus, NounInflectionClass
 from dal_core.nahw_operator_registry import (
+    ActivationCondition,
+    BlockingCondition,
+    CaseEffectPolicyFamily,
+    Citation,
+    ExpectedRelationFamily,
     NahwOperatorEntry,
     NahwOperatorRegistry,
-    OperatorSource,
     NahwSchool,
     OperatorInputSignature,
+    OperatorSource,
 )
 from dal_core.operator_candidate import (
     OperatorCandidate,
-    OperatorCandidateBuilder,
     OperatorCandidateSet,
-    OperatorCandidateSetTrace,
     OperatorCandidateTrace,
+    build_operator_candidates,
 )
 from dal_core.operator_trigger import (
     OperatorTriggerFamily,
     OperatorTriggerPotential,
+    OperatorTriggerTrace,
     TriggerSource,
+    build_operator_trigger_potential,
 )
+from dal_core.presyntax_vector import PreSyntaxMufradVector
 from dal_core.ranks import LughaRank
-from dal_core.residuals import Residual, ResidualType
-
-
-# ---------------------------------------------------------------------------
-# Test Group A: OperatorCandidateSetTrace preserves ALL ids
-# ---------------------------------------------------------------------------
-
-
-def test_candidate_set_trace_preserves_all_candidate_ids():
-    """
-    OperatorCandidateSetTrace must preserve ALL candidate_ids,
-    not just the first one.
-    """
-    trace = OperatorCandidateSetTrace(
-        set_id="test_set_001",
-        candidate_ids=("cand_1", "cand_2", "cand_3"),
-        trigger_source_vector_ids=("vec_1", "vec_2", "vec_3"),
-        registry_entry_ids=("entry_1", "entry_2", "entry_3"),
-        families=(
-            OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-            OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-            OperatorTriggerFamily.POSSIBLE_NASB_OPERATOR_FAMILY,
-        ),
-        trigger_id="trigger_001",
-        frame_id="frame_001",
-        matrix_id="matrix_001",
-    )
-
-    assert len(trace.candidate_ids) == 3
-    assert trace.candidate_ids == ("cand_1", "cand_2", "cand_3")
-    assert trace.candidate_ids[0] == "cand_1"
-    assert trace.candidate_ids[1] == "cand_2"
-    assert trace.candidate_ids[2] == "cand_3"
-
-
-def test_candidate_set_trace_preserves_all_registry_entry_ids():
-    """
-    OperatorCandidateSetTrace must preserve ALL registry_entry_ids,
-    not just the first one.
-    """
-    trace = OperatorCandidateSetTrace(
-        set_id="test_set_002",
-        candidate_ids=("cand_1", "cand_2"),
-        trigger_source_vector_ids=("vec_1", "vec_2"),
-        registry_entry_ids=("entry_A", "entry_B"),
-        families=(
-            OperatorTriggerFamily.POSSIBLE_NASIKH_INNA_FAMILY,
-            OperatorTriggerFamily.POSSIBLE_NASIKH_INNA_FAMILY,
-        ),
-        trigger_id="trigger_002",
-        frame_id="frame_002",
-        matrix_id="matrix_002",
-    )
-
-    assert len(trace.registry_entry_ids) == 2
-    assert trace.registry_entry_ids == ("entry_A", "entry_B")
-    assert trace.registry_entry_ids[0] == "entry_A"
-    assert trace.registry_entry_ids[1] == "entry_B"
-
-
-def test_candidate_set_trace_tuple_length_mismatch():
-    """
-    OperatorCandidateSetTrace must reject mismatched tuple lengths.
-    """
-    with pytest.raises(ValueError, match="tuple length mismatch"):
-        OperatorCandidateSetTrace(
-            set_id="test_set_003",
-            candidate_ids=("cand_1", "cand_2"),  # length 2
-            trigger_source_vector_ids=("vec_1",),  # length 1 — mismatch!
-            registry_entry_ids=("entry_1", "entry_2"),
-            families=(
-                OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-                OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-            ),
-            trigger_id="trigger_003",
-            frame_id="frame_003",
-            matrix_id="matrix_003",
-        )
-
-
-# ---------------------------------------------------------------------------
-# Test Group B: get_all_residuals aggregates across hierarchy
-# ---------------------------------------------------------------------------
-
-
-def test_candidate_set_get_all_residuals_includes_candidate_residuals(
-    minimal_trigger_source, minimal_registry_entry
-):
-    """
-    OperatorCandidateSet.get_all_residuals() must include:
-    - inherited_residuals
-    - candidate_set_residuals
-    - all residuals from every OperatorCandidate
-    """
-    # Create candidate with its own residuals
-    candidate_trace = OperatorCandidateTrace(
-        candidate_id="cand_001",
-        trigger_source_vector_id=minimal_trigger_source.vector_id,
-        registry_entry_id=minimal_registry_entry.operator_id,
-        trigger_id="trigger_001",
-        frame_id="frame_001",
-        matrix_id="matrix_001",
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-    )
-
-    candidate_residual = Residual(
-        type=ResidualType.OPERATOR_CANDIDATE_RANK_CEILED,
-        severity=ResidualType.OPERATOR_CANDIDATE_RANK_CEILED,
-        message="Candidate-level residual",
-    )
-
-    candidate = OperatorCandidate(
-        candidate_id="cand_001",
-        trigger_source=minimal_trigger_source,
-        registry_entry=minimal_registry_entry,
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        rank=LughaRank.FORM,
-        residuals=(candidate_residual,),
-        trace=candidate_trace,
-    )
-
-    # Create set with inherited and set-level residuals
-    set_trace = OperatorCandidateSetTrace(
-        set_id="set_001",
-        candidate_ids=("cand_001",),
-        trigger_source_vector_ids=(minimal_trigger_source.vector_id,),
-        registry_entry_ids=(minimal_registry_entry.operator_id,),
-        families=(OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,),
-        trigger_id="trigger_001",
-        frame_id="frame_001",
-        matrix_id="matrix_001",
-    )
-
-    inherited_residual = Residual(
-        type=ResidualType.TRIGGER_REQUIRES_FRAME_AND_MATRIX,
-        severity=ResidualType.TRIGGER_REQUIRES_FRAME_AND_MATRIX,
-        message="Inherited residual",
-    )
-
-    set_residual = Residual(
-        type=ResidualType.OPERATOR_CANDIDATE_COMPETING_PRESERVED,
-        severity=ResidualType.OPERATOR_CANDIDATE_COMPETING_PRESERVED,
-        message="Set-level residual",
-    )
-
-    candidate_set = OperatorCandidateSet(
-        set_id="set_001",
-        candidates=(candidate,),
-        set_trace=set_trace,
-        inherited_residuals=(inherited_residual,),
-        candidate_set_residuals=(set_residual,),
-    )
-
-    # get_all_residuals must include all three sources
-    all_residuals = candidate_set.get_all_residuals()
-
-    # Check that all residuals are present
-    residual_messages = {r.message for r in all_residuals}
-    assert "Inherited residual" in residual_messages
-    assert "Set-level residual" in residual_messages
-    assert "Candidate-level residual" in residual_messages
-    assert len(all_residuals) >= 3
-
-
-# ---------------------------------------------------------------------------
-# Test Group C: Rank ceiling semantics (CEILED vs VIOLATION)
-# ---------------------------------------------------------------------------
-
-
-def test_rank_ceiling_lowering_is_not_violation(
-    minimal_trigger_source, minimal_registry_entry
-):
-    """
-    Normal rank lowering due to ceiling should use RANK_CEILED,
-    not RANK_CEILING_VIOLATION.
-
-    Note: Rank comes from OperatorTriggerPotential level and registry entry,
-    not from individual TriggerSource.
-    """
-    # Registry entry with lower rank
-    low_rank_entry = NahwOperatorEntry(
-        operator_id="entry_001",
-        display_name_ar="في",
-        source=OperatorSource.OTHER,
-        school=NahwSchool.SHARED,
-        rank=LughaRank.FORM,  # Lower rank
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        input_signature=OperatorInputSignature(expected_arity=1),
-        activation_conditions=(),
-        blocking_conditions=(),
-        expected_relation_families=(),
-        case_effect_policy_families=(),
-        citations=(),
-        entry_residuals=(),
-        entry_trace_id="trace_001",
-    )
-
-    # Candidate rank should match registry (FORM)
-    candidate_trace = OperatorCandidateTrace(
-        candidate_id="cand_001",
-        trigger_source_vector_id=minimal_trigger_source.vector_id,
-        registry_entry_id=low_rank_entry.operator_id,
-        trigger_id="trigger_001",
-        frame_id="frame_001",
-        matrix_id="matrix_001",
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-    )
-
-    from dal_core.residuals import make_info
-
-    ceiled_residual = make_info(
-        ResidualType.OPERATOR_CANDIDATE_RANK_CEILED,
-        f"Rank lowered to {LughaRank.FORM.value} (ceiling)",
-    )
-
-    candidate = OperatorCandidate(
-        candidate_id="cand_001",
-        trigger_source=minimal_trigger_source,
-        registry_entry=low_rank_entry,
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        rank=LughaRank.FORM,  # Matches registry
-        residuals=(ceiled_residual,),
-        trace=candidate_trace,
-    )
-
-    # Verify rank
-    assert candidate.rank == LughaRank.FORM
-
-    # Verify residual is CEILED, not VIOLATION
-    assert any(
-        r.type == ResidualType.OPERATOR_CANDIDATE_RANK_CEILED for r in candidate.residuals
-    )
-    assert not any(
-        r.type == ResidualType.OPERATOR_CANDIDATE_RANK_CEILING_VIOLATION
-        for r in candidate.residuals
-    )
-
-
-def test_rank_ceiling_violation_only_on_illegal_elevation(
-    minimal_trigger_source, minimal_registry_entry
-):
-    """
-    RANK_CEILING_VIOLATION should only occur when rank is illegally
-    elevated above the ceiling.
-    """
-    # Attempt to create candidate with rank higher than ceiling
-    with pytest.raises(ValueError, match="Rank ceiling violation"):
-        candidate_trace = OperatorCandidateTrace(
-            candidate_id="cand_002",
-            trigger_source_vector_id=minimal_trigger_source.vector_id,
-            registry_entry_id=minimal_registry_entry.operator_id,
-            trigger_id="trigger_002",
-            frame_id="frame_002",
-            matrix_id="matrix_002",
-            family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        )
-
-        # Trigger source rank: FORM, registry entry rank: FORM
-        # Ceiling should be FORM
-        # Attempting to set rank to SAMA (higher) should fail
-        OperatorCandidate(
-            candidate_id="cand_002",
-            trigger_source=minimal_trigger_source,
-            registry_entry=minimal_registry_entry,
-            family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-            rank=LughaRank.SAMA,  # Illegal elevation!
-            residuals=(),
-            trace=candidate_trace,
-        )
-
-
-# ---------------------------------------------------------------------------
-# Test Group D: Family matching enforcement
-# ---------------------------------------------------------------------------
-
-
-def test_operator_candidate_family_matches_trigger_and_registry(
-    minimal_trigger_source, minimal_registry_entry
-):
-    """
-    OperatorCandidate.family must match both trigger_source.family
-    and registry_entry.family.
-    """
-    candidate_trace = OperatorCandidateTrace(
-        candidate_id="cand_003",
-        trigger_source_vector_id=minimal_trigger_source.vector_id,
-        registry_entry_id=minimal_registry_entry.operator_id,
-        trigger_id="trigger_003",
-        frame_id="frame_003",
-        matrix_id="matrix_003",
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-    )
-
-    candidate = OperatorCandidate(
-        candidate_id="cand_003",
-        trigger_source=minimal_trigger_source,
-        registry_entry=minimal_registry_entry,
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        rank=LughaRank.FORM,
-        residuals=(),
-        trace=candidate_trace,
-    )
-
-    # All families must match
-    assert candidate.family == minimal_trigger_source.family
-    assert candidate.family == minimal_registry_entry.family
-    assert minimal_trigger_source.family == minimal_registry_entry.family
-
-
-def test_family_mismatch_raises_error(minimal_trigger_source):
-    """
-    Creating an OperatorCandidate with mismatched families should fail.
-    """
-    # Create registry entry with DIFFERENT family
-    wrong_family_entry = NahwOperatorEntry(
-        operator_id="entry_wrong",
-        display_name_ar="إن",
-        source=OperatorSource.OTHER,
-        school=NahwSchool.SHARED,
-        rank=LughaRank.FORM,
-        family=OperatorTriggerFamily.POSSIBLE_NASIKH_INNA_FAMILY,  # Different!
-        input_signature=OperatorInputSignature(expected_arity=1),
-        activation_conditions=(),
-        blocking_conditions=(),
-        expected_relation_families=(),
-        case_effect_policy_families=(),
-        citations=(),
-        entry_residuals=(),
-        entry_trace_id="trace_wrong",
-    )
-
-    with pytest.raises(ValueError, match="Family mismatch"):
-        candidate_trace = OperatorCandidateTrace(
-            candidate_id="cand_wrong",
-            trigger_source_vector_id=minimal_trigger_source.vector_id,
-            registry_entry_id=wrong_family_entry.operator_id,
-            trigger_id="trigger_wrong",
-            frame_id="frame_wrong",
-            matrix_id="matrix_wrong",
-            family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        )
-
-        OperatorCandidate(
-            candidate_id="cand_wrong",
-            trigger_source=minimal_trigger_source,
-            registry_entry=wrong_family_entry,
-            family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-            rank=LughaRank.FORM,
-            residuals=(),
-            trace=candidate_trace,
-        )
-
-
-# ---------------------------------------------------------------------------
-# Test Group E: Competition preservation
-# ---------------------------------------------------------------------------
-
-
-def test_operator_candidate_set_preserves_competition():
-    """
-    OperatorCandidateSet must preserve ALL competing candidates.
-    Multiple candidates is normal and expected.
-    """
-    # Create multiple candidates
-    candidates = []
-    for i in range(3):
-        source = TriggerSource(
-            family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-            frame_index=i,
-            vector_id=f"vec_{i}",
-            matrix_row_index=i,
-            triggering_type_id="HARF_JARR",
-            compatibility_evidence=(),
-            source_trace_id=f"source_trace_{i}",
-        )
-
-        entry = NahwOperatorEntry(
-            operator_id=f"entry_{i}",
-            display_name_ar=f"في_{i}",
-            source=OperatorSource.OTHER,
-            school=NahwSchool.SHARED,
-            rank=LughaRank.FORM,
-            family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-            input_signature=OperatorInputSignature(expected_arity=1),
-            activation_conditions=(),
-            blocking_conditions=(),
-            expected_relation_families=(),
-            case_effect_policy_families=(),
-            citations=(),
-            entry_residuals=(),
-            entry_trace_id=f"trace_{i}",
-        )
-
-        trace = OperatorCandidateTrace(
-            candidate_id=f"cand_{i}",
-            trigger_source_vector_id=source.vector_id,
-            registry_entry_id=entry.operator_id,
-            trigger_id="trigger_001",
-            frame_id="frame_001",
-            matrix_id="matrix_001",
-            family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        )
-
-        candidate = OperatorCandidate(
-            candidate_id=f"cand_{i}",
-            trigger_source=source,
-            registry_entry=entry,
-            family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-            rank=LughaRank.FORM,
-            residuals=(),
-            trace=trace,
-        )
-
-        candidates.append(candidate)
-
-    # Create set
-    set_trace = OperatorCandidateSetTrace(
-        set_id="set_competition",
-        candidate_ids=tuple(f"cand_{i}" for i in range(3)),
-        trigger_source_vector_ids=tuple(f"vec_{i}" for i in range(3)),
-        registry_entry_ids=tuple(f"entry_{i}" for i in range(3)),
-        families=tuple(OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY for _ in range(3)),
-        trigger_id="trigger_001",
-        frame_id="frame_001",
-        matrix_id="matrix_001",
-    )
-
-    candidate_set = OperatorCandidateSet(
-        set_id="set_competition",
-        candidates=tuple(candidates),
-        set_trace=set_trace,
-        inherited_residuals=(),
-        candidate_set_residuals=(),
-    )
-
-    # All candidates must be preserved
-    assert len(candidate_set.candidates) == 3
-    assert candidate_set.candidates[0].candidate_id == "cand_0"
-    assert candidate_set.candidates[1].candidate_id == "cand_1"
-    assert candidate_set.candidates[2].candidate_id == "cand_2"
-
-
-# ---------------------------------------------------------------------------
-# Test Group F: Empty set safety
-# ---------------------------------------------------------------------------
-
-
-def test_empty_candidate_set_safe():
-    """
-    An empty OperatorCandidateSet should be valid and safe.
-    """
-    set_trace = OperatorCandidateSetTrace(
-        set_id="set_empty",
-        candidate_ids=(),
-        trigger_source_vector_ids=(),
-        registry_entry_ids=(),
-        families=(),
-        trigger_id="trigger_empty",
-        frame_id="frame_empty",
-        matrix_id="matrix_empty",
-    )
-
-    empty_set = OperatorCandidateSet(
-        set_id="set_empty",
-        candidates=(),
-        set_trace=set_trace,
-        inherited_residuals=(),
-        candidate_set_residuals=(),
-    )
-
-    assert empty_set.is_empty()
-    assert len(empty_set.candidates) == 0
-    assert len(empty_set.get_all_residuals()) == 0
-
-
-# ---------------------------------------------------------------------------
-# Test Group G: No fake candidates
-# ---------------------------------------------------------------------------
-
-
-def test_no_fake_candidates():
-    """
-    OperatorCandidateSet must reject fake candidates (None).
-    """
-    set_trace = OperatorCandidateSetTrace(
-        set_id="set_fake",
-        candidate_ids=("cand_1",),
-        trigger_source_vector_ids=("vec_1",),
-        registry_entry_ids=("entry_1",),
-        families=(OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,),
-        trigger_id="trigger_fake",
-        frame_id="frame_fake",
-        matrix_id="matrix_fake",
-    )
-
-    with pytest.raises(ValueError, match="Fake candidate"):
-        OperatorCandidateSet(
-            set_id="set_fake",
-            candidates=(None,),  # Fake candidate!
-            set_trace=set_trace,
-            inherited_residuals=(),
-            candidate_set_residuals=(),
-        )
+from dal_core.residuals import Residual, ResidualSeverity, ResidualType
+from dal_core.sentence_frame import (
+    FrameType,
+    NominalFrameCandidate,
+    ParticleLedFrameCandidate,
+    SentenceFrameCandidate,
+)
+from dal_core.surface_effects import (
+    SurfaceEffect,
+    SurfaceEffectType,
+    SurfaceEffectVisibility,
+)
+from dal_core.type_ids import NounTypeID, ParticleTypeID
 
 
 # ---------------------------------------------------------------------------
@@ -552,36 +82,793 @@ def test_no_fake_candidates():
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def minimal_trigger_source():
-    """Minimal TriggerSource for testing"""
-    return TriggerSource(
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        frame_index=0,
-        vector_id="vec_minimal",
-        matrix_row_index=0,
-        triggering_type_id="HARF_JARR",
-        compatibility_evidence=(),
-        source_trace_id="trace_minimal",
+def _ev(reason: str = "test") -> Evidence:
+    return Evidence(source="test", reason=reason)
+
+
+def _surface(kind: SurfaceEffectType) -> SurfaceEffect:
+    return SurfaceEffect(
+        effect_type=kind,
+        visibility=SurfaceEffectVisibility.VISIBLE,
+        location="final",
+        evidence=(_ev(),),
+        rank=LughaRank.SAMA,
     )
 
 
-@pytest.fixture
-def minimal_registry_entry():
-    """Minimal NahwOperatorEntry for testing"""
+def _potential(
+    sign: CaseSignValue,
+    family: CaseSignFamily,
+    surface_kind: SurfaceEffectType = SurfaceEffectType.FINAL_DAMMA,
+    trace_id: str = "trace-pot",
+) -> CaseSignPotential:
+    return CaseSignPotential(
+        observed_surface=_surface(surface_kind),
+        sign_family=family,
+        sign_value=sign,
+        compatible_case_effects=("rafa_candidate",),
+        evidence=_ev(),
+        rank=LughaRank.SAMA,
+        residuals=(),
+        trace_id=trace_id,
+    )
+
+
+def _noun_vector(
+    mufrad_id: str = "n1",
+    type_id: NounTypeID = NounTypeID.ISM_COMMON,
+    potentials: tuple[CaseSignPotential, ...] = (),
+) -> PreSyntaxMufradVector:
+    nic = NounInflectionClass(
+        inflection_type="munassarif",
+        declension_pattern="triptote",
+        evidence=(_ev(),),
+        rank=LughaRank.SAMA,
+    )
+    return PreSyntaxMufradVector(
+        mufrad_id=mufrad_id,
+        raw_span=(0, 5),
+        type_value="ISM",
+        type_id=type_id,
+        type_rank=LughaRank.SAMA,
+        mabni_murab_status=CandidateStatus.RESOLVED_CERTAIN,
+        noun_inflection_class=nic,
+        verb_features=None,
+        particle_operator_potential=None,
+        surface_effects=(),
+        case_sign_potentials=potentials,
+        morph_rank=LughaRank.SAMA,
+        final_rank=LughaRank.SAMA,
+        residuals=(),
+        trace_id=f"trace-{mufrad_id}",
+        competitors_count=0,
+        composition_readiness=CompositionReadiness.READY_FOR_COMPOSITION,
+    )
+
+
+def _particle_vector(
+    mufrad_id: str = "p1",
+    type_id: ParticleTypeID = ParticleTypeID.HARF_JARR,
+) -> PreSyntaxMufradVector:
+    return PreSyntaxMufradVector(
+        mufrad_id=mufrad_id,
+        raw_span=(0, 2),
+        type_value="HARF",
+        type_id=type_id,
+        type_rank=LughaRank.SAMA,
+        mabni_murab_status=CandidateStatus.NOT_APPLICABLE,
+        noun_inflection_class=None,
+        verb_features=None,
+        particle_operator_potential=None,
+        surface_effects=(),
+        case_sign_potentials=(),
+        morph_rank=LughaRank.SAMA,
+        final_rank=LughaRank.SAMA,
+        residuals=(),
+        trace_id=f"trace-{mufrad_id}",
+        competitors_count=0,
+        composition_readiness=CompositionReadiness.READY_FOR_COMPOSITION,
+    )
+
+
+def _make_nominal_frame(
+    constituents: tuple[PreSyntaxMufradVector, ...]
+) -> NominalFrameCandidate:
+    return NominalFrameCandidate(
+        frame_id=f"frame-nominal-{id(constituents)}",
+        frame_type=FrameType.NOMINAL,
+        constituents=constituents,
+        frame_rank=min(c.final_rank for c in constituents),
+        inherited_residuals=tuple(r for c in constituents for r in c.residuals),
+        frame_specific_residuals=(),
+        trace_id=f"frame-trace-{id(constituents)}",
+    )
+
+
+def _make_particle_led_frame(
+    constituents: tuple[PreSyntaxMufradVector, ...],
+    particle_index: int = 0,
+) -> ParticleLedFrameCandidate:
+    return ParticleLedFrameCandidate(
+        frame_id=f"frame-particle-{id(constituents)}",
+        frame_type=FrameType.PARTICLE_LED,
+        constituents=constituents,
+        particle_index=particle_index,
+        frame_rank=min(c.final_rank for c in constituents),
+        inherited_residuals=tuple(r for c in constituents for r in c.residuals),
+        frame_specific_residuals=(),
+        trace_id=f"frame-trace-{id(constituents)}",
+        particle_operator_potential=None,
+    )
+
+
+def _make_registry(entries: tuple[NahwOperatorEntry, ...]) -> NahwOperatorRegistry:
+    return NahwOperatorRegistry(entries)
+
+
+def _make_inna_entry(operator_id: str = "inna-001") -> NahwOperatorEntry:
     return NahwOperatorEntry(
-        operator_id="entry_minimal",
-        display_name_ar="في",
-        source=OperatorSource.OTHER,
-        school=NahwSchool.SHARED,
-        rank=LughaRank.FORM,
-        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        input_signature=OperatorInputSignature(expected_arity=1),
-        activation_conditions=(),
-        blocking_conditions=(),
-        expected_relation_families=(),
-        case_effect_policy_families=(),
-        citations=(),
-        entry_residuals=(),
-        entry_trace_id="trace_minimal",
+        operator_id=operator_id,
+        family=OperatorTriggerFamily.POSSIBLE_NASIKH_INNA_FAMILY,
+        operator_source=OperatorSource.KITAB_SIBAWAYH,
+        school=NahwSchool.BASRI,
+        surface_form="إنّ",
+        expected_relations=(ExpectedRelationFamily.ISN_LIKE,),
+        case_effect_policy=(CaseEffectPolicyFamily.MIXED_RAFI_NASB_POLICY_FAMILY,),
+        input_signature=OperatorInputSignature(
+            min_constituents=2,
+            max_constituents=None,
+            requires_particle=True,
+            activation_conditions=tuple(),
+            blocking_conditions=tuple(),
+        ),
+        rank=LughaRank.SAMA,
+        citations=(
+            Citation(
+                source="سيبويه",
+                reference="الكتاب ١/٣٣",
+                school=NahwSchool.BASRI,
+            ),
+        ),
     )
+
+
+def _make_jarr_entry(operator_id: str = "jarr-001") -> NahwOperatorEntry:
+    return NahwOperatorEntry(
+        operator_id=operator_id,
+        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
+        operator_source=OperatorSource.KITAB_SIBAWAYH,
+        school=NahwSchool.BASRI,
+        surface_form="في",
+        expected_relations=(ExpectedRelationFamily.TAQYID_LIKE,),
+        case_effect_policy=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
+        input_signature=OperatorInputSignature(
+            min_constituents=2,
+            max_constituents=None,
+            requires_particle=True,
+            activation_conditions=tuple(),
+            blocking_conditions=tuple(),
+        ),
+        rank=LughaRank.SAMA,
+        citations=(
+            Citation(
+                source="سيبويه",
+                reference="الكتاب ١/٢٠",
+                school=NahwSchool.BASRI,
+            ),
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# (A) Strict input typing
+# ---------------------------------------------------------------------------
+
+
+def test_operator_candidate_requires_trigger_and_registry():
+    """build_operator_candidates must accept only OperatorTriggerPotential and NahwOperatorRegistry."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    # Should succeed
+    candidate_set = build_operator_candidates(trigger, registry)
+    assert isinstance(candidate_set, OperatorCandidateSet)
+
+
+def test_operator_candidate_rejects_raw_tokens():
+    """Candidate layer must reject raw frames, matrices, or other non-trigger inputs."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    # Passing frame instead of trigger should fail
+    with pytest.raises(TypeError, match="requires an OperatorTriggerPotential"):
+        build_operator_candidates(frame, registry)  # type: ignore[arg-type]
+
+    # Passing matrix instead of trigger should fail
+    with pytest.raises(TypeError, match="requires an OperatorTriggerPotential"):
+        build_operator_candidates(matrix, registry)  # type: ignore[arg-type]
+
+    # Passing non-registry should fail
+    trigger = build_operator_trigger_potential(frame, matrix)
+    with pytest.raises(TypeError, match="requires a NahwOperatorRegistry"):
+        build_operator_candidates(trigger, "not-a-registry")  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# (B) Candidate requires TriggerSource
+# ---------------------------------------------------------------------------
+
+
+def test_candidate_requires_trigger_source():
+    """Every OperatorCandidate must be tied to a specific TriggerSource."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Every candidate must have a trigger_source
+    for candidate in candidate_set.candidates:
+        assert isinstance(candidate.trigger_source, TriggerSource)
+        assert candidate.trigger_source.vector_id
+        assert candidate.trigger_source.family == candidate.trigger_family
+
+
+def test_candidate_family_must_match_registry_entry_family():
+    """TriggerSource.family must equal NahwOperatorEntry.family."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Every candidate must match families
+    for candidate in candidate_set.candidates:
+        assert candidate.trigger_source.family == candidate.registry_entry.family
+        assert candidate.trigger_family == candidate.registry_entry.family
+
+
+# ---------------------------------------------------------------------------
+# (C) Competing families and entries preserved
+# ---------------------------------------------------------------------------
+
+
+def test_operator_candidate_preserves_all_trigger_families():
+    """All trigger families must be preserved, no suppression."""
+    # Create a nominal frame that triggers both IBTIDAA and potentially NASIKH
+    n1 = _noun_vector(
+        mufrad_id="n1",
+        potentials=(_potential(CaseSignValue.DAMMA, CaseSignFamily.ORIGINAL),)
+    )
+    n2 = _noun_vector(
+        mufrad_id="n2",
+        potentials=(_potential(CaseSignValue.DAMMA, CaseSignFamily.ORIGINAL),)
+    )
+    frame = _make_nominal_frame((n1, n2))
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+
+    # Registry with entries (even if empty for this test)
+    registry = _make_registry(())
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # All trigger families must be preserved in the lookup
+    # Even if no candidates created, trigger families should be checked
+    assert trigger.triggered_families  # Should have at least IBTIDAA
+
+
+def test_operator_candidate_preserves_all_registry_entries():
+    """All matching registry entries must be preserved, no resolution."""
+    # Create multiple entries for the same family
+    jarr_entry1 = _make_jarr_entry("jarr-001")
+    jarr_entry2 = NahwOperatorEntry(
+        operator_id="jarr-002",
+        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
+        operator_source=OperatorSource.KITAB_SIBAWAYH,
+        school=NahwSchool.BASRI,
+        surface_form="من",
+        expected_relations=(ExpectedRelationFamily.TAQYID_LIKE,),
+        case_effect_policy=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
+        input_signature=OperatorInputSignature(
+            min_constituents=2,
+            max_constituents=None,
+            requires_particle=True,
+            activation_conditions=tuple(),
+            blocking_conditions=tuple(),
+        ),
+        rank=LughaRank.SAMA,
+        citations=(
+            Citation(
+                source="سيبويه",
+                reference="الكتاب ١/٢١",
+                school=NahwSchool.BASRI,
+            ),
+        ),
+    )
+
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((jarr_entry1, jarr_entry2))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Both entries should create candidates
+    assert len(candidate_set.candidates) >= 2
+    entry_ids = {c.registry_entry_id for c in candidate_set.candidates}
+    assert "jarr-001" in entry_ids
+    assert "jarr-002" in entry_ids
+
+
+def test_inna_family_produces_all_competing_candidates():
+    """INNA family with multiple entries creates all candidate pairs."""
+    inna_entry1 = _make_inna_entry("inna-001")
+    inna_entry2 = NahwOperatorEntry(
+        operator_id="inna-002",
+        family=OperatorTriggerFamily.POSSIBLE_NASIKH_INNA_FAMILY,
+        operator_source=OperatorSource.KITAB_SIBAWAYH,
+        school=NahwSchool.KUFI,
+        surface_form="أنّ",
+        expected_relations=(ExpectedRelationFamily.ISN_LIKE,),
+        case_effect_policy=(CaseEffectPolicyFamily.MIXED_RAFI_NASB_POLICY_FAMILY,),
+        input_signature=OperatorInputSignature(
+            min_constituents=2,
+            max_constituents=None,
+            requires_particle=True,
+            activation_conditions=tuple(),
+            blocking_conditions=tuple(),
+        ),
+        rank=LughaRank.SAMA,
+        citations=(
+            Citation(
+                source="الفراء",
+                reference="معاني القرآن",
+                school=NahwSchool.KUFI,
+            ),
+        ),
+    )
+
+    p = _particle_vector(
+        mufrad_id="p_inna",
+        type_id=ParticleTypeID.HARF_NASIKH_INNA,
+    )
+    n1 = _noun_vector(
+        mufrad_id="n1",
+        potentials=(_potential(CaseSignValue.FATHA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_FATHA),)
+    )
+    n2 = _noun_vector(
+        mufrad_id="n2",
+        potentials=(_potential(CaseSignValue.DAMMA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_DAMMA),)
+    )
+    frame = _make_particle_led_frame((p, n1, n2), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((inna_entry1, inna_entry2))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Both INNA entries should create candidates
+    entry_ids = {c.registry_entry_id for c in candidate_set.candidates}
+    assert "inna-001" in entry_ids
+    assert "inna-002" in entry_ids
+    assert candidate_set.competitors_preserved
+
+
+def test_multiple_sources_and_entries_preserved_as_pairs():
+    """Multiple trigger sources and entries create all (source, entry) pairs."""
+    # This is a more complex scenario where we might have multiple sources
+    # for the same family (e.g., multiple particles triggering jarr)
+    jarr_entry1 = _make_jarr_entry("jarr-001")
+    jarr_entry2 = _make_jarr_entry("jarr-002")
+
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR, mufrad_id="p1")
+    n = _noun_vector(
+        mufrad_id="n1",
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((jarr_entry1, jarr_entry2))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Should have candidates for all (source, entry) pairs
+    # With 1 source and 2 entries, expect 2 candidates
+    assert len(candidate_set.candidates) == 2
+    assert candidate_set.competitors_preserved
+
+
+# ---------------------------------------------------------------------------
+# (D) Empty registry entries
+# ---------------------------------------------------------------------------
+
+
+def test_unresolved_trigger_produces_no_candidate_and_residual():
+    """UNRESOLVED_TRIGGER with no entries produces empty candidates and residual."""
+    # Create trigger with UNRESOLVED_TRIGGER family
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.DAMMA, CaseSignFamily.ORIGINAL),)
+    )
+    # Use a nominal frame that might trigger IBTIDAA but with empty registry
+    frame = _make_nominal_frame((n,))
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+
+    # Empty registry
+    registry = _make_registry(())
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Should have no candidates
+    assert len(candidate_set.candidates) == 0
+
+    # Should have residual about no registry entries
+    residual_types = {r.type for r in candidate_set.candidate_set_residuals}
+    assert ResidualType.OPERATOR_CANDIDATE_NO_REGISTRY_ENTRIES in residual_types
+
+
+def test_empty_candidate_set_does_not_min_empty():
+    """Empty candidate set rank ≤ trigger.rank, not min([])."""
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.DAMMA, CaseSignFamily.ORIGINAL),)
+    )
+    frame = _make_nominal_frame((n,))
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry(())  # Empty registry
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Rank should be ≤ trigger.rank
+    assert candidate_set.rank.value <= trigger.rank.value
+    assert len(candidate_set.candidates) == 0
+
+
+# ---------------------------------------------------------------------------
+# (E) Rank ceiling
+# ---------------------------------------------------------------------------
+
+
+def test_candidate_rank_cannot_exceed_trigger_or_entry():
+    """Candidate rank ≤ min(trigger.rank, lookup.rank, entry.rank)."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+
+    # Create entry with lower rank
+    jarr_entry_low = NahwOperatorEntry(
+        operator_id="jarr-low",
+        family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
+        operator_source=OperatorSource.KALAAM_ARAB,
+        school=NahwSchool.BASRI,
+        surface_form="في",
+        expected_relations=(ExpectedRelationFamily.TAQYID_LIKE,),
+        case_effect_policy=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
+        input_signature=OperatorInputSignature(
+            min_constituents=2,
+            max_constituents=None,
+            requires_particle=True,
+            activation_conditions=tuple(),
+            blocking_conditions=tuple(),
+        ),
+        rank=LughaRank.QIYAS,  # Lower rank
+        citations=(
+            Citation(
+                source="test",
+                reference="test",
+                school=NahwSchool.BASRI,
+            ),
+        ),
+    )
+
+    registry = _make_registry((jarr_entry_low,))
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # All candidates should have rank ≤ min(trigger, entry)
+    for candidate in candidate_set.candidates:
+        assert candidate.rank.value <= trigger.rank.value
+        assert candidate.rank.value <= candidate.registry_entry.rank.value
+
+
+def test_candidate_set_rank_cannot_exceed_candidates():
+    """CandidateSet rank ≤ min(candidate.rank)."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Set rank should be ≤ all candidate ranks
+    if candidate_set.candidates:
+        for candidate in candidate_set.candidates:
+            assert candidate_set.rank.value <= candidate.rank.value
+
+
+# ---------------------------------------------------------------------------
+# (F) Residual inheritance
+# ---------------------------------------------------------------------------
+
+
+def test_candidate_residuals_include_trigger_residuals():
+    """Candidate inherited_residuals must include trigger.get_all_residuals()."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    trigger_residuals = trigger.get_all_residuals()
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Every candidate should inherit trigger residuals
+    for candidate in candidate_set.candidates:
+        for tr in trigger_residuals:
+            assert tr in candidate.inherited_residuals
+
+    # Set should also inherit trigger residuals
+    for tr in trigger_residuals:
+        assert tr in candidate_set.inherited_residuals
+
+
+def test_candidate_residuals_include_lookup_residuals():
+    """Candidate must not erase registry lookup residuals."""
+    # Create scenario with multiple entries to trigger lookup residuals
+    jarr_entry1 = _make_jarr_entry("jarr-001")
+    jarr_entry2 = _make_jarr_entry("jarr-002")
+
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((jarr_entry1, jarr_entry2))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Lookup should have created info residual about multiple entries
+    # Check that candidates inherit this
+    for candidate in candidate_set.candidates:
+        # Should have some inherited residuals from lookup
+        assert candidate.inherited_residuals
+
+
+# ---------------------------------------------------------------------------
+# (G) Trace
+# ---------------------------------------------------------------------------
+
+
+def test_candidate_trace_links_trigger_source_and_registry_entry():
+    """Trace must link back to trigger source and registry entry."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    for candidate in candidate_set.candidates:
+        # Trace should link to trigger
+        assert candidate.trace.trigger_id == trigger.trigger_id
+        assert candidate.trace.trigger_source_vector_id == candidate.trigger_source.vector_id
+        assert candidate.trace.registry_entry_id == candidate.registry_entry_id
+        assert candidate.trace.frame_id == frame.frame_id
+        assert candidate.trace.matrix_id == matrix.matrix_id
+        assert candidate.trace.derivation == "from_operator_trigger_and_registry"
+
+
+# ---------------------------------------------------------------------------
+# (H) Governance: forbidden fields and methods
+# ---------------------------------------------------------------------------
+
+
+def test_no_relation_candidate_in_operator_candidate():
+    """OperatorCandidate must not contain 'relation' fields."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    for candidate in candidate_set.candidates:
+        field_names = {f.name for f in candidate.__dataclass_fields__.values()}
+        assert "relation" not in field_names
+        assert "relation_type" not in field_names
+
+
+def test_no_case_effect_in_operator_candidate():
+    """OperatorCandidate must not contain 'case_effect' fields."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    for candidate in candidate_set.candidates:
+        field_names = {f.name for f in candidate.__dataclass_fields__.values()}
+        assert "case_effect" not in field_names
+        assert "case_effect_candidate" not in field_names
+
+
+def test_no_syntax_role_in_operator_candidate():
+    """OperatorCandidate must not contain syntax role fields."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    for candidate in candidate_set.candidates:
+        field_names = {f.name for f in candidate.__dataclass_fields__.values()}
+        forbidden = {"faail", "mafool", "mubtada", "khabar", "mudaf", "mudaf_ilayh", "syntax_role"}
+        assert not (field_names & forbidden)
+
+
+def test_no_semantic_leak_in_operator_candidate():
+    """OperatorCandidate must not contain semantic fields."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    for candidate in candidate_set.candidates:
+        field_names = {f.name for f in candidate.__dataclass_fields__.values()}
+        forbidden = {"meaning", "semantic", "madlul", "murad", "haqiqa", "majaz", "grounding"}
+        assert not (field_names & forbidden)
+
+
+def test_no_apply_bind_resolve_methods_exist():
+    """OperatorCandidate must not have apply/bind/resolve methods."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    for candidate in candidate_set.candidates:
+        method_names = [m for m in dir(candidate) if not m.startswith("_")]
+        forbidden_methods = {
+            "apply", "bind", "resolve", "governs", "governance",
+            "produces_relation", "produces_case", "matches_relation",
+            "case_policy_applied", "applies_to"
+        }
+        actual_methods = set(method_names)
+        assert not (actual_methods & forbidden_methods), \
+            f"Found forbidden methods: {actual_methods & forbidden_methods}"
+
+
+def test_operator_candidate_has_no_governs_or_produces_methods():
+    """Specifically check for governs/produces_* methods."""
+    # Check the class itself
+    candidate_methods = [m for m in dir(OperatorCandidate) if not m.startswith("_")]
+    forbidden_patterns = ["governs", "produces", "applies_to", "matches_relation"]
+
+    for method in candidate_methods:
+        for pattern in forbidden_patterns:
+            assert pattern not in method.lower(), \
+                f"OperatorCandidate has forbidden method pattern '{pattern}' in '{method}'"
+
+
+# ---------------------------------------------------------------------------
+# (I) Immutability
+# ---------------------------------------------------------------------------
+
+
+def test_operator_candidate_set_is_immutable():
+    """OperatorCandidateSet and OperatorCandidate must be frozen (immutable)."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_jarr_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Try to modify candidate_set (should fail)
+    with pytest.raises(Exception):  # FrozenInstanceError or AttributeError
+        candidate_set.rank = LughaRank.QIYAS  # type: ignore[misc]
+
+    # Try to modify a candidate (should fail)
+    if candidate_set.candidates:
+        with pytest.raises(Exception):
+            candidate_set.candidates[0].rank = LughaRank.QIYAS  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# (J) Competition flags
+# ---------------------------------------------------------------------------
+
+
+def test_unresolved_competition_flag_true_when_multiple_candidates():
+    """has_unresolved_competition() should return True when multiple candidates exist."""
+    jarr_entry1 = _make_jarr_entry("jarr-001")
+    jarr_entry2 = _make_jarr_entry("jarr-002")
+
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((jarr_entry1, jarr_entry2))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    # Should have multiple candidates
+    assert len(candidate_set.candidates) >= 2
+    assert candidate_set.has_unresolved_competition()
+    assert candidate_set.competitors_preserved

@@ -106,9 +106,8 @@ from .nahw_operator_registry import (
 from .operator_candidate import (
     OperatorCandidateTrace,
     OperatorCandidate,
-    OperatorCandidateSetTrace,
     OperatorCandidateSet,
-    OperatorCandidateBuilder,
+    build_operator_candidates,
 )
 
 __all__ = [
@@ -199,7 +198,6 @@ __all__ = [
     # OperatorCandidate (PR #17)
     "OperatorCandidateTrace",
     "OperatorCandidate",
-    "OperatorCandidateSetTrace",
     "OperatorCandidateSet",
-    "OperatorCandidateBuilder",
+    "build_operator_candidates",
 ]
