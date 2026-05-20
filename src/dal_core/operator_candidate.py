@@ -114,6 +114,18 @@ _FORBIDDEN_FIELDS: frozenset[str] = frozenset(
 )
 
 
+def _resolve_trace_source_vector_id(
+    candidates: list[OperatorCandidate],
+    trigger: OperatorTriggerPotential,
+) -> str:
+    """Resolve source vector id for candidate-set trace provenance."""
+    if candidates:
+        return candidates[0].trigger_source.vector_id
+    if trigger.sources:
+        return trigger.sources[0].vector_id
+    return "no-sources"
+
+
 # ---------------------------------------------------------------------------
 # OperatorCandidateTrace
 # ---------------------------------------------------------------------------
@@ -680,14 +692,11 @@ def build_operator_candidates(
 
     # Create trace for the set (placeholder if empty)
     set_trace_id = f"candidate-set-{uuid.uuid4().hex[:12]}"
+    set_trace_source_vector_id = _resolve_trace_source_vector_id(candidates, trigger)
     set_trace = OperatorCandidateTrace(
         candidate_id=set_trace_id,
         trigger_id=trigger.trigger_id,
-        trigger_source_vector_id=(
-            candidates[0].trigger_source.vector_id
-            if candidates
-            else (trigger.sources[0].vector_id if trigger.sources else "no-sources")
-        ),
+        trigger_source_vector_id=set_trace_source_vector_id,
         registry_entry_id=(
             candidates[0].registry_entry_id if candidates else "no-entries"
         ),

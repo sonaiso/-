@@ -174,11 +174,17 @@ def _particle_vector(
 def _make_nominal_frame(
     constituents: tuple[PreSyntaxMufradVector, ...]
 ) -> NominalFrameCandidate:
+    lead_noun_index = next(
+        (i for i, c in enumerate(constituents) if isinstance(c.type_id, NounTypeID)),
+        None,
+    )
+    if lead_noun_index is None:
+        raise ValueError("Nominal test frame requires at least one noun constituent.")
     return NominalFrameCandidate(
         frame_id=f"frame-nominal-{id(constituents)}",
         frame_type=FrameType.NOMINAL,
         constituents=constituents,
-        lead_noun_index=0,
+        lead_noun_index=lead_noun_index,
         frame_rank=min(c.final_rank for c in constituents),
         inherited_residuals=tuple(r for c in constituents for r in c.residuals),
         frame_specific_residuals=(),
