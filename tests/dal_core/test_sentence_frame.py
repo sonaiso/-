@@ -28,6 +28,7 @@ from dal_core.frame_builder import FrameBuilder, build_sentence_frames
 from dal_core.presyntax_vector import PreSyntaxMufradVector
 from dal_core.type_ids import NounTypeID, VerbTypeID, ParticleTypeID
 from dal_core.ranks import LughaRank
+from dal_core.mufrad_axes import BinaaJudgment, IshtiqaqJudgment
 from dal_core.residuals import Residual, ResidualType, ResidualSeverity
 from dal_core.evidence import Evidence
 from dal_core.composition_readiness import CompositionReadiness
@@ -60,6 +61,11 @@ def make_test_noun_vector(
         trace_id="test_trace",
         competitors_count=0,
         composition_readiness=readiness,
+        # PR-F: ready vectors used in frame-builder tests must have
+        # resolved mufrad axes; otherwise the 5th gate (correctly) blocks
+        # operator consumption and the frame builder rejects the frame.
+        binaa_judgment=BinaaJudgment.MUERAB,
+        ishtiqaq_judgment=IshtiqaqJudgment.JAMID,
     )
 
 
@@ -87,6 +93,8 @@ def make_test_verb_vector(
         trace_id="test_trace",
         competitors_count=0,
         composition_readiness=readiness,
+        binaa_judgment=BinaaJudgment.MABNI,
+        ishtiqaq_judgment=IshtiqaqJudgment.NOT_APPLICABLE,
     )
 
 
@@ -115,6 +123,8 @@ def make_test_particle_vector(
         trace_id="test_trace",
         competitors_count=0,
         composition_readiness=readiness,
+        binaa_judgment=BinaaJudgment.MABNI,
+        ishtiqaq_judgment=IshtiqaqJudgment.NOT_APPLICABLE,
     )
 
 
