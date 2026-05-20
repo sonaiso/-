@@ -281,9 +281,10 @@ After merging PR #21, the project can claim:
 - Implement 8-layer transition domain architecture
 - Reference this governance doc as foundation
 
-**PR #23-25**: Rank/Residual/CandidateSet algebras
+**Roadmap PR #23-25**: Rank/Residual/CandidateSet algebras (planned, not yet created)
 - Build on ordered form foundation
 - Enforce positional invariants in algebra operations
+- Note: PR numbers are roadmap identifiers; see `PR_STATUS_INDEX.md` for GitHub PR mapping
 
 ---
 

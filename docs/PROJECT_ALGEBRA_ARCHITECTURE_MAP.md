@@ -518,13 +518,15 @@ A8: Usage
 This architecture map informs the project roadmap:
 
 ```text
-PR #22: Architecture Map (this PR)
-PR #23-36: Dal-only completion (A2-A4)
-PR #37+: Wadh' boundary (A5)
+GitHub PR #22: Architecture Map (this PR) ✅ Merged
+Roadmap PR #23-36: Dal-only completion (A2-A4) 📋 Planned
+Roadmap PR #37+: Wadh' boundary (A5) 📋 Planned
 Future: Madlul/Dalalah/Usage (A6-A8)
 Future: Murad inference (A9)
 Research: Hukm application (A10)
 ```
+
+**Note**: PR numbers are roadmap planning identifiers. See `PR_STATUS_INDEX.md` for actual GitHub PR mappings.
 
 See `PROJECT_ALGEBRA_ROADMAP.md` for detailed PR sequence.
 

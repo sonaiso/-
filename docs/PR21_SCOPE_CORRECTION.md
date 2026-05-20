@@ -12,11 +12,14 @@ I initially implemented **F1 Dal Algebra Signature** (8-layer transition domain 
 
 This was **wrong** because the correct architectural order is:
 
-1. **PR #21**: Ordered Dal Form Governance (governance docs **only**)
-2. **PR #22**: Minimal Dal Transition Signature (dal_algebra.py implementation)
-3. **PR #23-25**: Rank/Residual/CandidateSet algebras
+1. **PR #21**: Ordered Dal Form Governance (governance docs **only**) ✅ Merged
+2. **Roadmap PR #22**: Project Algebra Architecture Map (docs **only**) ✅ Merged as GitHub PR #22
+3. **Roadmap PR #23**: Minimal Dal Transition Signature (dal_algebra.py implementation) 📋 Planned
+4. **Roadmap PR #24-25**: Rank/Residual algebras 📋 Planned
 
-I jumped ahead and implemented PR #22 content when I should have done PR #21 governance first.
+**Note**: PR numbers after #22 are roadmap identifiers; see `PR_STATUS_INDEX.md` for GitHub PR mapping.
+
+I jumped ahead and implemented planned content when I should have done PR #21 governance first.
 
 ---
 
@@ -210,9 +213,12 @@ The error was **architectural**, not technical:
 - But it was **premature** (should come after governance)
 
 **Correct order**:
-1. **First**: Establish what "ordered unit" means (PR #21 ✅)
-2. **Then**: Build algebra on ordered units (PR #22 - draft ready)
-3. **Finally**: Add rank/residual/candidateset operations (PR #23-25)
+1. **First**: Establish what "ordered unit" means (PR #21 ✅ Merged)
+2. **Then**: Architecture map (Roadmap PR #22 ✅ Merged as GitHub PR #22)
+3. **Then**: Build minimal transition signature (Roadmap PR #23 📋 Planned)
+4. **Finally**: Add rank/residual/candidateset operations (Roadmap PR #24-26 📋 Planned)
+
+**Note**: PR numbers after #22 are roadmap planning identifiers; see `PR_STATUS_INDEX.md`.
 
 **Status**: Error corrected. PR #21 now contains only governance documentation as requested.
 

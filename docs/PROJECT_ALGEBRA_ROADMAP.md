@@ -3,6 +3,26 @@
 **PR #22**: Complete algebra implementation roadmap
 **Status**: Architecture roadmap (no implementation)
 **Created**: 2026-05-20
+**Last Updated**: 2026-05-20
+
+---
+
+## ⚠️ Important: PR Numbering
+
+**PR numbers in this document** (e.g., "PR #23", "PR #24") are **planning identifiers**, not necessarily GitHub PR numbers.
+
+- **Roadmap PR numbers** = Logical sequence of planned work
+- **GitHub PR numbers** = Actual pull request numbers (assigned by GitHub)
+
+**These two systems may diverge.** See `PR_STATUS_INDEX.md` for the canonical mapping between roadmap PRs and actual GitHub PRs.
+
+**When claiming completion**: Always cite actual GitHub PR numbers, e.g.:
+```
+✅ "GitHub PR #22 (Roadmap PR #22: Architecture Map) is merged"
+❌ "PR #23 is complete" ← Ambiguous!
+```
+
+See `ROADMAP_GOVERNANCE.md` for full governance rules.
 
 ---
 
@@ -13,6 +33,8 @@ This document provides the **complete roadmap** for implementing the 11-layer al
 **Current Position**: PR #22 (Architecture Map)
 
 **Roadmap Scope**: PR #22 through PR #48+ and beyond
+
+**Numbering Note**: PR numbers below are planning identifiers. Check `PR_STATUS_INDEX.md` for actual GitHub PR mappings.
 
 ---
 
@@ -87,7 +109,11 @@ This document provides the **complete roadmap** for implementing the 11-layer al
 
 ## Phase 1: Foundation Algebras (PR #23-#27)
 
+**Status Note**: As of 2026-05-20, PR #23-#27 are **planning identifiers** and not yet implemented. See `PR_STATUS_INDEX.md` for GitHub PR mapping when created.
+
 ### PR #23: Minimal Dal Transition Signature
+
+**Status**: 📋 Planned (not yet created as GitHub PR)
 
 **Purpose**: Implement `dal_algebra.py` runtime
 
@@ -114,6 +140,8 @@ This document provides the **complete roadmap** for implementing the 11-layer al
 ---
 
 ### PR #24: Rank Algebra
+
+**Status**: 📋 Planned (not yet created as GitHub PR)
 
 **Purpose**: Implement claim-scoped rank system
 
@@ -143,6 +171,8 @@ ML confidence ≠ certificate
 ---
 
 ### PR #25: Residual Algebra
+
+**Status**: 📋 Planned (not yet created as GitHub PR)
 
 **Purpose**: Implement residual propagation and composition
 

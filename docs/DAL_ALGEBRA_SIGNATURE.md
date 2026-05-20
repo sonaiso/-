@@ -1,20 +1,36 @@
 # Dal Algebra Signature
 
-**PR #23**: Minimal Dal Transition Signature
-**Status**: Lightweight runtime foundation
+**Roadmap PR #23**: Minimal Dal Transition Signature
+**Status**: 📋 **Planned** (documentation, not yet implemented)
 **Created**: 2026-05-20
+
+---
+
+## ⚠️ Important: This is Planning Documentation
+
+**This document describes the PLAN for roadmap PR #23**, not an implemented system.
+
+**Current Status as of 2026-05-20**:
+- ✅ Specification defined (this document)
+- ❌ Implementation not yet created
+- ❌ No GitHub PR created yet
+- ❌ Code does not exist in `src/dal_core/dal_algebra.py`
+
+**When implemented**: Update `PR_STATUS_INDEX.md` with actual GitHub PR number.
+
+See `ROADMAP_GOVERNANCE.md` for governance rules on planned vs. implemented work.
 
 ---
 
 ## Executive Summary
 
-This PR implements a **minimal licensed-transition signature** for future dal candidate layers.
+This PR will implement a **minimal licensed-transition signature** for future dal candidate layers.
 
-**It does NOT implement full Dal Algebra.**
+**It will NOT implement full Dal Algebra.**
 
-This is the first lightweight runtime foundation after:
-- PR #21: Ordered Dal Form Governance
-- PR #22: Project Algebra Architecture Map
+This will be the first lightweight runtime foundation after:
+- PR #21: Ordered Dal Form Governance ✅ Merged
+- PR #22: Project Algebra Architecture Map ✅ Merged
 
 ---
 
@@ -493,22 +509,24 @@ Validates direct promotion justification:
 
 ## Out of Scope
 
-This PR **does NOT implement**:
+This PR **does NOT implement** (these are future roadmap PRs):
 
 ```text
-❌ Rank Algebra (PR #24)
-❌ Residual Algebra (PR #25)
-❌ CandidateSet base migration (PR #26)
-❌ NoMeaning scanner (PR #27)
-❌ RelationCandidate (PR #37)
-❌ CaseEffectCandidate (PR #38)
-❌ MurakkabProof (PR #39)
-❌ Wadh' Contract runtime (PR #40-42)
-❌ Dalalah runtime (PR #44)
+❌ Rank Algebra (Roadmap PR #24 - not yet created)
+❌ Residual Algebra (Roadmap PR #25 - not yet created)
+❌ CandidateSet base migration (Roadmap PR #26 → renumbered to #29)
+❌ NoMeaning scanner (Roadmap PR #27 → renumbered to #31)
+❌ RelationCandidate (Roadmap PR #37)
+❌ CaseEffectCandidate (Roadmap PR #38)
+❌ MurakkabProof (Roadmap PR #39)
+❌ Wadh' Contract runtime (Roadmap PR #40-42)
+❌ Dalalah runtime (Roadmap PR #44)
 ❌ Meaning/Murad/Hukm (A6-A10)
 ❌ Full analyzers or generators
 ❌ Semantic linking
 ```
+
+**Note**: PR numbers above are roadmap planning identifiers. See `PR_STATUS_INDEX.md` for actual GitHub PR mappings.
 
 ---
 
