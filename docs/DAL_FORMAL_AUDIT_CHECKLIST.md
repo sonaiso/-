@@ -183,6 +183,107 @@
 
 ---
 
+## K) الإغلاق الكامل 100% — Total-Coverage Closure (الادعاء الأقوى)
+
+> **الادعاء التشغيلي**: ∀ x ∈ D_form. Covered(x) ∧ Verified(x)
+>
+> **بعبارة المستخدم**: يجب تبرير وتفسير كل حرف وحركة ومقطع، وما قبله وما بعده، وعلاقة ما قبله بما بعده — تغطية 100%.
+>
+> **شرط القبول**: المصنفات الأربعة أدناه تُولَّد دورياً، وثلاثة منها يجب أن تكون **فارغة بالضبط (= ∅)**. أي عنصر غير فارغ في Hole/Jump/Leak يُسقط دعوى "جامع مانع كامل".
+
+### K.1 المصنفات الأربعة (Required Artifacts)
+
+| # | Artifact | الوصف | الشرط | الموضع المتوقع |
+|---|---|---|---|---|
+| K1 | **Coverage Ledger** | جدول دفتري كامل: الفئة × القاعدة × الشواهد × حالات edge، لكل token في corpus المرجع | حقول مكتملة، لا خانة فارغة | `reports/coverage_ledger.json` |
+| K2 | **Hole Report** | كل حرف/حركة/مقطع/انتقال بلا قاعدة تشرحه | **يجب = ∅** | `reports/hole_report.json` |
+| K3 | **Jump Report** | كل انتقال بين عناصر (حرف→حرف، حركة→حركة، مقطع→مقطع) بلا شرط معلَن يحكمه | **يجب = ∅** | `reports/jump_report.json` |
+| K4 | **Semantic Leak Report** | كل حقل/استيراد/قيمة دلالية تسللت إلى مخرجات الحلقة | **يجب = ∅** | `reports/semantic_leak_report.json` |
+
+**معيار النجاح الكلي**:
+```
+|Hole Report| = 0  ∧  |Jump Report| = 0  ∧  |Semantic Leak Report| = 0
+                  ∧  ∀ token ∈ corpus. token ∈ Coverage Ledger
+```
+
+### K.2 محاور التفسير الإلزامية (لكل token)
+
+كل token في الـ Coverage Ledger يجب أن يحمل **التفسيرات الست** التالية صراحة، وإلا يُسجَّل في Hole Report:
+
+| المحور | البيان (لكل حرف/حركة) | شاهد مطلوب |
+|---|---|---|
+| K2.1 | **الكينونة** (ما هو؟) | تصنيفه في Σ_c أو Σ_d مع codepoint |
+| K2.2 | **ما قبله** (السياق اليساري) | span + الجار السابق + قاعدة قبوله بعده |
+| K2.3 | **ما بعده** (السياق اليميني) | span + الجار اللاحق + قاعدة قبوله قبله |
+| K2.4 | **العلاقة قبل↔بعد** | قاعدة الانتقال (transition rule) المربوطة بـ rule-id |
+| K2.5 | **الموقع داخل المقطع** (onset/nucleus/coda) | حدود المقطع المحتوي + موقعه فيه |
+| K2.6 | **الشرعية الشكلية** (لماذا مقبول؟) | reference إلى قاعدة في ruleset مع version |
+
+**أي محور غائب لأي token = إدخال في Hole Report**.
+
+### K.3 شجرة الانتقالات الإلزامية (Transition Atlas)
+
+لكل زوج (a, b) حيث a, b ∈ (Σ_c ∪ Σ_d)، يجب أن يوجد **قرار صريح** في أحد ثلاثة سجلات:
+
+| السجل | المعنى | كيفية التحقق |
+|---|---|---|
+| `allowed_transitions[a→b]` | الانتقال مقبول مع rule-id | اختبار يولِّد ويقبل |
+| `forbidden_transitions[a→b]` | الانتقال محظور مع rule-id | اختبار يولِّد ويرفض |
+| `irrelevant_transitions[a→b]` | الانتقال خارج النطاق (مع تبرير) | تصنيف موثَّق |
+
+**حجم الفضاء المتوقع**: |Σ_c ∪ Σ_d|² (≈ 50² = 2500 خانة كحد أدنى للأبجدية المشكَّلة).
+
+**شرط Jump Report = ∅**: لا يوجد زوج (a, b) ظهر في corpus وليس له تصنيف في أحد السجلات الثلاثة.
+
+### K.4 إثبات شمولية المقاطع (Syllable Closure)
+
+| # | البند | الحالة | الدليل |
+|---|---|---|---|
+| K4.1 | كل token يُحلَّل إلى تتابع مقاطع: CV / CVC / CVV / CVVC / CVCC | ☐ | |
+| K4.2 | لا مقطع يخرج عن قائمة الأنماط المعلَنة | ☐ | |
+| K4.3 | كل حدّ مقطع (syllable boundary) له قاعدة (rule-id) | ☐ | |
+| K4.4 | تتابع المقاطع داخل token محكوم بقاعدة عبور (cross-syllable transition rule) | ☐ | |
+| K4.5 | اختبار: corpus مرجعي يُحلَّل بنسبة 100% بلا "مقطع غير معروف" | ☐ | |
+
+**شرط الإغلاق**: لا token ينتج فيه `unknown_syllable_pattern` أو `unparsed_boundary`.
+
+### K.5 خط أنابيب التحقق الدوري (CI Gate)
+
+| # | الخطوة | الأمر/الـ workflow | شرط النجاح |
+|---|---|---|---|
+| K5.1 | بناء Coverage Ledger من corpus | `python -m dal_core.audit.build_ledger --corpus <path>` | exit 0 + ledger.json مكتوب |
+| K5.2 | اشتقاق Hole Report | `python -m dal_core.audit.find_holes` | `holes == []` |
+| K5.3 | اشتقاق Jump Report | `python -m dal_core.audit.find_jumps` | `jumps == []` |
+| K5.4 | اشتقاق Semantic Leak Report | `python -m dal_core.audit.find_leaks` | `leaks == []` |
+| K5.5 | بوابة CI: تفشل الـ build إن لم تكن الثلاثة فارغة | `.github/workflows/dal_total_coverage.yml` | required check |
+| K5.6 | إصدار تقرير موقَّع: `{ledger_hash, ruleset_version, timestamp, verdict: PASS}` | artifact نشر | تواقيع متطابقة بين تشغيلَين |
+
+### K.6 معيار الفشل في K (Strict)
+
+ادعاء "الإغلاق الكامل 100%" **يسقط فوراً** بأي من:
+
+1. حرف/حركة/مقطع واحد في corpus بلا إدخال كامل في Coverage Ledger (المحاور الستة K2.1–K2.6).
+2. زوج انتقال (a, b) ظهر فعلاً ولم يُصنَّف في `allowed/forbidden/irrelevant`.
+3. حقل دلالي واحد ظهر في مخرج dal_core ولم يَردع.
+4. تشغيلان للـ CI Gate أعطيا نتيجتين مختلفتين لنفس corpus + نفس ruleset version (انتهاك Determinism من H2).
+
+### K.7 العلاقة مع الأقسام السابقة
+
+- K يعتمد على **F** (تغطية الفئات) لكنه أقوى: ليس فقط فئة لها قاعدة، بل **كل token حقيقي** له تفسير ستِّي كامل.
+- K يعتمد على **H** (الـ proof trail): كل إدخال في الـ Ledger يحمل hash + rule-id + version.
+- K يعتمد على **G** (الحقنية): زوج (a,b) لا يجوز أن يُسكَت عنه بـ silent normalization.
+- K يستحدث شرطاً جديداً غير موجود في A–J: **شمولية الـ corpus** (∀ token، ليس ∀ category).
+
+### K.8 سُلَّم التقييم المُحدَّث (يُلحَق بالقسم J)
+
+| الشرط | المتطلب |
+|---|---|
+| **Dal-only certified** (9–10 في J) | ✅ ضروري لكنه **غير كافٍ** للإغلاق الكامل |
+| **Total-Coverage closed** (إضافة K) | ✅ يتطلب J ≥ 9 **و** K1–K4 منشورة و K2–K4 = ∅ |
+| **Dal-only + Total Closure certified** | يَستحق وَسم `dal-total-coverage:closed@<ruleset_version>` |
+
+---
+
 ## ملحق: كيف تُملأ هذه القائمة
 
 1. لكل بند، شغِّل grep/test مناسباً واملأ خلية الدليل بصيغة `path/file.py:NN-MM` أو `tests/.../test_x.py::test_y`.
@@ -195,4 +296,4 @@
 
 ---
 
-**إصدار النموذج**: 1.0 · **آخر تحديث**: 2026-05-20 · **المرجع المنهجي**: Dal-only Audit Framework (Scope/Spaces/Contracts/Algebra/Leakage/Coverage/Injectivity/Proof/Boundary/Rubric).
+**إصدار النموذج**: 1.1 · **آخر تحديث**: 2026-05-20 · **المرجع المنهجي**: Dal-only Audit Framework + Total-Coverage Closure (K).
