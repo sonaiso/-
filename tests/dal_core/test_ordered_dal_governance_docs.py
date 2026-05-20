@@ -281,38 +281,38 @@ def test_future_integration_path_documented():
 # ---------------------------------------------------------------------------
 
 
-def test_no_dal_algebra_implementation():
-    """Verify dal_algebra.py does NOT exist (deferred to PR #22)."""
+def test_dal_algebra_implementation_exists_in_pr23():
+    """Verify dal_algebra.py EXISTS (implemented in PR #23)."""
     impl_path = Path(__file__).parent.parent.parent / "src" / "dal_core" / "dal_algebra.py"
-    assert not impl_path.exists(), \
-        "dal_algebra.py must NOT exist in PR #21 (deferred to PR #22)"
+    assert impl_path.exists(), \
+        "dal_algebra.py must exist in PR #23 (minimal signature)"
 
 
-def test_no_dal_algebra_tests():
-    """Verify dal_algebra tests do NOT exist (deferred to PR #22)."""
+def test_dal_algebra_tests_exist_in_pr23():
+    """Verify dal_algebra tests EXIST (implemented in PR #23)."""
     test_path = Path(__file__).parent.parent.parent / "tests" / "dal_core" / "test_dal_algebra_signature.py"
-    assert not test_path.exists(), \
-        "test_dal_algebra_signature.py must NOT exist in PR #21 (deferred to PR #22)"
+    assert test_path.exists(), \
+        "test_dal_algebra_signature.py must exist in PR #23"
 
 
-def test_no_transition_contract_implementation():
-    """Verify TransitionContract is NOT implemented (deferred to PR #22)."""
-    # Check that no new files implement TransitionContract
+def test_no_full_algebra_implementation_in_pr23():
+    """Verify full algebra NOT implemented yet (deferred to PR #24+)."""
+    # Check that full algebra files don't exist yet
     src_path = Path(__file__).parent.parent.parent / "src" / "dal_core"
 
     if src_path.exists():
-        # If dal_core exists, check no new transition contract files
+        # These should NOT exist yet (future PRs)
         forbidden_files = [
-            "dal_algebra.py",
-            "transition_contract.py",
             "rank_algebra.py",
             "residual_algebra.py",
+            "relation_candidate.py",
+            "case_effect_candidate.py",
         ]
 
         for forbidden in forbidden_files:
             file_path = src_path / forbidden
             assert not file_path.exists(), \
-                f"{forbidden} must NOT exist in PR #21 (deferred to future PRs)"
+                f"{forbidden} must NOT exist in PR #23 (deferred to future PRs)"
 
 
 # ---------------------------------------------------------------------------
@@ -365,20 +365,21 @@ def test_internal_composition_layers_documented():
 
 def test_pr21_governance_complete():
     """
-    Summary test: Verify PR #21 delivers governance-only documentation.
+    Summary test: Verify PR #21 governance + PR #23 minimal signature.
 
     Success criteria:
-    ✅ 3 governance docs exist
-    ✅ Core principles documented
-    ✅ 5 invariants documented
-    ✅ Boundary rules documented
-    ✅ Bidirectional analysis rules documented
-    ✅ Out-of-scope items documented
-    ✅ NO implementation code
+    ✅ 3 governance docs exist (PR #21)
+    ✅ Core principles documented (PR #21)
+    ✅ 5 invariants documented (PR #21)
+    ✅ Boundary rules documented (PR #21)
+    ✅ Bidirectional analysis rules documented (PR #21)
+    ✅ Out-of-scope items documented (PR #21)
+    ✅ Minimal dal_algebra.py implementation (PR #23)
+    ✅ NO full algebra yet (deferred to PR #24+)
     """
     docs_path = Path(__file__).parent.parent.parent / "docs"
 
-    # All 3 docs must exist
+    # All 3 governance docs must exist (PR #21)
     required_docs = [
         "ORDERED_DAL_FORM_GOVERNANCE.md",
         "INTERNAL_COMPOSITION_BOUNDARIES.md",
@@ -388,13 +389,21 @@ def test_pr21_governance_complete():
     for doc in required_docs:
         assert (docs_path / doc).exists(), f"{doc} must exist"
 
-    # No implementation code
+    # Minimal dal_algebra.py must exist (PR #23)
     impl_path = Path(__file__).parent.parent.parent / "src" / "dal_core" / "dal_algebra.py"
-    assert not impl_path.exists(), "Must NOT include dal_algebra.py implementation"
+    assert impl_path.exists(), "dal_algebra.py must exist in PR #23"
 
-    # This is governance PR, not implementation PR
-    print("\n✅ PR #21 Governance Complete:")
-    print("  - 3 governance documents present")
-    print("  - Core invariants documented")
-    print("  - No premature implementation")
-    print("  - Ready for PR #22 (Dal Algebra implementation)")
+    # Full algebra must NOT exist yet (future PRs)
+    src_path = Path(__file__).parent.parent.parent / "src" / "dal_core"
+    forbidden_files = ["rank_algebra.py", "residual_algebra.py"]
+    for forbidden in forbidden_files:
+        assert not (src_path / forbidden).exists(), \
+            f"{forbidden} must NOT exist yet (deferred to future PRs)"
+
+    # Success summary
+    print("\n✅ PR #21 Governance + PR #23 Minimal Signature Complete:")
+    print("  - 3 governance documents present (PR #21)")
+    print("  - Core invariants documented (PR #21)")
+    print("  - Minimal dal_algebra.py implemented (PR #23)")
+    print("  - Full algebra deferred to future PRs (PR #24+)")
+    print("  - Ready for PR #24 (Rank Algebra)")
