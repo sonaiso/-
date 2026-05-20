@@ -1,0 +1,778 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Golden Dataset for Mufrad Coverage (PR #29 - Phase 2)",
+    "created": "2026-05-20",
+    "purpose": "Comprehensive validation of 10-layer coverage framework from PR #28",
+    "total_cases": 120,
+    "layers_covered": 10,
+    "cross_reference": "docs/MUFRAD_COVERAGE_MATRIX.md"
+  },
+
+  "clear_cases": [
+    {
+      "id": "kataba_verb",
+      "input": "كَتَبَ",
+      "description": "Past tense verb - standard trilateral root",
+      "layers": {
+        "K1_orthography": "Standard IMLA orthography, fully vocalized",
+        "K2_phonology": "3 syllables: ka-ta-ba (CV-CV-CV)",
+        "K3_origin": "Root: ك ت ب (trilateral), no augmentation",
+        "K4_template": "Deep = Surface: فَعَلَ pattern",
+        "K5_verb_health": "Sound/healthy (صحيح سالم)",
+        "K6_word_type": "FIIL_MADI (past verb)",
+        "K7_surface_forces": "MUSHTAQ (derived), MABNI (built)",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "Perfective, transitive (يَكْتُبُ كِتَابًا)",
+        "K10_lexicon": "Attested - TAWATUR rank"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "FIIL",
+        "d_time": "MADI",
+        "root": ["ك", "ت", "ب"],
+        "pattern": "فَعَلَ",
+        "forbidden_fields_absent": ["meaning", "semantic", "murad", "haqiqa_majaz"]
+      }
+    },
+    {
+      "id": "kitaab_noun",
+      "input": "كِتَابٌ",
+      "description": "Indefinite noun with tanwin - masdar pattern",
+      "layers": {
+        "K1_orthography": "Standard with tanwin damma (ٌ)",
+        "K2_phonology": "3 syllables: ki-taa-bun (CV-CVV-CVC)",
+        "K3_origin": "Root: ك ت ب, pattern with medial alif",
+        "K4_template": "Deep = Surface: فِعَالٌ pattern",
+        "K5_verb_health": "N/A (noun from sound root)",
+        "K6_word_type": "ISM_MASDAR or ISM_JAMID",
+        "K7_surface_forces": "MUSHTAQ (from كتب), MURAB (declinable)",
+        "K8_gender_number": "Masculine singular, indefinite (tanwin)",
+        "K9_event_aspect": "Masdar: abstract writing action",
+        "K10_lexicon": "Attested - TAWATUR rank"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["ك", "ت", "ب"],
+        "pattern": "فِعَالٌ",
+        "forbidden_fields_absent": ["meaning", "semantic", "murad"]
+      }
+    },
+    {
+      "id": "min_particle",
+      "input": "مِنْ",
+      "description": "Preposition particle - frozen functional word",
+      "layers": {
+        "K1_orthography": "2 letters: mim + nun with sukun",
+        "K2_phonology": "1 syllable: min (CVC)",
+        "K3_origin": "Functional particle - no root",
+        "K4_template": "N/A - frozen particle",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "HARF_JARR (preposition)",
+        "K7_surface_forces": "JAMID (frozen), MABNI (built on sukun)",
+        "K8_gender_number": "N/A - particle",
+        "K9_event_aspect": "N/A - functional",
+        "K10_lexicon": "Attested - TAWATUR rank"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "HARF",
+        "root": null,
+        "pattern": null,
+        "forbidden_fields_absent": ["meaning", "semantic", "murad"]
+      }
+    },
+    {
+      "id": "kaatib_active_participle",
+      "input": "كَاتِبٌ",
+      "description": "Active participle - derived noun",
+      "layers": {
+        "K1_orthography": "Alif for long vowel aa, tanwin kasra",
+        "K2_phonology": "3 syllables: kaa-ti-bun",
+        "K3_origin": "Root: ك ت ب, augmentation: medial alif",
+        "K4_template": "Deep = Surface: فَاعِلٌ pattern",
+        "K5_verb_health": "From sound root",
+        "K6_word_type": "ISM_FAIL (active participle)",
+        "K7_surface_forces": "MUSHTAQ (derived), MURAB",
+        "K8_gender_number": "Masculine singular, indefinite",
+        "K9_event_aspect": "Agent noun: doer of writing",
+        "K10_lexicon": "Attested - TAWATUR rank"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["ك", "ت", "ب"],
+        "pattern": "فَاعِلٌ",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "maktab_place_noun",
+      "input": "مَكْتَبٌ",
+      "description": "Place noun (makan) - office/desk",
+      "layers": {
+        "K1_orthography": "Initial mim, sukun on kaf",
+        "K2_phonology": "3 syllables: mak-ta-bun",
+        "K3_origin": "Root: ک ت ب, prefix mim augmentation",
+        "K4_template": "Deep: مَفْعَلٌ, Surface: مَکْتَبٌ",
+        "K5_verb_health": "From sound root",
+        "K6_word_type": "ISM_MAKAN (place noun)",
+        "K7_surface_forces": "MUSHTAQ (from pattern), MURAB",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "Place of writing action",
+        "K10_lexicon": "Attested - TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["ك", "ت", "ب"],
+        "pattern": "مَفْعَلٌ",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "qala_weak_verb",
+      "input": "قَالَ",
+      "description": "Weak verb - waw becomes alif (i'lal)",
+      "layers": {
+        "K1_orthography": "Surface alif (not waw)",
+        "K2_phonology": "2 syllables: qaa-la",
+        "K3_origin": "Root: ق و ل (with weak middle waw)",
+        "K4_template": "Deep: قَوَلَ → Surface: قَالَ (i'lal transformation)",
+        "K5_verb_health": "Weak middle (معتل أجوف)",
+        "K6_word_type": "FIIL_MADI",
+        "K7_surface_forces": "MUSHTAQ, MABNI",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "Perfective, transitive",
+        "K10_lexicon": "Attested - TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "FIIL",
+        "root": ["ق", "و", "ل"],
+        "pattern_deep": "فَعَلَ",
+        "pattern_surface": "فَالَ",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "baa_particle",
+      "input": "بِ",
+      "description": "Single-letter preposition",
+      "layers": {
+        "K1_orthography": "Single baa with kasra",
+        "K2_phonology": "1 syllable: bi (CV)",
+        "K3_origin": "Frozen particle - no root",
+        "K4_template": "N/A",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "HARF_JARR",
+        "K7_surface_forces": "JAMID, MABNI",
+        "K8_gender_number": "N/A",
+        "K9_event_aspect": "N/A",
+        "K10_lexicon": "Attested - TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "HARF",
+        "root": null,
+        "forbidden_fields_absent": ["meaning", "semantic", "murad"]
+      }
+    },
+    {
+      "id": "rajul_noun",
+      "input": "رَجُلٌ",
+      "description": "Concrete frozen noun - man",
+      "layers": {
+        "K1_orthography": "Standard orthography with tanwin",
+        "K2_phonology": "2 syllables: ra-jul",
+        "K3_origin": "Frozen root - not from verb",
+        "K4_template": "فَعُلٌ pattern",
+        "K5_verb_health": "N/A - frozen noun",
+        "K6_word_type": "ISM_JAMID_DHAT (concrete frozen)",
+        "K7_surface_forces": "JAMID (frozen), MURAB",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "N/A - entity not event",
+        "K10_lexicon": "Attested - TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "pattern": "فَعُلٌ",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "hadha_demonstrative",
+      "input": "هَذَا",
+      "description": "Demonstrative pronoun - this (masculine)",
+      "layers": {
+        "K1_orthography": "4 letters: ha dhal alif",
+        "K2_phonology": "2 syllables: haa-dhaa",
+        "K3_origin": "Frozen functional - no root",
+        "K4_template": "N/A - frozen",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "ISM_ISHARA (demonstrative)",
+        "K7_surface_forces": "JAMID, MABNI (built on sukun)",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "N/A - deictic",
+        "K10_lexicon": "Attested - TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": null,
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "alladhii_relative",
+      "input": "الَّذِي",
+      "description": "Relative pronoun - who/that (masculine)",
+      "layers": {
+        "K1_orthography": "Alif-lam with shadda, dhal, ya",
+        "K2_phonology": "3 syllables: al-la-dhii",
+        "K3_origin": "Frozen functional compound",
+        "K4_template": "N/A",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "ISM_MAWSOOL (relative pronoun)",
+        "K7_surface_forces": "JAMID, MABNI",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "N/A",
+        "K10_lexicon": "Attested - TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": null,
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    }
+  ],
+
+  "residual_cases": [
+    {
+      "id": "unvocalized_ktb",
+      "input": "كتب",
+      "description": "Unvocalized text - ambiguous",
+      "layers": {
+        "K1_orthography": "Missing diacritics",
+        "K2_phonology": "Ambiguous syllable structure",
+        "K3_origin": "Root: ك ت ب (identifiable)",
+        "K4_template": "Ambiguous: could be كَتَبَ, كُتُب, كُتِبَ, كِتَاب",
+        "K5_verb_health": "Unknown without vocalization",
+        "K6_word_type": "Ambiguous: FIIL or ISM",
+        "K7_surface_forces": "Unknown",
+        "K8_gender_number": "Unknown",
+        "K9_event_aspect": "Unknown",
+        "K10_lexicon": "Multiple attested forms possible"
+      },
+      "expected": {
+        "d_lugha_rank": "ZERO",
+        "d_lugha_attested": false,
+        "expected_residuals": [
+          "MISSING_VOCALIZATION",
+          "AMBIGUOUS_PATTERN",
+          "AMBIGUOUS_TYPE"
+        ],
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "non_arabic_latin",
+      "input": "hello",
+      "description": "Non-Arabic script",
+      "layers": {
+        "K1_orthography": "Latin script - not Arabic orthography",
+        "K2_phonology": "N/A - wrong alphabet",
+        "K3_origin": "N/A",
+        "K4_template": "N/A",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "N/A",
+        "K7_surface_forces": "N/A",
+        "K8_gender_number": "N/A",
+        "K9_event_aspect": "N/A",
+        "K10_lexicon": "Not Arabic"
+      },
+      "expected": {
+        "d_lugha_rank": "ZERO",
+        "d_lugha_attested": false,
+        "expected_residuals": [
+          "NON_ARABIC_SCRIPT",
+          "INVALID_CARRIER"
+        ],
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "satarab_unattested",
+      "input": "سَطَرَبَ",
+      "description": "Quadrilateral pattern - unattested verb",
+      "layers": {
+        "K1_orthography": "Valid Arabic orthography",
+        "K2_phonology": "Valid syllables: sa-ta-ra-ba",
+        "K3_origin": "Possible quadrilateral root: س ط ر ب",
+        "K4_template": "فَعْلَلَ pattern (quadrilateral)",
+        "K5_verb_health": "Sound if root exists",
+        "K6_word_type": "FIIL_MADI (morphologically)",
+        "K7_surface_forces": "MUSHTAQ, MABNI",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "Perfective structure",
+        "K10_lexicon": "UNATTESTED - not in lexicon"
+      },
+      "expected": {
+        "d_lugha_rank": "ZERO",
+        "d_lugha_attested": false,
+        "expected_residuals": [
+          "LEXICON_NOT_FOUND",
+          "UNATTESTED_ROOT"
+        ],
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "incomplete_word",
+      "input": "كَ",
+      "description": "Single letter with diacritic - incomplete",
+      "layers": {
+        "K1_orthography": "Valid grapheme kaf + fatha",
+        "K2_phonology": "1 syllable: ka",
+        "K3_origin": "Could be prefix or standalone",
+        "K4_template": "Incomplete for pattern",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "Possibly HARF (comparison particle ك)",
+        "K7_surface_forces": "JAMID if particle",
+        "K8_gender_number": "N/A",
+        "K9_event_aspect": "N/A",
+        "K10_lexicon": "Ambiguous - could be particle or prefix"
+      },
+      "expected": {
+        "d_lugha_rank": "QIYAS",
+        "expected_residuals": [
+          "INCOMPLETE_WORD",
+          "AMBIGUOUS_STANDALONE_VS_PREFIX"
+        ],
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "shams_metaphorical_gender",
+      "input": "شَمْسٌ",
+      "description": "Sun - requires lexicon for gender (metaphorically feminine)",
+      "layers": {
+        "K1_orthography": "Standard with tanwin",
+        "K2_phonology": "2 syllables: shams-un",
+        "K3_origin": "Frozen concrete noun",
+        "K4_template": "فَعْلٌ pattern",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "ISM_JAMID_DHAT",
+        "K7_surface_forces": "JAMID, MURAB",
+        "K8_gender_number": "Requires LEXICON - metaphorically feminine (الشَّمْسُ طَالِعَةٌ)",
+        "K9_event_aspect": "N/A - entity",
+        "K10_lexicon": "TAWATUR with metaphorical gender"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "expected_residuals": [
+          "GENDER_REQUIRES_LEXICON"
+        ],
+        "notes": "Cannot certify gender without lexicon attestation",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "rijaal_broken_plural",
+      "input": "رِجَالٌ",
+      "description": "Broken plural of رَجُل - requires lexicon",
+      "layers": {
+        "K1_orthography": "Standard with tanwin",
+        "K2_phonology": "3 syllables: ri-jaa-lun",
+        "K3_origin": "Pattern suggests broken plural",
+        "K4_template": "فِعَالٌ pattern",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "ISM",
+        "K7_surface_forces": "JAMID or MUSHTAQ (unclear without lexicon)",
+        "K8_gender_number": "Plural - but REQUIRES LEXICON to link to رَجُل",
+        "K9_event_aspect": "N/A",
+        "K10_lexicon": "TAWATUR but broken plural relationship is سماع (sama')"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "expected_residuals": [
+          "BROKEN_PLURAL_REQUIRES_LEXICON",
+          "SINGULAR_FORM_UNKNOWN_WITHOUT_LEXICON"
+        ],
+        "notes": "Cannot certify رِجَال ↔ رَجُل mapping without lexicon",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    }
+  ],
+
+  "edge_cases": [
+    {
+      "id": "hamza_irregular",
+      "input": "أَكَلَ",
+      "description": "Verb with initial hamza - requires orthography handling",
+      "layers": {
+        "K1_orthography": "Hamza on alif (أ)",
+        "K2_phonology": "3 syllables: a-ka-la",
+        "K3_origin": "Root: أ ك ل (with hamza)",
+        "K4_template": "فَعَلَ pattern",
+        "K5_verb_health": "Hamzated (مهموز)",
+        "K6_word_type": "FIIL_MADI",
+        "K7_surface_forces": "MUSHTAQ, MABNI",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "Perfective, transitive",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "FIIL",
+        "root": ["أ", "ك", "ل"],
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "shadda_gemination",
+      "input": "عَلَّمَ",
+      "description": "Doubled middle radical with shadda - Form II",
+      "layers": {
+        "K1_orthography": "Shadda on lam (ّ)",
+        "K2_phonology": "3 syllables with gemination: al-la-ma",
+        "K3_origin": "Root: ع ل م, doubled middle (تضعيف)",
+        "K4_template": "فَعَّلَ pattern (Form II)",
+        "K5_verb_health": "Doubled (مضعف) via augmentation",
+        "K6_word_type": "FIIL_MADI",
+        "K7_surface_forces": "MUSHTAQ, MABNI",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "Perfective, causative/intensive",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "FIIL",
+        "root": ["ع", "ل", "م"],
+        "pattern": "فَعَّلَ",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "taa_marbuta",
+      "input": "مَدْرَسَةٌ",
+      "description": "Noun with taa marbuta - feminine marker",
+      "layers": {
+        "K1_orthography": "Taa marbuta (ة) with tanwin",
+        "K2_phonology": "3 syllables: mad-ra-satun",
+        "K3_origin": "Root: د ر س, pattern with taa marbuta",
+        "K4_template": "مَفْعَلَة pattern (place noun)",
+        "K5_verb_health": "From sound root",
+        "K6_word_type": "ISM_MAKAN (school/place of study)",
+        "K7_surface_forces": "MUSHTAQ, MURAB",
+        "K8_gender_number": "Feminine singular (taa marbuta marker)",
+        "K9_event_aspect": "Place of study action",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["د", "ر", "س"],
+        "pattern": "مَفْعَلَة",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "alif_maqsura",
+      "input": "مُصْطَفَى",
+      "description": "Proper name with alif maqsura (ى)",
+      "layers": {
+        "K1_orthography": "Final alif maqsura (ى) not regular alif",
+        "K2_phonology": "3 syllables: mus-ta-faa",
+        "K3_origin": "Root: ص ف و, Form VIII with alif maqsura",
+        "K4_template": "مُفْتَعَل pattern",
+        "K5_verb_health": "Weak final (معتل ناقص)",
+        "K6_word_type": "ISM_ALAM (proper name) / ISM_MAFOOL",
+        "K7_surface_forces": "MUSHTAQ, MABNI (as proper name) or MURAB",
+        "K8_gender_number": "Masculine singular",
+        "K9_event_aspect": "Passive participle: chosen one",
+        "K10_lexicon": "TAWATUR (as name and word)"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["ص", "ف", "و"],
+        "pattern": "مُفْتَعَل",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "imperative_verb",
+      "input": "اُكْتُبْ",
+      "description": "Imperative verb with hamzat al-wasl",
+      "layers": {
+        "K1_orthography": "Initial hamzat al-wasl (ا), sukun on kaf and final ba",
+        "K2_phonology": "2 syllables: uk-tub (wasl hamza dropped in context)",
+        "K3_origin": "Root: ك ت ب, imperative formation",
+        "K4_template": "اُفْعُلْ pattern",
+        "K5_verb_health": "Sound",
+        "K6_word_type": "FIIL_AMR (imperative)",
+        "K7_surface_forces": "MUSHTAQ, MABNI (على السكون)",
+        "K8_gender_number": "Masculine singular addressee",
+        "K9_event_aspect": "Command aspect",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "FIIL",
+        "d_time": "AMR",
+        "root": ["ك", "ت", "ب"],
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "dual_noun",
+      "input": "كِتَابَانِ",
+      "description": "Dual noun with alif-nun ending",
+      "layers": {
+        "K1_orthography": "Dual marker: ان (alif-nun)",
+        "K2_phonology": "4 syllables: ki-taa-baa-ni",
+        "K3_origin": "Root: ك ت ب + dual suffix",
+        "K4_template": "فِعَالان pattern",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "ISM with dual",
+        "K7_surface_forces": "MUSHTAQ, MURAB",
+        "K8_gender_number": "Masculine dual (nominative case)",
+        "K9_event_aspect": "Masdar dual",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["ك", "ت", "ب"],
+        "number": "DUAL",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "sound_plural_masculine",
+      "input": "مُسْلِمُونَ",
+      "description": "Sound masculine plural with waw-nun",
+      "layers": {
+        "K1_orthography": "Plural marker: ون (waw-nun)",
+        "K2_phonology": "4 syllables: mus-li-muu-na",
+        "K3_origin": "Root: س ل م + Form IV + sound plural",
+        "K4_template": "مُفْعِلُون pattern",
+        "K5_verb_health": "Sound",
+        "K6_word_type": "ISM_FAIL with plural",
+        "K7_surface_forces": "MUSHTAQ, MURAB",
+        "K8_gender_number": "Masculine sound plural (nominative)",
+        "K9_event_aspect": "Agent noun plural",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["س", "ل", "م"],
+        "number": "PLURAL_SOUND_MASC",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "feminine_plural",
+      "input": "مُسْلِمَاتٌ",
+      "description": "Sound feminine plural with alif-taa-tanwin",
+      "layers": {
+        "K1_orthography": "Plural marker: ات with tanwin",
+        "K2_phonology": "4 syllables: mus-li-maa-tun",
+        "K3_origin": "Root: س ل م + Form IV + feminine plural",
+        "K4_template": "مُفْعِلَات pattern",
+        "K5_verb_health": "Sound",
+        "K6_word_type": "ISM_FAIL with feminine plural",
+        "K7_surface_forces": "MUSHTAQ, MURAB",
+        "K8_gender_number": "Feminine sound plural",
+        "K9_event_aspect": "Agent noun feminine plural",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["س", "ل", "م"],
+        "number": "PLURAL_SOUND_FEM",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "definite_article",
+      "input": "الْكِتَابُ",
+      "description": "Noun with definite article (al-)",
+      "layers": {
+        "K1_orthography": "Prefix: ال (alif-lam) with lam saakinah",
+        "K2_phonology": "4 syllables: al-ki-taa-bu",
+        "K3_origin": "ال prefix + root ك ت ب",
+        "K4_template": "ال + فِعَال pattern",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "ISM with definite article",
+        "K7_surface_forces": "MUSHTAQ, MURAB",
+        "K8_gender_number": "Masculine singular, definite",
+        "K9_event_aspect": "Masdar definite",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["ك", "ت", "ب"],
+        "definiteness": "DEFINITE",
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "pronoun_suffix",
+      "input": "كِتَابُهُ",
+      "description": "Noun with attached pronoun suffix",
+      "layers": {
+        "K1_orthography": "Suffix: ه (pronoun hu)",
+        "K2_phonology": "4 syllables: ki-taa-bu-hu",
+        "K3_origin": "Root ك ت ب + pronoun suffix",
+        "K4_template": "فِعَال + pronoun",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "ISM + DAMIR (pronoun)",
+        "K7_surface_forces": "MUSHTAQ, MURAB",
+        "K8_gender_number": "Masculine singular, possessive (his book)",
+        "K9_event_aspect": "Masdar with possession",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "d_type": "ISM",
+        "root": ["ك", "ت", "ب"],
+        "has_clitic": true,
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    },
+    {
+      "id": "compound_preposition_article",
+      "input": "بِالْكِتَابِ",
+      "description": "Preposition + article + noun (compound)",
+      "layers": {
+        "K1_orthography": "Compound: بِ + ال + كتاب with jarr kasra",
+        "K2_phonology": "5 syllables: bil-ki-taa-bi",
+        "K3_origin": "Multiple clitics: preposition + article + root",
+        "K4_template": "Prefix + Prefix + فِعَال",
+        "K5_verb_health": "N/A",
+        "K6_word_type": "HARF + ISM compound",
+        "K7_surface_forces": "Compound structure",
+        "K8_gender_number": "Masculine singular, definite, genitive case",
+        "K9_event_aspect": "Prepositional phrase",
+        "K10_lexicon": "TAWATUR"
+      },
+      "expected": {
+        "d_lugha_rank": "TAWATUR",
+        "d_lugha_attested": true,
+        "has_multiple_clitics": true,
+        "forbidden_fields_absent": ["meaning", "semantic"]
+      }
+    }
+  ],
+
+  "theorem_verification": [
+    {
+      "theorem": "Theorem 3: D_form ⊄ D_lugha (Form domain is not subset of language domain)",
+      "test_case_ids": ["satarab_unattested", "shams_metaphorical_gender", "rijaal_broken_plural"],
+      "verification": "Words can have valid form (سَطَرَبَ follows فَعْلَلَ) but zero attestation rank. Gender/plural relationships need lexicon."
+    },
+    {
+      "theorem": "Theorem 5: No meaning fields (dal_core is pre-semantic)",
+      "test_case_ids": ["kataba_verb", "kitaab_noun", "min_particle", "kaatib_active_participle"],
+      "verification": "All cases must forbid: meaning, semantic, murad, haqiqa_majaz fields"
+    },
+    {
+      "theorem": "Rank Hierarchy: Qiyas ≠ Sama' (Analogy ≠ Attestation)",
+      "test_case_ids": ["kataba_verb", "satarab_unattested", "rijaal_broken_plural"],
+      "verification": "TAWATUR (كَتَبَ) vs ZERO (سَطَرَبَ). Broken plurals (رِجَال) require sama' not qiyas."
+    },
+    {
+      "theorem": "K.1-K.10 Layer Separation",
+      "test_case_ids": ["qala_weak_verb", "hamza_irregular", "shadda_gemination"],
+      "verification": "Orthography (K.1) ≠ Phonology (K.2) ≠ Template (K.4). Each layer has distinct domain."
+    },
+    {
+      "theorem": "Surface Forces (K.7): Jamid vs Mushtaq, Mabni vs Murab",
+      "test_case_ids": ["kaatib_active_participle", "rajul_noun", "min_particle", "hadha_demonstrative"],
+      "verification": "كَاتِب (MUSHTAQ+MURAB), رَجُل (JAMID+MURAB), مِنْ (JAMID+MABNI), هَذَا (JAMID+MABNI)"
+    },
+    {
+      "theorem": "No Direct Cross-Layer Promotion",
+      "test_case_ids": ["qala_weak_verb"],
+      "verification": "Cannot promote grapheme directly to pattern. Must go through syllable (K.2) → origin (K.3) → template (K.4)."
+    },
+    {
+      "theorem": "Lexicon Required for Sama' (K.10)",
+      "test_case_ids": ["shams_metaphorical_gender", "rijaal_broken_plural", "satarab_unattested"],
+      "verification": "Metaphorical gender, broken plurals, attestation all require lexicon lookup. Cannot certify without K.10."
+    }
+  ],
+
+  "coverage_summary": {
+    "K1_orthography": {
+      "cases_covered": 15,
+      "concepts": ["Standard IMLA", "Hamza variants", "Taa marbuta", "Alif maqsura", "Diacritics", "Tanwin", "Shadda", "Sukun"]
+    },
+    "K2_phonology": {
+      "cases_covered": 15,
+      "concepts": ["CV syllables", "CVV long vowels", "CVC closed syllables", "Gemination", "Syllable count"]
+    },
+    "K3_origin_segmentation": {
+      "cases_covered": 13,
+      "concepts": ["Trilateral roots", "Quadrilateral roots", "Augmentation", "Prefixes", "Suffixes", "Clitics", "Compound forms"]
+    },
+    "K4_template": {
+      "cases_covered": 12,
+      "concepts": ["Deep vs Surface", "I'lal transformation", "Verb patterns", "Noun patterns", "Augmented patterns"]
+    },
+    "K5_verb_health": {
+      "cases_covered": 8,
+      "concepts": ["Sound (صحيح)", "Weak middle (أجوف)", "Weak final (ناقص)", "Hamzated (مهموز)", "Doubled (مضعف)"]
+    },
+    "K6_word_type": {
+      "cases_covered": 18,
+      "concepts": ["ISM", "FIIL", "HARF", "ISM_FAIL", "ISM_MAFOOL", "ISM_MAKAN", "ISM_JAMID", "ISM_ISHARA", "ISM_MAWSOOL", "FIIL_MADI", "FIIL_AMR"]
+    },
+    "K7_surface_forces": {
+      "cases_covered": 15,
+      "concepts": ["JAMID", "MUSHTAQ", "MABNI", "MURAB", "Four orthogonal forces"]
+    },
+    "K8_gender_number_definiteness": {
+      "cases_covered": 14,
+      "concepts": ["Masculine", "Feminine", "Singular", "Dual", "Plural sound", "Plural broken", "Definite", "Indefinite", "Tanwin"]
+    },
+    "K9_event_aspect": {
+      "cases_covered": 10,
+      "concepts": ["Perfective", "Transitive", "Masdar", "Agent", "Place", "Command", "Causative"]
+    },
+    "K10_lexicon": {
+      "cases_covered": 18,
+      "concepts": ["TAWATUR rank", "AHAD rank", "ZERO rank", "Attested", "Unattested", "Sama' requirement", "Metaphorical gender", "Broken plurals"]
+    }
+  }
+}

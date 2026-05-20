@@ -33,7 +33,10 @@
 | #23 | (Not created yet) | — | (Reserved for Minimal Dal Transition) |
 | #24 | (Not created yet) | — | (Reserved for future work) |
 | #25 | Explain Repository Structure | Merged 2026-05-20 | ❌ No roadmap correspondence |
-| #26 | Create Implementation Plan | In Progress | **This PR** (Roadmap Reconciliation) |
+| #26 | Create Implementation Plan | Merged 2026-05-20 | Roadmap Reconciliation |
+| #27 | Roadmap Governance | Merged | Roadmap PR #27 ✅ |
+| #28 | Mufrad Coverage Matrix (Phase 1) | Merged 2026-05-20 | Roadmap PR #28 ✅ |
+| #29 | Golden Dataset (Phase 2) | In Progress | **This PR** (Roadmap PR #29) |
 
 ---
 
@@ -46,7 +49,9 @@
 | PR #24 | Rank Algebra | 📋 Planned | (To be created) |
 | PR #25 | Residual Algebra | 📋 Planned | (To be created) |
 | PR #26 | CandidateSet Contract | 📋 Planned | (Renamed: now PR #29 in updated roadmap) |
-| PR #27 | Stage-Aware NoMeaning Invariant | 📋 Planned | (Renamed: now PR #31 in updated roadmap) |
+| PR #27 | Roadmap Governance | ✅ Merged | GitHub PR #27 |
+| PR #28 | Mufrad Coverage Matrix (Phase 1) | ✅ Merged | GitHub PR #28 |
+| PR #29 | Golden Dataset (Phase 2) | 🚧 In Progress | GitHub PR #29 (This PR) |
 
 ---
 
