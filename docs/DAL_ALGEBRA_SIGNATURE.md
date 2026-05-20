@@ -1,6 +1,6 @@
 # Dal Algebra Signature (F1)
 
-**Status**: Foundation PR #21
+**Status**: Foundation PR #21 (Extended with 8-Layer Architecture)
 **Created**: 2026-05-20
 **Purpose**: Establish foundational typed transition contract for all dal_core stages
 
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The project is moving from **local pipeline stages** to a **Typed Guarded Residual Candidate Algebra**.
+The project is moving from **local pipeline stages** to a **Typed Guarded Residual Candidate Algebra** with **8-Layer Transition Domain Architecture**.
 
 This document defines **F1: Dal Algebra Signature**, the lightweight protocol layer that establishes:
 - Type signatures for inputs and outputs
@@ -18,8 +18,250 @@ This document defines **F1: Dal Algebra Signature**, the lightweight protocol la
 - Trace provenance
 - Candidate set operations
 - Forbidden output detection
+- **8 transition domains (D0-D7)** for Dal analysis
 
 **Key Principle**: Every dal_core stage transition must be a well-typed, auditable, residual-preserving transformation.
+
+**Architecture Principle** (from problem statement):
+> "هذه ليست شجرة صرف فقط. هذه خريطة جبر الدال قبل المعنى"
+>
+> (This is not just a morphology tree. This is a Dal algebra map before meaning.)
+
+---
+
+## 8-Layer Transition Domain Architecture
+
+### Core Insight
+
+From the problem statement:
+> "هذه شبكة انتقالات جزئية، لا pipeline واحد"
+>
+> (This is a partial transition network, not a single pipeline.)
+
+**Critical Understanding**: Some words follow root→wazn path, others follow functional/particle path, others follow frozen/lexical path, and some remain unresolved until lexicon or context is available.
+
+### The 8 Domains (D0-D7)
+
+```text
+D0 = GraphophonemicLayer  (رسم_صوت)
+D1 = SyllableLayer        (مقطعي)
+D2 = PreMorphLayer        (ما_قبل_الصرف)
+D3 = OriginLayer          (أصل)
+D4 = TemplateLayer        (قالب)
+D5 = IdentityAxisLayer    (محاور_هوية)
+D6 = DirectionalAnalysis  (تحليل_اتجاهي)
+D7 = JudgmentLayer        (حكم)
+```
+
+### Domain Descriptions
+
+#### D0: Graphophonemic Layer (رسم_صوت)
+**Purpose**: Written form + sound analysis
+- رمز كتابي (grapheme/written symbol)
+- فونيم (phoneme)
+- حركة قصيرة (short vowel)
+- حركة طويلة (long vowel)
+- سكون/شدة/تنوين (sukun/shadda/tanween)
+
+**Output**: GraphophonemicCandidate (NOT grammatical letter)
+**Critical Distinction**: علامة إعرابية/صرفية محتملة ≠ إعراب (potential case mark ≠ actual case)
+
+#### D1: Syllable Layer (مقطعي)
+**Purpose**: Distinguish phonetic from operational syllables
+- **Phonetic syllables**: CV, CVC, CVV (صوتي)
+- **Operational syllables**: استـ، مـ، ـون (تشغيلي/صرفي)
+
+**Critical Rule**: CV / CVC / CVV ≠ وزن صرفي (Phonetic syllable ≠ morphological pattern)
+**Output**: SyllableCandidate with type distinction
+
+#### D2: PreMorph Layer (ما_قبل_الصرف)
+**Purpose**: Prevent forcing everything through root→wazn path
+
+**Possible Outputs**:
+- FunctionalWordCandidate (حرف معنى)
+- ParticleCandidate (أداة)
+- BuiltUnitCandidate (مبني)
+- PronounCandidate (ضمير)
+- ExternalCliticCandidate
+- InternalZiyadahCandidate
+- LexicalShortJamidCandidate
+- LargerTemplatePartCandidate
+
+**Critical Rule**: القصر الصوتي لا يعني بساطة صرفية (Phonetic shortness ≠ morphological simplicity)
+Example: من، ما، هل، قد، يد، دم، فم (all short, but different types)
+
+#### D3: Origin Layer (أصل)
+**Purpose**: Root vs non-root unit classification
+
+**Origin Types** (OriginKind):
+- ROOT: جذر (ثنائي، ثلاثي، رباعي، صحيح، معتل، مهموز، مضعف)
+- NON_ROOT_FUNCTIONAL: وحدة وظيفية غير جذرية
+- CLITIC: ضمير متصل
+- BUILT_UNIT: وحدة مبنية
+- LEXICAL_JAMID: جامد معجمي (يد، دم، شمس، ماء)
+- UNKNOWN: غير معروف
+
+**Critical Distinction**: ثابت معجميًا vs مفترض (lexically attested vs hypothesized)
+
+#### D4: Template Layer (قالب)
+**Purpose**: Pattern/wazn analysis with explicit type classification
+
+**Template Types** (TemplateKind):
+1. GENERATED_MORPHOLOGICAL: وزن صرفي مولّد (pattern-based generative)
+2. DESCRIPTIVE_MORPHOLOGICAL: وزن صرفي واصف (post-hoc categorization)
+3. FUNCTIONAL_BUILT: قالب وظيفي مبني (functional template, NOT derivational)
+4. LEXICAL_JAMID: قالب جامد سماعي (frozen, attested only)
+5. SURFACE: وزن ظاهر (what appears phonetically)
+6. DEEP: وزن عميق (after إعلال/إبدال analysis)
+7. UNRESOLVED: بنية غير محسومة (needs lexicon/context)
+
+**Critical Rule**: وزن ظاهر لا يرقى مباشرة إلى وزن عميق (Surface pattern ≠ deep pattern without transformation)
+
+Example: قال → apparent pattern, but deep analysis needs ق-و-ل + إعلال + سماع
+
+#### D5: Identity Axis Layer (محاور_هوية)
+**Purpose**: Parallel (NOT linear) identity classification
+
+**NOT a single enum, but 5 parallel axes** (IdentityAxis):
+1. DERIVATION: اشتقاق (جامد/مشتق/منقول)
+2. IRAB: إعراب (معرب/مبني)
+3. ORIGIN: أصل (عربي/دخيل/معرّب)
+4. COMPOSITION: تركيب (مفرد/مركب/منحوت)
+5. FUNCTION: وظيفة (اسمي/فعلي/حرفي/أداتي)
+
+**Critical Understanding**: A word can carry candidates in MULTIPLE axes simultaneously.
+Example: اسمًا + مبنيًا + منقولًا + عربيًا + مركبًا (all at once)
+
+#### D6: Directional Analysis Layer (تحليل_اتجاهي)
+**Purpose**: Bidirectional form analysis (NOT unidirectional)
+
+**Analysis Types**:
+- ForwardScanCandidate (أمامي): بادئة/أصل/زيادة/أداة
+- BackwardScanCandidate (خلفي): لاحقة/إعراب/ضمير/عدد/جنس
+- FormAdjacencyRelationCandidate: علاقة السابق باللاحق
+
+**Critical Distinction**: Form adjacency (صوتية/صرفية) ≠ syntactic relation (فاعل/مفعول)
+
+#### D7: Judgment Layer (حكم)
+**Purpose**: Licensed judgment with evidence/residuals/rank
+
+**Contains**:
+- فرضيات متعددة (multiple hypotheses)
+- أدلة (supporting evidence)
+- أدلة مضادة (counter-evidence)
+- رتبة يقين (certainty rank)
+- بقايا (residuals)
+- قرار (decision/judgment)
+
+**Critical Invariant**:
+```text
+No certificate if required lexicon/context is missing.
+
+requires_lexicon = true
+lexicon_evidence = missing
+⇒ rank < certificate
+```
+
+---
+
+## Prohibited Cross-Layer Promotions
+
+From the problem statement:
+> "لا ترقية مباشرة عبر الطبقات"
+> (No direct promotion across layers)
+
+### Forbidden Patterns
+
+1. ❌ رسم/صوت → وزن (Grapheme/phoneme → pattern)
+2. ❌ مقطع → أصل (Syllable → root)
+3. ❌ زيادة → معنى (Augment → meaning)
+4. ❌ وزن ظاهر → وزن عميق (Surface → deep pattern)
+5. ❌ جامد قصير → جذر (Short frozen → root)
+6. ❌ مبني → وزن صرفي (Frozen → morphological pattern)
+
+**Each jump requires an intermediate contract.**
+
+---
+
+## Transition Contract Extensions
+
+### New Enums
+
+```python
+class TransitionDomain(Enum):
+    GRAPHOPHONEMIC = "رسم_صوت"
+    SYLLABIC = "مقطعي"
+    PRE_MORPH = "ما_قبل_الصرف"
+    ORIGIN = "أصل"
+    TEMPLATE = "قالب"
+    IDENTITY_AXIS = "محاور_هوية"
+    DIRECTIONAL_ANALYSIS = "تحليل_اتجاهي"
+    JUDGMENT = "حكم"
+
+class TemplateKind(Enum):
+    GENERATED_MORPHOLOGICAL = "وزن_صرفي_مولّد"
+    DESCRIPTIVE_MORPHOLOGICAL = "وزن_صرفي_واصف"
+    FUNCTIONAL_BUILT = "قالب_وظيفي_مبني"
+    LEXICAL_JAMID = "قالب_جامد_سماعي"
+    SURFACE = "وزن_ظاهر"
+    DEEP = "وزن_عميق"
+    UNRESOLVED = "بنية_غير_محسومة"
+
+class OriginKind(Enum):
+    ROOT = "جذر"
+    NON_ROOT_FUNCTIONAL = "وحدة_وظيفية_غير_جذرية"
+    CLITIC = "ضمير_متصل"
+    BUILT_UNIT = "وحدة_مبنية"
+    LEXICAL_JAMID = "جامد_معجمي"
+    UNKNOWN = "غير_معروف"
+
+class EvidencePolarity(Enum):
+    SUPPORTING = "داعم"
+    COUNTER = "مضاد"
+    NEUTRAL = "محايد"
+
+class AttestationPolicy(Enum):
+    NOT_REQUIRED = "غير_مطلوب"
+    OPTIONAL = "اختياري"
+    REQUIRED_FOR_CERTIFICATE = "مطلوب_للترخيص"
+    REQUIRED_FOR_ANY_ACCEPTANCE = "مطلوب_لأي_قبول"
+
+class IdentityAxis(Enum):
+    DERIVATION = "اشتقاق"
+    IRAB = "إعراب"
+    ORIGIN = "أصل"
+    COMPOSITION = "تركيب"
+    FUNCTION = "وظيفة"
+```
+
+### Extended DalTransitionContract
+
+```python
+@dataclass(frozen=True)
+class DalTransitionContract:
+    # Original fields
+    input_type: DalTypedInput
+    output_type: DalTypedOutput
+    stage_name: str
+    rank_constraint: Optional[LughaRank] = None
+    forbidden_outputs: tuple[DalForbiddenOutput, ...] = ()
+    guards: tuple[DalTransitionGuard, ...] = ()
+    evidence_required: bool = True
+    trace_required: bool = True
+    competitors_allowed: bool = True
+
+    # 8-Layer Architecture Extensions
+    transition_domain: Optional[TransitionDomain] = None
+    template_kind: Optional[TemplateKind] = None
+    origin_kind: Optional[OriginKind] = None
+    identity_axes: tuple[IdentityAxis, ...] = ()
+    requires_lexicon: bool = False
+    requires_attestation: AttestationPolicy = AttestationPolicy.NOT_REQUIRED
+    requires_context: bool = False
+    allows_unresolved: bool = True
+    evidence_polarity_tracking: bool = False
+    residual_policy: Optional[str] = None
+```
 
 ---
 
