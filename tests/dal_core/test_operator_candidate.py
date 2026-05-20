@@ -174,10 +174,17 @@ def _particle_vector(
 def _make_nominal_frame(
     constituents: tuple[PreSyntaxMufradVector, ...]
 ) -> NominalFrameCandidate:
+    lead_noun_index = next(
+        (i for i, c in enumerate(constituents) if isinstance(c.type_id, NounTypeID)),
+        None,
+    )
+    if lead_noun_index is None:
+        raise ValueError("Nominal test frame requires at least one noun constituent.")
     return NominalFrameCandidate(
         frame_id=f"frame-nominal-{id(constituents)}",
         frame_type=FrameType.NOMINAL,
         constituents=constituents,
+        lead_noun_index=lead_noun_index,
         frame_rank=min(c.final_rank for c in constituents),
         inherited_residuals=tuple(r for c in constituents for r in c.residuals),
         frame_specific_residuals=(),
@@ -210,26 +217,26 @@ def _make_inna_entry(operator_id: str = "inna-001") -> NahwOperatorEntry:
     return NahwOperatorEntry(
         operator_id=operator_id,
         family=OperatorTriggerFamily.POSSIBLE_NASIKH_INNA_FAMILY,
-        operator_source=OperatorSource.KITAB_SIBAWAYH,
+        display_name_ar="إِنَّ",
+        source=OperatorSource.KITAB_SIBAWAYH,
         school=NahwSchool.BASRI,
-        surface_form="إنّ",
-        expected_relations=(ExpectedRelationFamily.ISN_LIKE,),
-        case_effect_policy=(CaseEffectPolicyFamily.MIXED_RAFI_NASB_POLICY_FAMILY,),
         input_signature=OperatorInputSignature(
-            min_constituents=2,
-            max_constituents=None,
-            requires_particle=True,
-            activation_conditions=tuple(),
-            blocking_conditions=tuple(),
+            expected_arity=2,
+            expected_neighbour_types=("ISM_COMMON",),
         ),
+        activation_conditions=(ActivationCondition.IMMEDIATELY_PRECEDES_NOMINAL_FRAME,),
+        blocking_conditions=tuple(),
+        expected_relation_families=(ExpectedRelationFamily.ISN_LIKE,),
+        case_effect_policy_families=(CaseEffectPolicyFamily.MIXED_RAFI_NASB_POLICY_FAMILY,),
         rank=LughaRank.SAMA,
         citations=(
             Citation(
-                source="سيبويه",
+                source=OperatorSource.KITAB_SIBAWAYH,
                 reference="الكتاب ١/٣٣",
-                school=NahwSchool.BASRI,
             ),
         ),
+        entry_residuals=(),
+        entry_trace_id=f"entry-trace-{operator_id}",
     )
 
 
@@ -237,26 +244,26 @@ def _make_jarr_entry(operator_id: str = "jarr-001") -> NahwOperatorEntry:
     return NahwOperatorEntry(
         operator_id=operator_id,
         family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        operator_source=OperatorSource.KITAB_SIBAWAYH,
+        display_name_ar="فِي",
+        source=OperatorSource.KITAB_SIBAWAYH,
         school=NahwSchool.BASRI,
-        surface_form="في",
-        expected_relations=(ExpectedRelationFamily.TAQYID_LIKE,),
-        case_effect_policy=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
         input_signature=OperatorInputSignature(
-            min_constituents=2,
-            max_constituents=None,
-            requires_particle=True,
-            activation_conditions=tuple(),
-            blocking_conditions=tuple(),
+            expected_arity=2,
+            expected_neighbour_types=("ISM_COMMON",),
         ),
+        activation_conditions=(ActivationCondition.IMMEDIATELY_PRECEDES_ISM,),
+        blocking_conditions=tuple(),
+        expected_relation_families=(ExpectedRelationFamily.TAQYID_LIKE,),
+        case_effect_policy_families=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
         rank=LughaRank.SAMA,
         citations=(
             Citation(
-                source="سيبويه",
+                source=OperatorSource.KITAB_SIBAWAYH,
                 reference="الكتاب ١/٢٠",
-                school=NahwSchool.BASRI,
             ),
         ),
+        entry_residuals=(),
+        entry_trace_id=f"entry-trace-{operator_id}",
     )
 
 
@@ -386,26 +393,26 @@ def test_operator_candidate_preserves_all_registry_entries():
     jarr_entry2 = NahwOperatorEntry(
         operator_id="jarr-002",
         family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        operator_source=OperatorSource.KITAB_SIBAWAYH,
+        display_name_ar="مِنْ",
+        source=OperatorSource.KITAB_SIBAWAYH,
         school=NahwSchool.BASRI,
-        surface_form="من",
-        expected_relations=(ExpectedRelationFamily.TAQYID_LIKE,),
-        case_effect_policy=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
         input_signature=OperatorInputSignature(
-            min_constituents=2,
-            max_constituents=None,
-            requires_particle=True,
-            activation_conditions=tuple(),
-            blocking_conditions=tuple(),
+            expected_arity=2,
+            expected_neighbour_types=("ISM_COMMON",),
         ),
+        activation_conditions=(ActivationCondition.IMMEDIATELY_PRECEDES_ISM,),
+        blocking_conditions=tuple(),
+        expected_relation_families=(ExpectedRelationFamily.TAQYID_LIKE,),
+        case_effect_policy_families=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
         rank=LughaRank.SAMA,
         citations=(
             Citation(
-                source="سيبويه",
+                source=OperatorSource.KITAB_SIBAWAYH,
                 reference="الكتاب ١/٢١",
-                school=NahwSchool.BASRI,
             ),
         ),
+        entry_residuals=(),
+        entry_trace_id="entry-trace-jarr-002",
     )
 
     p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
@@ -432,26 +439,26 @@ def test_inna_family_produces_all_competing_candidates():
     inna_entry2 = NahwOperatorEntry(
         operator_id="inna-002",
         family=OperatorTriggerFamily.POSSIBLE_NASIKH_INNA_FAMILY,
-        operator_source=OperatorSource.KITAB_SIBAWAYH,
+        display_name_ar="أَنَّ",
+        source=OperatorSource.KITAB_SIBAWAYH,
         school=NahwSchool.KUFI,
-        surface_form="أنّ",
-        expected_relations=(ExpectedRelationFamily.ISN_LIKE,),
-        case_effect_policy=(CaseEffectPolicyFamily.MIXED_RAFI_NASB_POLICY_FAMILY,),
         input_signature=OperatorInputSignature(
-            min_constituents=2,
-            max_constituents=None,
-            requires_particle=True,
-            activation_conditions=tuple(),
-            blocking_conditions=tuple(),
+            expected_arity=2,
+            expected_neighbour_types=("ISM_COMMON",),
         ),
+        activation_conditions=(ActivationCondition.IMMEDIATELY_PRECEDES_NOMINAL_FRAME,),
+        blocking_conditions=tuple(),
+        expected_relation_families=(ExpectedRelationFamily.ISN_LIKE,),
+        case_effect_policy_families=(CaseEffectPolicyFamily.MIXED_RAFI_NASB_POLICY_FAMILY,),
         rank=LughaRank.SAMA,
         citations=(
             Citation(
-                source="الفراء",
+                source=OperatorSource.KITAB_SIBAWAYH,
                 reference="معاني القرآن",
-                school=NahwSchool.KUFI,
             ),
         ),
+        entry_residuals=(),
+        entry_trace_id="entry-trace-inna-002",
     )
 
     p = _particle_vector(
@@ -570,26 +577,26 @@ def test_candidate_rank_cannot_exceed_trigger_or_entry():
     jarr_entry_low = NahwOperatorEntry(
         operator_id="jarr-low",
         family=OperatorTriggerFamily.POSSIBLE_JARR_OPERATOR_FAMILY,
-        operator_source=OperatorSource.KALAAM_ARAB,
+        display_name_ar="فِي",
+        source=OperatorSource.KALAAM_ARAB,
         school=NahwSchool.BASRI,
-        surface_form="في",
-        expected_relations=(ExpectedRelationFamily.TAQYID_LIKE,),
-        case_effect_policy=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
         input_signature=OperatorInputSignature(
-            min_constituents=2,
-            max_constituents=None,
-            requires_particle=True,
-            activation_conditions=tuple(),
-            blocking_conditions=tuple(),
+            expected_arity=2,
+            expected_neighbour_types=("ISM_COMMON",),
         ),
+        activation_conditions=(ActivationCondition.IMMEDIATELY_PRECEDES_ISM,),
+        blocking_conditions=tuple(),
+        expected_relation_families=(ExpectedRelationFamily.TAQYID_LIKE,),
+        case_effect_policy_families=(CaseEffectPolicyFamily.JARR_POLICY_FAMILY,),
         rank=LughaRank.QIYAS,  # Lower rank
         citations=(
             Citation(
-                source="test",
+                source=OperatorSource.OTHER,
                 reference="test",
-                school=NahwSchool.BASRI,
             ),
         ),
+        entry_residuals=(),
+        entry_trace_id="entry-trace-jarr-low",
     )
 
     registry = _make_registry((jarr_entry_low,))
@@ -673,6 +680,26 @@ def test_candidate_residuals_include_lookup_residuals():
         assert candidate.inherited_residuals
 
 
+def test_empty_candidate_set_preserves_lookup_residuals():
+    """Lookup residuals must be preserved even when no candidates are produced."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+
+    # Registry has no JARR entries for this trigger family.
+    registry = _make_registry((_make_inna_entry(),))
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    assert candidate_set.candidates == ()
+    residual_types = {r.type for r in candidate_set.candidate_set_residuals}
+    assert ResidualType.REGISTRY_FAMILY_HAS_NO_ENTRIES in residual_types
+    assert ResidualType.OPERATOR_CANDIDATE_NO_REGISTRY_ENTRIES in residual_types
+
+
 # ---------------------------------------------------------------------------
 # (G) Trace
 # ---------------------------------------------------------------------------
@@ -699,6 +726,23 @@ def test_candidate_trace_links_trigger_source_and_registry_entry():
         assert candidate.trace.frame_id == frame.frame_id
         assert candidate.trace.matrix_id == matrix.matrix_id
         assert candidate.trace.derivation == "from_operator_trigger_and_registry"
+
+
+def test_empty_candidate_set_trace_uses_trigger_source_vector():
+    """Empty candidate sets should still trace to an actual trigger source."""
+    p = _particle_vector(type_id=ParticleTypeID.HARF_JARR)
+    n = _noun_vector(
+        potentials=(_potential(CaseSignValue.KASRA, CaseSignFamily.ORIGINAL, SurfaceEffectType.FINAL_KASRA),)
+    )
+    frame = _make_particle_led_frame((p, n), particle_index=0)
+    matrix = build_case_sign_matrix(frame)
+    trigger = build_operator_trigger_potential(frame, matrix)
+    registry = _make_registry((_make_inna_entry(),))
+
+    candidate_set = build_operator_candidates(trigger, registry)
+
+    assert candidate_set.candidates == ()
+    assert candidate_set.trace.trigger_source_vector_id == trigger.sources[0].vector_id
 
 
 # ---------------------------------------------------------------------------

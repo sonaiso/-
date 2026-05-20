@@ -134,7 +134,7 @@ for candidate in candidate_set.candidates:
 Key behavior:
 - If family has 2 trigger sources and 3 registry entries → 6 candidates
 - All preserved, no "best" choice
-- `candidates[i].competitors_preserved = True`
+- `candidate_set.competitors_preserved = True`
 - Resolution deferred to future `ParseCompetition` layer
 
 ## Empty Candidate Sets
