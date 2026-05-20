@@ -91,6 +91,23 @@ def test_dal_counter_evidence_validates_severity():
         )
 
 
+def test_dal_counter_evidence_validates_span():
+    """Counter-evidence span must be valid (start <= end, non-negative)."""
+    with pytest.raises(ValueError, match="Invalid span: start > end"):
+        DalCounterEvidence(
+            source="test",
+            claim_scope=DalClaimScope.CARRIER_VALID,
+            span=(5, 3)  # Invalid: start > end
+        )
+
+    with pytest.raises(ValueError, match="Invalid span: negative start"):
+        DalCounterEvidence(
+            source="test",
+            claim_scope=DalClaimScope.CARRIER_VALID,
+            span=(-1, 3)  # Invalid: negative start
+        )
+
+
 # ============================================================================
 # Test DalTraceRef
 # ============================================================================
