@@ -467,6 +467,54 @@ def validate_no_direct_promotion(
 
 
 # ============================================================================
+# Mufrad-axes specific prohibition (PR-G / §5.1 of the mufrad-axes plan)
+# ============================================================================
+#
+# The plan explicitly bans deriving the BINAA/I'RAB judgment from the
+# SYLLABIC layer. Syllable count is descriptive (D1); BINAA is judicial
+# (D5/D7). NO amount of trace or shortcut justifies this promotion —
+# it is forbidden by construction.
+
+FORBIDDEN_AXIS_PROMOTIONS: frozenset[tuple[str, str]] = frozenset({
+    # (source_domain.name, target_axis_name)
+    ("SYLLABIC", "BINAA_JUDGMENT"),
+    ("SYLLABIC", "ISHTIQAQ_JUDGMENT"),
+})
+"""Promotions that are forbidden regardless of trace/shortcut/attestation.
+
+Each entry is ``(source_domain, target_axis_name)``. ``target_axis_name``
+is the *judicial* axis (not a domain), and corresponds to the axes
+defined in ``dal_core.mufrad_axes``. These are categorical bans, not
+heuristic warnings: any code path proposing such a promotion is broken
+by definition and must be rewritten.
+"""
+
+
+def assert_axis_promotion_allowed(
+    source_domain: DalTransitionDomain, target_axis_name: str
+) -> None:
+    """Hard-fail if a forbidden axis promotion is attempted.
+
+    Use this from any code that derives a mufrad axis judgment from a
+    lower domain. The function raises ``ValueError`` immediately for
+    any pair listed in :data:`FORBIDDEN_AXIS_PROMOTIONS`.
+
+    This is the runtime counterpart to :func:`validate_no_direct_promotion`
+    — but unlike that function, no escape hatches exist. The plan §5.1
+    requires: "عدد المقاطع لا يحكم بالبناء/الإعراب".
+    """
+    pair = (source_domain.name, target_axis_name)
+    if pair in FORBIDDEN_AXIS_PROMOTIONS:
+        raise ValueError(
+            f"Forbidden axis promotion: {source_domain.name} → "
+            f"{target_axis_name}. "
+            f"Per the mufrad-axes plan §5.1, syllable count is "
+            f"descriptive and may not drive judicial axes. See "
+            f"docs/MUFRAD_AXES.md and dal_core.mufrad_axes."
+        )
+
+
+# ============================================================================
 # Module exports
 # ============================================================================
 
@@ -491,4 +539,6 @@ __all__ = [
     "validate_candidate_set_shape",
     "ensure_no_forbidden_outputs",
     "validate_no_direct_promotion",
+    "FORBIDDEN_AXIS_PROMOTIONS",
+    "assert_axis_promotion_allowed",
 ]

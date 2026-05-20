@@ -126,6 +126,8 @@ from .dal_algebra import (
     validate_candidate_set_shape,
     ensure_no_forbidden_outputs,
     validate_no_direct_promotion,
+    FORBIDDEN_AXIS_PROMOTIONS,
+    assert_axis_promotion_allowed,
 )
 from .mufrad_axes import (
     BinaaJudgment,
@@ -259,6 +261,8 @@ __all__ = [
     "validate_candidate_set_shape",
     "ensure_no_forbidden_outputs",
     "validate_no_direct_promotion",
+    "FORBIDDEN_AXIS_PROMOTIONS",
+    "assert_axis_promotion_allowed",
     # Mufrad axes (PR-A through PR-D)
     "BinaaJudgment",
     "BinaaSubtype",
