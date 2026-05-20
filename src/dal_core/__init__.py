@@ -109,6 +109,20 @@ from .operator_candidate import (
     OperatorCandidateSet,
     build_operator_candidates,
 )
+from .dal_algebra import (
+    DalTypedInput,
+    DalTypedOutput,
+    DalEvidence,
+    DalTrace,
+    DalTransitionGuard,
+    DalForbiddenOutput,
+    DalTransitionContract,
+    DalCandidateSetProtocol,
+    DalTransitionProtocol,
+    validate_transition_contract,
+    validate_candidate_set_shape,
+    ensure_no_forbidden_outputs,
+)
 
 __all__ = [
     "Rank",
@@ -200,4 +214,17 @@ __all__ = [
     "OperatorCandidate",
     "OperatorCandidateSet",
     "build_operator_candidates",
+    # DalAlgebra (PR #21 - F1)
+    "DalTypedInput",
+    "DalTypedOutput",
+    "DalEvidence",
+    "DalTrace",
+    "DalTransitionGuard",
+    "DalForbiddenOutput",
+    "DalTransitionContract",
+    "DalCandidateSetProtocol",
+    "DalTransitionProtocol",
+    "validate_transition_contract",
+    "validate_candidate_set_shape",
+    "ensure_no_forbidden_outputs",
 ]
