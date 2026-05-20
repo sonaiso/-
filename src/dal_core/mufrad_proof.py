@@ -17,7 +17,7 @@ Because: D_mufrad هو أساس أرقام التركيب
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 
 from dal_core.d_form import FormCandidate
 from dal_core.d_lugha import LughaAttestation
@@ -39,6 +39,14 @@ from dal_core.morph_features import (
 from dal_core.surface_effects import SurfaceEffect
 from dal_core.composition_readiness import CompositionReadiness
 from dal_core.case_signs import CaseSignPotential
+from dal_core.mufrad_axes import (
+    BinaaJudgment,
+    BinaaSubtype,
+    IshtiqaqJudgment,
+    JamidSubtype,
+    MushtaqSubtype,
+    SarfFlexibility,
+)
 
 
 @dataclass(frozen=True)
@@ -118,6 +126,44 @@ class MufradProof:
     # Competing analyses
     competitors: tuple["MufradProof", ...] = field(default_factory=tuple)
 
+    # =========================================================================
+    # Classified mufrad axes (PR-E)
+    # =========================================================================
+    #
+    # These supersede the certainty-only ``mabni_murab_status`` and
+    # ``jamid_mushtaq_status`` fields above. They carry actual values
+    # (MABNI vs MUERAB; JAMID vs MUSHTAQ; subtype) plus the orthogonal
+    # sarf-flexibility axis. All default to UNRESOLVED / NOT_APPLICABLE so
+    # existing constructors continue to work unchanged.
+    #
+    # Architectural invariant (enforced in ``__post_init__``):
+    #   - If ``binaa_judgment`` is MABNI/MUERAB, the field must be a
+    #     ``BinaaJudgment``, not a string.
+    #   - If ``ishtiqaq_judgment`` is JAMID/MUSHTAQ, ``ishtiqaq_subtype``
+    #     must be a typed subtype (JamidSubtype or MushtaqSubtype).
+    # Cross-axis consistency:
+    #   - HARF ⇒ ishtiqaq_judgment must be NOT_APPLICABLE.
+    #   - FIIL ⇒ ishtiqaq_judgment must be NOT_APPLICABLE.
+
+    binaa_judgment: BinaaJudgment = BinaaJudgment.UNRESOLVED
+    """Axis 3 — classified binaa/i'rab judgment."""
+
+    binaa_subtype: Optional[BinaaSubtype] = None
+    """Axis 3 — surface subtype (sukun/fath/damm/kasr/invariant). Only
+    meaningful when ``binaa_judgment == MABNI``."""
+
+    ishtiqaq_judgment: IshtiqaqJudgment = IshtiqaqJudgment.UNRESOLVED
+    """Axis 4 — classified ishtiqaq/jamid judgment."""
+
+    ishtiqaq_subtype: Optional[Union[JamidSubtype, MushtaqSubtype]] = None
+    """Axis 4 — subtype (mushtaq-class or jamid-class). Only meaningful
+    when ``ishtiqaq_judgment in {JAMID, MUSHTAQ}``."""
+
+    sarf_flexibility: SarfFlexibility = SarfFlexibility.NOT_APPLICABLE
+    """Auxiliary axis — distinguishes ``munassarif`` from
+    ``mamnu_min_sarf`` for MUERAB nouns. ``NOT_APPLICABLE`` for particles,
+    verbs, and MABNI nouns."""
+
     def __post_init__(self):
         """Validate MufradProof constraints"""
         # Ensure no semantic leak
@@ -144,6 +190,46 @@ class MufradProof:
         for attr in forbidden_case:
             if hasattr(self, attr):
                 raise ValueError(f"MufradProof must not have case effect '{attr}'")
+
+        # ------------------------------------------------------------------
+        # Axis consistency checks (PR-E)
+        # ------------------------------------------------------------------
+        # When a judgment carries a value, its subtype field must use the
+        # corresponding typed enum, never a string. This blocks the kind
+        # of free-form leakage that produced the original hallucination.
+
+        if self.binaa_judgment == BinaaJudgment.MABNI:
+            if self.binaa_subtype is not None and not isinstance(
+                self.binaa_subtype, BinaaSubtype
+            ):
+                raise ValueError(
+                    "binaa_subtype must be a BinaaSubtype when binaa_judgment is MABNI"
+                )
+        elif self.binaa_judgment in (BinaaJudgment.MUERAB, BinaaJudgment.NOT_APPLICABLE):
+            if self.binaa_subtype is not None:
+                raise ValueError(
+                    f"binaa_subtype must be None when binaa_judgment is {self.binaa_judgment}"
+                )
+
+        if self.ishtiqaq_judgment == IshtiqaqJudgment.MUSHTAQ:
+            if self.ishtiqaq_subtype is not None and not isinstance(
+                self.ishtiqaq_subtype, MushtaqSubtype
+            ):
+                raise ValueError(
+                    "ishtiqaq_subtype must be a MushtaqSubtype when ishtiqaq_judgment is MUSHTAQ"
+                )
+        elif self.ishtiqaq_judgment == IshtiqaqJudgment.JAMID:
+            if self.ishtiqaq_subtype is not None and not isinstance(
+                self.ishtiqaq_subtype, JamidSubtype
+            ):
+                raise ValueError(
+                    "ishtiqaq_subtype must be a JamidSubtype when ishtiqaq_judgment is JAMID"
+                )
+        elif self.ishtiqaq_judgment == IshtiqaqJudgment.NOT_APPLICABLE:
+            if self.ishtiqaq_subtype is not None:
+                raise ValueError(
+                    "ishtiqaq_subtype must be None when ishtiqaq_judgment is NOT_APPLICABLE"
+                )
 
     def is_composition_ready(self) -> bool:
         """Check if ready for any level of composition"""

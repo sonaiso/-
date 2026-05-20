@@ -127,6 +127,30 @@ from .dal_algebra import (
     ensure_no_forbidden_outputs,
     validate_no_direct_promotion,
 )
+from .mufrad_axes import (
+    BinaaJudgment,
+    BinaaSubtype,
+    IshtiqaqJudgment,
+    MushtaqSubtype,
+    JamidSubtype,
+    SarfFlexibility,
+)
+from .mabni_registry import (
+    MabniCategory,
+    MabniEntry,
+    MabniRegistry,
+    get_default_mabni_registry,
+)
+from .binaa_judge import (
+    BinaaJudgeInput,
+    BinaaJudgmentResult,
+    judge_binaa,
+)
+from .ishtiqaq_judge import (
+    IshtiqaqJudgeInput,
+    IshtiqaqJudgmentResult,
+    judge_ishtiqaq,
+)
 
 __all__ = [
     "Rank",
@@ -235,4 +259,21 @@ __all__ = [
     "validate_candidate_set_shape",
     "ensure_no_forbidden_outputs",
     "validate_no_direct_promotion",
+    # Mufrad axes (PR-A through PR-D)
+    "BinaaJudgment",
+    "BinaaSubtype",
+    "IshtiqaqJudgment",
+    "MushtaqSubtype",
+    "JamidSubtype",
+    "SarfFlexibility",
+    "MabniCategory",
+    "MabniEntry",
+    "MabniRegistry",
+    "get_default_mabni_registry",
+    "BinaaJudgeInput",
+    "BinaaJudgmentResult",
+    "judge_binaa",
+    "IshtiqaqJudgeInput",
+    "IshtiqaqJudgmentResult",
+    "judge_ishtiqaq",
 ]

@@ -12,6 +12,7 @@ from typing import Optional
 from dal_core.ranks import LughaRank
 from dal_core.residuals import Residual
 from dal_core.evidence import Evidence
+from dal_core.mufrad_axes import BinaaJudgment, SarfFlexibility
 
 
 class CandidateStatus(Enum):
@@ -130,14 +131,35 @@ class NounInflectionClass:
 
     Noun-specific inflection patterns.
     Required when DType == ISM.
+
+    DEPRECATED FIELD WARNING:
+        ``inflection_type`` is a free-form string that historically mixed
+        TWO orthogonal axes:
+          - sarf flexibility ("munassarif" / "mamnu_min_sarf")
+          - binaa judgment    ("mabni")
+        New code should populate ``binaa_judgment`` (axis 3) and
+        ``sarf_flexibility`` (auxiliary axis) instead, and treat
+        ``inflection_type`` as read-only legacy data. See
+        ``dal_core.mufrad_axes`` for the classified replacement.
     """
-    inflection_type: str  # "munassarif" | "mamnu_min_sarf" | "mabni"
+    inflection_type: str  # legacy: "munassarif" | "mamnu_min_sarf" | "mabni"
     declension_pattern: str  # "triptote" | "diptote" | "indeclinable"
 
     evidence: tuple[Evidence, ...]
     rank: LughaRank
     residuals: tuple[Residual, ...] = field(default_factory=tuple)
     trace: dict = field(default_factory=dict)
+
+    # New classified axes (PR-E). Optional and backward-compatible:
+    # default to None so existing constructors continue to work. New code
+    # SHOULD populate these via the binaa / ishtiqaq judges.
+    binaa_judgment: Optional[BinaaJudgment] = None
+    """Classified binaa/i'rab judgment for this noun. ``None`` means
+    "consult ``inflection_type`` as legacy fallback"."""
+
+    sarf_flexibility: Optional[SarfFlexibility] = None
+    """Classified sarf-flexibility (مصروف / ممنوع من الصرف). ``None``
+    means "consult ``inflection_type`` as legacy fallback"."""
 
 
 @dataclass(frozen=True)
