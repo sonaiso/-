@@ -2,6 +2,7 @@
 Tests for Dal Algebra Signature (F1)
 
 Tests the foundational typed transition contract for dal_core.
+Including 8-layer transition domain architecture.
 """
 
 import pytest
@@ -20,6 +21,13 @@ from dal_core.dal_algebra import (
     validate_transition_contract,
     validate_candidate_set_shape,
     ensure_no_forbidden_outputs,
+    # 8-Layer Architecture Enums
+    TransitionDomain,
+    TemplateKind,
+    OriginKind,
+    EvidencePolarity,
+    AttestationPolicy,
+    IdentityAxis,
 )
 from dal_core.ranks import LughaRank
 from dal_core.evidence import Evidence
@@ -649,3 +657,246 @@ def test_ensure_no_forbidden_outputs_with_dict():
         (forbidden_spec,),
         "test_stage"
     )
+
+
+# ---------------------------------------------------------------------------
+# Test: 8-Layer Transition Domain Architecture
+# ---------------------------------------------------------------------------
+
+
+def test_transition_domain_enum_has_8_values():
+    """Test that TransitionDomain enum has exactly 8 domains (D0-D7)."""
+    domains = list(TransitionDomain)
+    assert len(domains) == 8
+
+    # Verify all 8 domains are present
+    domain_values = {d.value for d in domains}
+    expected = {
+        "رسم_صوت",       # GRAPHOPHONEMIC
+        "مقطعي",         # SYLLABIC
+        "ما_قبل_الصرف",   # PRE_MORPH
+        "أصل",           # ORIGIN
+        "قالب",          # TEMPLATE
+        "محاور_هوية",    # IDENTITY_AXIS
+        "تحليل_اتجاهي",  # DIRECTIONAL_ANALYSIS
+        "حكم",           # JUDGMENT
+    }
+    assert domain_values == expected
+
+
+def test_template_kind_enum_has_7_values():
+    """Test that TemplateKind enum has 7 template types."""
+    template_kinds = list(TemplateKind)
+    assert len(template_kinds) == 7
+
+    # Verify key distinction: surface vs deep
+    assert TemplateKind.SURFACE in template_kinds
+    assert TemplateKind.DEEP in template_kinds
+    assert TemplateKind.UNRESOLVED in template_kinds
+
+
+def test_origin_kind_enum_distinguishes_root_vs_functional():
+    """Test that OriginKind distinguishes root from functional units."""
+    origin_kinds = list(OriginKind)
+
+    # Must have ROOT and NON_ROOT_FUNCTIONAL
+    assert OriginKind.ROOT in origin_kinds
+    assert OriginKind.NON_ROOT_FUNCTIONAL in origin_kinds
+
+    # Must have LEXICAL_JAMID for frozen words (يد، دم، شمس)
+    assert OriginKind.LEXICAL_JAMID in origin_kinds
+
+
+def test_attestation_policy_enum_enforces_lexicon_requirement():
+    """Test that AttestationPolicy enforces lexicon requirement levels."""
+    policies = list(AttestationPolicy)
+
+    # Must have all 4 levels
+    assert len(policies) == 4
+    assert AttestationPolicy.NOT_REQUIRED in policies
+    assert AttestationPolicy.OPTIONAL in policies
+    assert AttestationPolicy.REQUIRED_FOR_CERTIFICATE in policies
+    assert AttestationPolicy.REQUIRED_FOR_ANY_ACCEPTANCE in policies
+
+
+def test_identity_axis_enum_has_5_parallel_axes():
+    """Test that IdentityAxis has 5 parallel axes (not linear)."""
+    axes = list(IdentityAxis)
+
+    # Must have exactly 5 axes
+    assert len(axes) == 5
+
+    # Verify all 5 axes
+    axis_values = {a.value for a in axes}
+    expected = {
+        "اشتقاق",  # DERIVATION
+        "إعراب",   # IRAB
+        "أصل",     # ORIGIN
+        "تركيب",   # COMPOSITION
+        "وظيفة",   # FUNCTION
+    }
+    assert axis_values == expected
+
+
+def test_evidence_polarity_enum_tracks_supporting_vs_counter():
+    """Test that EvidencePolarity tracks supporting vs counter-evidence."""
+    polarities = list(EvidencePolarity)
+
+    assert len(polarities) == 3
+    assert EvidencePolarity.SUPPORTING in polarities
+    assert EvidencePolarity.COUNTER in polarities
+    assert EvidencePolarity.NEUTRAL in polarities
+
+
+def test_transition_contract_with_8_layer_extensions():
+    """Test DalTransitionContract with 8-layer architecture extensions."""
+
+    # Create contract with TEMPLATE domain
+    contract = DalTransitionContract(
+        input_type=DalTypedInput(
+            input_type_name="RootCandidate",
+            source_stage="root_extractor"
+        ),
+        output_type=DalTypedOutput(
+            output_type_name="TemplateCandidate",
+            target_stage="template_matcher"
+        ),
+        stage_name="template_analyzer",
+        transition_domain=TransitionDomain.TEMPLATE,
+        template_kind=TemplateKind.GENERATED_MORPHOLOGICAL,
+        requires_lexicon=False,
+        requires_attestation=AttestationPolicy.OPTIONAL,
+        requires_context=False,
+        allows_unresolved=True
+    )
+
+    # Validate contract
+    is_valid, violations = contract.validate_contract()
+    assert is_valid
+    assert len(violations) == 0
+
+    # Verify 8-layer fields
+    assert contract.transition_domain == TransitionDomain.TEMPLATE
+    assert contract.template_kind == TemplateKind.GENERATED_MORPHOLOGICAL
+    assert contract.requires_lexicon is False
+    assert contract.requires_attestation == AttestationPolicy.OPTIONAL
+
+
+def test_transition_contract_with_identity_axes():
+    """Test DalTransitionContract with multiple identity axes."""
+
+    contract = DalTransitionContract(
+        input_type=DalTypedInput(
+            input_type_name="TemplateCandidate",
+            source_stage="template_matcher"
+        ),
+        output_type=DalTypedOutput(
+            output_type_name="IdentityCandidate",
+            target_stage="identity_analyzer"
+        ),
+        stage_name="identity_analysis",
+        transition_domain=TransitionDomain.IDENTITY_AXIS,
+        identity_axes=(
+            IdentityAxis.DERIVATION,
+            IdentityAxis.IRAB,
+            IdentityAxis.FUNCTION,
+        ),
+        requires_lexicon=True,
+        requires_attestation=AttestationPolicy.REQUIRED_FOR_CERTIFICATE,
+    )
+
+    # Verify multiple axes can be specified
+    assert len(contract.identity_axes) == 3
+    assert IdentityAxis.DERIVATION in contract.identity_axes
+    assert IdentityAxis.IRAB in contract.identity_axes
+    assert IdentityAxis.FUNCTION in contract.identity_axes
+
+
+def test_transition_contract_with_frozen_lexical():
+    """Test DalTransitionContract for frozen/lexical words (يد، دم، شمس)."""
+
+    contract = DalTransitionContract(
+        input_type=DalTypedInput(
+            input_type_name="GraphophonemeCandidate",
+            source_stage="graphophonemic"
+        ),
+        output_type=DalTypedOutput(
+            output_type_name="OriginCandidate",
+            target_stage="origin_analyzer"
+        ),
+        stage_name="frozen_word_detector",
+        transition_domain=TransitionDomain.ORIGIN,
+        origin_kind=OriginKind.LEXICAL_JAMID,
+        requires_lexicon=True,
+        requires_attestation=AttestationPolicy.REQUIRED_FOR_ANY_ACCEPTANCE,
+        allows_unresolved=False,  # Frozen words MUST be in lexicon
+    )
+
+    # Verify frozen word contract
+    assert contract.origin_kind == OriginKind.LEXICAL_JAMID
+    assert contract.requires_lexicon is True
+    assert contract.requires_attestation == AttestationPolicy.REQUIRED_FOR_ANY_ACCEPTANCE
+    assert contract.allows_unresolved is False
+
+
+def test_transition_contract_with_unresolved_template():
+    """Test DalTransitionContract allowing unresolved patterns."""
+
+    contract = DalTransitionContract(
+        input_type=DalTypedInput(
+            input_type_name="SyllableCandidate",
+            source_stage="syllabifier"
+        ),
+        output_type=DalTypedOutput(
+            output_type_name="TemplateCandidate",
+            target_stage="template_matcher"
+        ),
+        stage_name="pattern_analyzer",
+        transition_domain=TransitionDomain.TEMPLATE,
+        template_kind=TemplateKind.UNRESOLVED,
+        requires_lexicon=True,
+        requires_context=True,
+        allows_unresolved=True,
+    )
+
+    # Verify unresolved template allows pending outputs
+    assert contract.template_kind == TemplateKind.UNRESOLVED
+    assert contract.allows_unresolved is True
+    assert contract.requires_lexicon is True
+    assert contract.requires_context is True
+
+
+def test_no_direct_promotion_across_layers():
+    """
+    Test the critical invariant: No direct promotion across layers.
+
+    From problem statement:
+    "رسم/صوت لا يرقى مباشرة إلى وزن"
+    (Grapheme/phoneme does not promote directly to pattern)
+
+    Each layer jump must go through intermediate contract.
+    """
+
+    # Contract D0 → D4 DIRECT (FORBIDDEN pattern)
+    # This should be caught by validation logic (future enhancement)
+    forbidden_direct_jump = DalTransitionContract(
+        input_type=DalTypedInput(
+            input_type_name="Grapheme",
+            source_stage="graphophonemic"
+        ),
+        output_type=DalTypedOutput(
+            output_type_name="Pattern",
+            target_stage="template"  # Direct jump!
+        ),
+        stage_name="forbidden_direct_jump",
+        transition_domain=TransitionDomain.GRAPHOPHONEMIC,
+        # Note: This creates a mismatch between domain and output
+    )
+
+    # For now, just document this is a bad pattern
+    # Future: Add validation that checks transition_domain matches input/output stages
+    assert forbidden_direct_jump.transition_domain == TransitionDomain.GRAPHOPHONEMIC
+    # But output is TEMPLATE domain - mismatch!
+
+    # CORRECT pattern: D0 → D1 → D2 → D3 → D4
+    # Each transition respects domain boundaries

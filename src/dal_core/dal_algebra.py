@@ -56,6 +56,184 @@ OutputT = TypeVar("OutputT")
 
 
 # ---------------------------------------------------------------------------
+# 8-Layer Transition Domain Architecture (F1 Extended)
+# ---------------------------------------------------------------------------
+
+
+class TransitionDomain(Enum):
+    """
+    مجالات الانتقال الثمانية (8 Transition Domains)
+
+    Architecture based on:
+    "هذه ليست شجرة صرف فقط. هذه خريطة جبر الدال قبل المعنى"
+
+    These are NOT linear pipeline stages, but:
+    "شبكة انتقالات جزئية، لا pipeline واحد"
+    (Partial transition network, not a single pipeline)
+
+    Some words follow root→wazn path, others follow functional/particle path,
+    others follow frozen/lexical path, and some remain unresolved until
+    lexicon or context is available.
+    """
+
+    GRAPHOPHONEMIC = "رسم_صوت"
+    """D0: GraphophonemicLayer - Written form + sound (رمز كتابي، فونيم، حركة)"""
+
+    SYLLABIC = "مقطعي"
+    """D1: SyllableLayer - Phonetic (CV/CVC) vs operational syllables"""
+
+    PRE_MORPH = "ما_قبل_الصرف"
+    """D2: PreMorphLayer - Functional/particle/built/clitic classification"""
+
+    ORIGIN = "أصل"
+    """D3: OriginLayer - Root (جذر) vs non-root functional unit"""
+
+    TEMPLATE = "قالب"
+    """D4: TemplateLayer - Pattern/wazn (generative, descriptive, functional, frozen)"""
+
+    IDENTITY_AXIS = "محاور_هوية"
+    """D5: IdentityAxisLayer - Parallel axes (derivation, i'rab, origin, composition, function)"""
+
+    DIRECTIONAL_ANALYSIS = "تحليل_اتجاهي"
+    """D6: DirectionalAnalysisLayer - Bidirectional form analysis (forward/backward scan)"""
+
+    JUDGMENT = "حكم"
+    """D7: JudgmentLayer - Licensed judgment with evidence/rank/residuals"""
+
+
+class TemplateKind(Enum):
+    """
+    أنواع القوالب (Template Types)
+
+    Critical distinction from problem statement:
+    "وزن ظاهر لا يرقى مباشرة إلى وزن عميق"
+    (Surface pattern does not directly promote to deep pattern)
+    """
+
+    GENERATED_MORPHOLOGICAL = "وزن_صرفي_مولّد"
+    """Pattern-based generative morphology (فَعَلَ, فاعِل, مَفْعول)"""
+
+    DESCRIPTIVE_MORPHOLOGICAL = "وزن_صرفي_واصف"
+    """Descriptive post-hoc categorization (not generative)"""
+
+    FUNCTIONAL_BUILT = "قالب_وظيفي_مبني"
+    """Functional template for particles/built units (بنية وظيفية)"""
+
+    LEXICAL_JAMID = "قالب_جامد_سماعي"
+    """Frozen lexical template (attested, not derived)"""
+
+    SURFACE = "وزن_ظاهر"
+    """Surface pattern (what appears phonetically)"""
+
+    DEEP = "وزن_عميق"
+    """Deep pattern (after إعلال, إبدال analysis)"""
+
+    UNRESOLVED = "بنية_غير_محسومة"
+    """Unresolved structure (needs lexicon/context)"""
+
+
+class OriginKind(Enum):
+    """
+    أنواع الأصل (Origin Types)
+
+    From problem statement:
+    "الأصل قد يكون جذر، وقد يكون وحدة غير جذرية"
+    (Origin may be root, or may be non-root unit)
+    """
+
+    ROOT = "جذر"
+    """Root origin (ثنائي، ثلاثي، رباعي، صحيح، معتل، مهموز، مضعف)"""
+
+    NON_ROOT_FUNCTIONAL = "وحدة_وظيفية_غير_جذرية"
+    """Non-root functional unit (particles, pronouns)"""
+
+    CLITIC = "ضمير_متصل"
+    """Clitic (external attachment)"""
+
+    BUILT_UNIT = "وحدة_مبنية"
+    """Built unit (frozen functional)"""
+
+    LEXICAL_JAMID = "جامد_معجمي"
+    """Frozen lexical (يد، دم، شمس، ماء)"""
+
+    UNKNOWN = "غير_معروف"
+    """Unknown/unresolved origin"""
+
+
+class EvidencePolarity(Enum):
+    """
+    قطبية الدليل (Evidence Polarity)
+
+    From problem statement judgment layer:
+    "فرضيات متعددة، أدلة، أدلة مضادة"
+    (Multiple hypotheses, evidence, counter-evidence)
+    """
+
+    SUPPORTING = "داعم"
+    """Evidence supporting this hypothesis"""
+
+    COUNTER = "مضاد"
+    """Counter-evidence (evidence against this hypothesis)"""
+
+    NEUTRAL = "محايد"
+    """Neutral evidence"""
+
+
+class AttestationPolicy(Enum):
+    """
+    سياسة السماع (Attestation Policy)
+
+    From problem statement:
+    "لا حكم قطعي بلا معجم أو سياق عند الحاجة"
+    (No certificate without lexicon/context when needed)
+    """
+
+    NOT_REQUIRED = "غير_مطلوب"
+    """Attestation not required (pattern-based)"""
+
+    OPTIONAL = "اختياري"
+    """Attestation optional (improves confidence)"""
+
+    REQUIRED_FOR_CERTIFICATE = "مطلوب_للترخيص"
+    """Attestation required for certificate rank"""
+
+    REQUIRED_FOR_ANY_ACCEPTANCE = "مطلوب_لأي_قبول"
+    """Attestation required for any acceptance (frozen words)"""
+
+
+class IdentityAxis(Enum):
+    """
+    محاور الهوية (Identity Axes)
+
+    From problem statement:
+    "هذه ليست طبقة واحدة خطية، بل محاور متوازية"
+    (Not a single linear layer, but parallel axes)
+
+    A word may carry candidates in multiple axes simultaneously:
+    - اسمًا (nominal)
+    - مبنيًا (frozen)
+    - منقولًا (transferred)
+    - عربيًا (Arabic)
+    - مركبًا (compound)
+    """
+
+    DERIVATION = "اشتقاق"
+    """Derivation axis: جامد/مشتق/منقول"""
+
+    IRAB = "إعراب"
+    """I'rab axis: معرب/مبني"""
+
+    ORIGIN = "أصل"
+    """Origin axis: عربي/دخيل/معرّب"""
+
+    COMPOSITION = "تركيب"
+    """Composition axis: مفرد/مركب/منحوت"""
+
+    FUNCTION = "وظيفة"
+    """Function axis: اسمي/فعلي/حرفي/أداتي"""
+
+
+# ---------------------------------------------------------------------------
 # Typed Input/Output Contracts
 # ---------------------------------------------------------------------------
 
@@ -268,7 +446,19 @@ class DalTransitionContract:
     - rank_constraint: Rank ceiling/floor constraint
     - forbidden_outputs: Stage-specific forbidden fields
 
-    OPTIONAL FIELDS:
+    OPTIONAL FIELDS (8-Layer Architecture Extensions):
+    - transition_domain: Which of the 8 domains this transition operates in
+    - template_kind: For TEMPLATE domain transitions
+    - origin_kind: For ORIGIN domain transitions
+    - identity_axes: For IDENTITY_AXIS domain transitions (may have multiple)
+    - requires_lexicon: Whether lexicon lookup is required
+    - requires_attestation: Attestation policy for this transition
+    - requires_context: Whether context is required
+    - allows_unresolved: Whether unresolved outputs are acceptable
+    - evidence_policy: How evidence should be gathered
+    - counter_evidence_policy: How counter-evidence is handled
+
+    ORIGINAL OPTIONAL FIELDS:
     - guards: Precondition/postcondition guards
     - evidence_required: Whether evidence trail is mandatory
     - trace_required: Whether transformation trace is mandatory
@@ -301,6 +491,40 @@ class DalTransitionContract:
 
     competitors_allowed: bool = True
     """Whether competing candidates are allowed"""
+
+    # ---------------------------------------------------------------------------
+    # 8-Layer Architecture Extensions
+    # ---------------------------------------------------------------------------
+
+    transition_domain: Optional[TransitionDomain] = None
+    """Which of the 8 transition domains this operates in"""
+
+    template_kind: Optional[TemplateKind] = None
+    """For TEMPLATE domain: which template type (generative, descriptive, etc.)"""
+
+    origin_kind: Optional[OriginKind] = None
+    """For ORIGIN domain: which origin type (root, functional, etc.)"""
+
+    identity_axes: tuple[IdentityAxis, ...] = field(default_factory=tuple)
+    """For IDENTITY_AXIS domain: which parallel axes are analyzed"""
+
+    requires_lexicon: bool = False
+    """Whether lexicon lookup is required for this transition"""
+
+    requires_attestation: AttestationPolicy = AttestationPolicy.NOT_REQUIRED
+    """Attestation policy: required for certificate/acceptance, optional, or not required"""
+
+    requires_context: bool = False
+    """Whether context is required for this transition"""
+
+    allows_unresolved: bool = True
+    """Whether unresolved outputs are acceptable (pending lexicon/context)"""
+
+    evidence_polarity_tracking: bool = False
+    """Whether to track supporting vs counter-evidence"""
+
+    residual_policy: Optional[str] = None
+    """How residuals should be handled (free-form for now)"""
 
     def validate_contract(self) -> tuple[bool, list[str]]:
         """
@@ -527,6 +751,13 @@ __all__ = [
     # Type variables
     "InputT",
     "OutputT",
+    # 8-Layer Architecture Enums
+    "TransitionDomain",
+    "TemplateKind",
+    "OriginKind",
+    "EvidencePolarity",
+    "AttestationPolicy",
+    "IdentityAxis",
     # Typed input/output
     "DalTypedInput",
     "DalTypedOutput",
