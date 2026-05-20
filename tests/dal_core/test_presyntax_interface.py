@@ -339,6 +339,8 @@ class TestOperatorCannotConsumeTokens:
 
     def test_ready_vector_allows_operator_consumption(self):
         """READY_FOR_COMPOSITION allows operator consumption"""
+        from dal_core.mufrad_axes import BinaaJudgment, IshtiqaqJudgment
+
         vector = PreSyntaxMufradVector(
             mufrad_id="test_001",
             raw_span=(0, 5),
@@ -357,9 +359,12 @@ class TestOperatorCannotConsumeTokens:
             trace_id="trace_001",
             competitors_count=0,
             composition_readiness=CompositionReadiness.READY_FOR_COMPOSITION,
+            # PR-F: axes must be resolved before any operator consumes the vector.
+            binaa_judgment=BinaaJudgment.MUERAB,
+            ishtiqaq_judgment=IshtiqaqJudgment.JAMID,
         )
 
-        # READY_FOR_COMPOSITION allows operator consumption
+        # READY_FOR_COMPOSITION + resolved axes allows operator consumption
         assert vector.allows_operator_consumption()
 
 

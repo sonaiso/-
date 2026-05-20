@@ -496,11 +496,18 @@ def _is_mabni_by_value(vector: PreSyntaxMufradVector) -> bool:
     Per confirmation #2: `mabni_murab_status` is a `CandidateStatus`, which
     expresses *certainty* not *value*; it is not by itself proof of being
     mabni. We require either:
-      - noun_inflection_class.inflection_type == "mabni"
-      - some case_sign_potential with sign_family == CaseSignFamily.BUILDING
+      - noun_inflection_class.binaa_judgment == BinaaJudgment.MABNI (PR-E)
+      - or the legacy string field inflection_type == "mabni" (backward compat)
+      - or some case_sign_potential with sign_family == CaseSignFamily.BUILDING
     """
     nic = vector.noun_inflection_class
     if nic is not None:
+        # PR-E: prefer the classified axis when present.
+        from dal_core.mufrad_axes import BinaaJudgment
+
+        if getattr(nic, "binaa_judgment", None) == BinaaJudgment.MABNI:
+            return True
+        # Legacy fallback for older constructors.
         if isinstance(nic.inflection_type, str) and nic.inflection_type.strip().lower() == _MABNI_VALUE:
             return True
     for pot in vector.case_sign_potentials:

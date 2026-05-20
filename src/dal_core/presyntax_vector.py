@@ -38,6 +38,7 @@ from dal_core.morph_features import (
 from dal_core.surface_effects import SurfaceEffect
 from dal_core.case_signs import CaseSignPotential
 from dal_core.composition_readiness import CompositionReadiness
+from dal_core.mufrad_axes import BinaaJudgment, IshtiqaqJudgment
 
 
 @dataclass(frozen=True)
@@ -124,6 +125,22 @@ class PreSyntaxMufradVector:
     composition_readiness: CompositionReadiness
     """Explicit readiness level for composition"""
 
+    # =========================================================================
+    # Classified mufrad axes (PR-F)
+    # =========================================================================
+    # These two fields lift the PR-A axis judgments into the operator-facing
+    # vector. They default to UNRESOLVED so existing constructors keep
+    # working; pipelines that compute the judges should populate them.
+
+    binaa_judgment: BinaaJudgment = BinaaJudgment.UNRESOLVED
+    """Classified binaa/i'rab judgment lifted from the underlying
+    MufradProof. ``UNRESOLVED`` acts as a 5th-gate blocker on operator
+    consumption (see :meth:`allows_operator_consumption`)."""
+
+    ishtiqaq_judgment: IshtiqaqJudgment = IshtiqaqJudgment.UNRESOLVED
+    """Classified ishtiqaq/jamid judgment lifted from the underlying
+    MufradProof. For nouns, ``UNRESOLVED`` is also a 5th-gate blocker."""
+
     def __post_init__(self):
         """Validate that this vector contains no forbidden fields"""
         # Check for forbidden field names in dataclass
@@ -177,6 +194,22 @@ class PreSyntaxMufradVector:
         if self.composition_readiness.allows_certificate():
             if self.competitors_count > 0:
                 return False
+
+        # Gate 5 (PR-F): block on unresolved mufrad axes.
+        # An operator MUST NOT consume a vector whose binaa axis is
+        # unresolved — the structural-frozen vs inflectable distinction
+        # is a pre-syntactic input to every operator. For nouns we also
+        # require the ishtiqaq axis to be resolved (mushtaq-vs-jamid),
+        # since several operators (e.g. اسم فاعل governance) depend on
+        # that classification. For verbs and particles the ishtiqaq axis
+        # is NOT_APPLICABLE by design, and that is not a blocker.
+        if self.binaa_judgment == BinaaJudgment.UNRESOLVED:
+            return False
+        is_noun = (self.type_value or "").upper() == "ISM" or (
+            self.type_id is not None and self.type_id.name.startswith("ISM")
+        )
+        if is_noun and self.ishtiqaq_judgment == IshtiqaqJudgment.UNRESOLVED:
+            return False
 
         # All gates passed
         return True
