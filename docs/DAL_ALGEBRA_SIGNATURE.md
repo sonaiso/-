@@ -231,6 +231,24 @@ Without intermediate contract, trace, or explicit shortcut:
 3. **With closed-class lexicon shortcut**
 4. **With explicit attestation**
 
+### Categorical Bans — Mufrad Judicial Axes (PR-A → PR-G)
+
+In addition to the trace-conditional rules above, two promotions are
+**categorically forbidden** regardless of trace, shortcut, or
+attestation. These cover the historical hallucination of inferring the
+binaa/i'rab judgment from descriptive syllable counts:
+
+```text
+🚫 SYLLABIC → BINAA_JUDGMENT     (عدد المقاطع → بناء/إعراب) — ممنوع بلا استثناء
+🚫 SYLLABIC → ISHTIQAQ_JUDGMENT  (عدد المقاطع → جامد/مشتق) — ممنوع بلا استثناء
+```
+
+Enforced at runtime by `FORBIDDEN_AXIS_PROMOTIONS` and
+`assert_axis_promotion_allowed()` in `dal_core.dal_algebra`. The binaa
+and ishtiqaq judgments emerge from `D5 IDENTITY_AXIS` + D3/D4
+(origin/template) only — never from D1. See [`MUFRAD_AXES.md`](MUFRAD_AXES.md)
+§8 for the full rationale.
+
 ---
 
 ## Shortcut Policies

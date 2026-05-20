@@ -101,6 +101,44 @@ pytest tests/dal_core/test_golden_dataset.py -v # 26 dataset tests
   - TAWATUR/AHAD/SAMA/QIYAS/FORM/ZERO ranks
   - Source provenance
 
+### Mufrad Axes (PR-A → PR-G)
+
+Four orthogonal axes that close the singular form *before* it enters
+composition. See [`docs/MUFRAD_AXES.md`](../../docs/MUFRAD_AXES.md) for the
+full plan.
+
+- `mufrad_axes.py` — Typed enums for all four axes:
+  `BinaaJudgment`, `BinaaSubtype`, `IshtiqaqJudgment`, `MushtaqSubtype`,
+  `JamidSubtype`, `SarfFlexibility`.
+- `mabni_registry.py` — Immutable closed registry of mabni nouns
+  (pronouns, demonstratives, relative nouns, interrogatives/conditionals,
+  built adverbs, action-nouns, compound numerals). Backed by
+  `MappingProxyType`; safe to share at module scope.
+- `binaa_judge.py` — `judge_binaa(BinaaJudgeInput) → BinaaJudgmentResult`.
+  Rules in priority order: harf ⇒ MABNI; past/imperative ⇒ MABNI;
+  imperfect + nun-nuswa/tawkid ⇒ MABNI; imperfect otherwise ⇒ MUERAB;
+  noun in `MabniRegistry` ⇒ MABNI + subtype; otherwise ⇒ MUERAB.
+  **Does NOT accept syllable count or syllable shapes as input.**
+- `ishtiqaq_judge.py` — `judge_ishtiqaq(IshtiqaqJudgeInput) → IshtiqaqJudgmentResult`.
+  Handles harf/fiil (NOT_APPLICABLE), functional/proper/concrete jamid,
+  and the nine mushtaq subtypes via wazn matching.
+
+Integration points:
+- `mufrad_proof.py` — Five new optional fields on `MufradProof`:
+  `binaa_judgment`, `binaa_subtype`, `ishtiqaq_judgment`,
+  `ishtiqaq_subtype`, `sarf_flexibility`. `__post_init__` enforces typed
+  subtypes (no free-form strings).
+- `morph_features.NounInflectionClass` — Added optional `binaa_judgment`
+  and `sarf_flexibility` fields; legacy `inflection_type` string preserved.
+- `case_sign_matrix._is_mabni_by_value` — Prefers the classified
+  `binaa_judgment`, falls back to the legacy string.
+- `presyntax_vector.PreSyntaxMufradVector` — Exposes both judgments; the
+  `allows_operator_consumption` gate has a 5th rule blocking on
+  `UNRESOLVED` binaa (any type) or `UNRESOLVED` ishtiqaq (nouns only).
+- `dal_algebra.FORBIDDEN_AXIS_PROMOTIONS` + `assert_axis_promotion_allowed()` —
+  Categorical ban on `SYLLABIC → BINAA_JUDGMENT` and
+  `SYLLABIC → ISHTIQAQ_JUDGMENT`, with no escape hatch.
+
 ## Success Criteria
 
 The system succeeds if:
