@@ -2,6 +2,39 @@
 
 **نموذج تدقيق برهاني: تغطية الدال الشكلي وحده (Dal-only Formal Audit)**
 
+---
+
+## ⚠️ Critical Distinction: Checklist ≠ Certification
+
+> **This document defines the audit FRAMEWORK, not audit RESULTS.**
+
+**Three States**:
+1. **Framework Defined** ✅ — This checklist exists (current state as of 2026-05-20)
+2. **Audit in Progress** 🔄 — Checklist items being filled with evidence
+3. **Audit Passed** ✅ — All requirements met with verified evidence
+
+**Current Status**: **Framework Defined** (State 1)
+
+**What this means**:
+```text
+✅ Allowed claim: "Audit framework is defined with Total-Coverage requirements"
+✅ Allowed claim: "Audit checklist includes Section K (100% coverage)"
+❌ Forbidden claim: "Audit passed" (evidence not yet generated)
+❌ Forbidden claim: "Dal-only certified" (J score not yet calculated)
+❌ Forbidden claim: "100% coverage achieved" (K reports not yet generated)
+❌ Forbidden claim: "Total-Coverage closed" (K.2-K.4 ≠ ∅ yet)
+```
+
+**To claim "Audit Passed"**: All sections A-K must be filled with verified evidence.
+
+**To claim "Dal-only Certified"**: Section J score must be ≥ 9 with no semantic leakage.
+
+**To claim "Total-Coverage Closed"**: K.1 ledger exists AND K.2, K.3, K.4 reports = ∅ (empty).
+
+See `ROADMAP_GOVERNANCE.md` Section 4 for full audit governance rules.
+
+---
+
 > **الغاية**: إثبات — بنداً بنداً، بأدلة من الكود — أن مشروع `dal_core` يغطي **اللفظ المفرد المشكَّل فقط** (الدال الشكلي) دون أي انتقال للمعنى (المدلول/المراد).
 >
 > **طريقة الاستعمال**: لكل بند ضع `PASS` / `FAIL` / `PARTIAL` في عمود الحالة، واملأ خلية الأدلة بمرجع `file:line` أو اختبار `tests/...`. كل بند بلا دليل = `FAIL` افتراضياً.
