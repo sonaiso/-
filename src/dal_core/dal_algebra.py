@@ -134,6 +134,10 @@ class DalCounterEvidence:
         """Validate counter-evidence invariants."""
         if not (0.0 <= self.severity <= 1.0):
             raise ValueError(f"Severity must be in [0.0, 1.0], got {self.severity}")
+        if self.span[0] > self.span[1]:
+            raise ValueError(f"Invalid span: start > end ({self.span})")
+        if self.span[0] < 0:
+            raise ValueError(f"Invalid span: negative start ({self.span})")
 
 
 @dataclass(frozen=True)
