@@ -17,13 +17,10 @@ These tests verify hard laws about what does NOT become ifādah:
 
 from __future__ import annotations
 
-import pytest
-
 from fvafk.algebra import (
     Domain,
     Evidence,
     Rank,
-    Result,
 )
 from fvafk.algebra.semantics import (
     governed_nisbah_semantic,

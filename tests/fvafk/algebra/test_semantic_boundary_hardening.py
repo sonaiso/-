@@ -1,5 +1,5 @@
 """
-Phase 5.5: Semantic Boundary Hardening with 28 Mutation-Resistant Tests
+Phase 5.5: Semantic Boundary Hardening with 29 Mutation-Resistant Tests
 
 Comprehensive mutation-resistant test suite for all 9 semantic operations across
 Phase 5A-5I.
@@ -16,26 +16,23 @@ Coverage:
     - Phase 5C: WadhBindingOperation (3 tests)
     - Phase 5D: MutabaqahGate (2 tests)
     - Phase 5D: TadammunGate (2 tests)
-    - Phase 5D: IltizamGate (3 tests)
+    - Phase 5D: IltizamGate (2 tests)
     - Phase 5E: NisbahSemanticOperation (4 tests)
     - Phase 5F: ReferenceResolutionOperation (2 tests)
     - Phase 5G: SpeechForceOperation (2 tests)
     - Phase 5H: IfadahClosureOperation (2 tests)
     - Phase 5I: BoundaryGuardOperation (2 tests)
 
-Total: 28 tests
+Total: 29 tests
 """
 
 from __future__ import annotations
-
-import pytest
 
 from fvafk.algebra import (
     Carrier,
     Domain,
     Evidence,
     Rank,
-    Result,
 )
 from fvafk.algebra.semantics import (
     DalCandidateOperation,
