@@ -166,10 +166,9 @@ def test_hard_gate_04_mutabaqah_alone_does_not_become_ifadah():
         - If developer removes mutabaqah.insufficient residual → test fails
         - If developer promotes mutābaqah to ifādah → test fails
     """
-    dal_carrier = Carrier(domain=Domain.SEMANTICS, value="رجل")
-    madlul_value = "man_concept"
+    binding = "رجل→man"
 
-    result = governed_mutabaqah(dal_carrier, madlul_value)
+    result = governed_mutabaqah(binding)
 
     # Mutābaqah creates insufficiency residual
     assert any(r.kind == "semantics.mutabaqah.insufficient" for r in result.residuals), \
@@ -195,10 +194,10 @@ def test_hard_gate_05_tadammun_alone_does_not_become_ifadah():
         - If developer removes tadammun.insufficient residual → test fails
         - If developer promotes taḍammun to ifādah → test fails
     """
-    dal_carrier = Carrier(domain=Domain.SEMANTICS, value="يد")
-    partial_madlul = "hand_part_of_body"
+    binding = "يد→hand"
+    part = "part_of_body"
 
-    result = governed_tadammun(dal_carrier, partial_madlul)
+    result = governed_tadammun(binding, part)
 
     # Taḍammun creates insufficiency residual
     assert any(r.kind == "semantics.tadammun.insufficient" for r in result.residuals), \
@@ -224,11 +223,11 @@ def test_hard_gate_06_iltizam_without_gate_is_not_licensed():
         - If developer removes iltizam.gate_missing residual → test fails
         - If developer auto-licenses iltizām → test fails
     """
-    dal_carrier = Carrier(domain=Domain.SEMANTICS, value="سقف")
-    entailed_madlul = "ceiling_implies_walls"
+    binding = "سقف→ceiling"
+    consequence = "ceiling_implies_walls"
 
     # Iltizām without gate evidence
-    result_no_gate = governed_iltizam(dal_carrier, entailed_madlul, evidence=())
+    result_no_gate = governed_iltizam(binding, consequence, evidence=())
 
     assert result_no_gate.rank in (Rank.CANDIDATE, Rank.UNRESOLVED), \
         "Iltizām without gate must not be LICENSED"
@@ -237,7 +236,7 @@ def test_hard_gate_06_iltizam_without_gate_is_not_licensed():
 
     # Iltizām with gate evidence can be licensed
     evidence = (Evidence(kind="iltizam.logical", source="test"),)
-    result_with_gate = governed_iltizam(dal_carrier, entailed_madlul, evidence=evidence)
+    result_with_gate = governed_iltizam(binding, consequence, evidence=evidence)
 
     assert result_with_gate.rank in (Rank.LICENSED, Rank.CERTIFIED), \
         "Iltizām with gate can be LICENSED"
@@ -254,11 +253,11 @@ def test_hard_gate_07_majaz_without_qarinah_is_not_licensed():
         - If developer auto-promotes majāz → test fails
         - If developer skips qarīnah requirement → test fails
     """
-    dal_carrier = Carrier(domain=Domain.SEMANTICS, value="أسد")
-    majaz_madlul = "brave_man_not_lion"
+    binding = "أسد→lion"
+    majaz_consequence = "brave_man_not_lion"
 
     # Majāz without qarīnah (no evidence)
-    result_no_qarinah = governed_iltizam(dal_carrier, majaz_madlul, evidence=())
+    result_no_qarinah = governed_iltizam(binding, majaz_consequence, evidence=())
 
     assert result_no_qarinah.rank != Rank.LICENSED, \
         "Majāz without qarīnah must not be LICENSED"
@@ -267,7 +266,7 @@ def test_hard_gate_07_majaz_without_qarinah_is_not_licensed():
 
     # Majāz with qarīnah (contextual evidence)
     evidence = (Evidence(kind="iltizam.contextual", source="qarinah:context_indicates_metaphor"),)
-    result_with_qarinah = governed_iltizam(dal_carrier, majaz_madlul, evidence=evidence)
+    result_with_qarinah = governed_iltizam(binding, majaz_consequence, evidence=evidence)
 
     assert result_with_qarinah.rank in (Rank.LICENSED, Rank.CERTIFIED), \
         "Majāz with qarīnah can be LICENSED"
@@ -496,7 +495,7 @@ def test_integration_full_chain_respects_all_gates():
     assert binding_with_ev.rank in (Rank.LICENSED, Rank.CERTIFIED)
 
     # Step 5: Mutābaqah still not ifādah
-    dal_carrier = Carrier(domain=Domain.SEMANTICS, value="كتب")
-    mutabaqah_result = governed_mutabaqah(dal_carrier, "write")
+    binding = "كتب→write"
+    mutabaqah_result = governed_mutabaqah(binding)
     assert any(r.kind == "semantics.mutabaqah.insufficient" for r in mutabaqah_result.residuals)
     assert all("ifadah" not in str(e.kind).lower() for e in mutabaqah_result.evidence)
