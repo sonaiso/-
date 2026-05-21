@@ -69,6 +69,11 @@ FORBIDDEN_BRIDGES: FrozenSet[Tuple[Domain, Domain]] = frozenset(
         (Domain.MORPH_SURFACE, Domain.MORPH_DEEP),
         (Domain.MORPH_SURFACE, Domain.SEMANTICS),
         (Domain.MORPH_DEEP, Domain.HUKM),
+        # The following two are *transitively* implied by the bridges
+        # above (no GRAPHEME/PHONEME → SEMANTICS path exists through
+        # ALLOWED_BRIDGES). They are listed explicitly so a caller who
+        # only consults FORBIDDEN_BRIDGES still gets the right answer
+        # without having to recompute reachability.
         (Domain.GRAPHEME, Domain.SEMANTICS),
         (Domain.PHONEME, Domain.SEMANTICS),
     }

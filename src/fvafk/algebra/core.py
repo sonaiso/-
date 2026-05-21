@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Any, Generic, Mapping, Protocol, Sequence, Tuple, TypeVar
+from typing import Any, Generic, Mapping, Protocol, Tuple, TypeVar
 from uuid import uuid4
 
 from .arabic_layers import Domain
@@ -301,7 +301,3 @@ __all__ = [
     "Trace",
     "empty_result",
 ]
-
-
-# Re-export Domain (and a Sequence alias) for convenience.
-_ = Sequence

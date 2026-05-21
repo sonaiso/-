@@ -42,7 +42,13 @@ class _PatternHit:
     confidence: float
 
 
-# Minimal illustrative table; extension is a Phase 2 concern.
+# Minimal Phase-0 illustrative table — three wazn-فاعل exemplars used
+# only to drive the worked example in
+# ``docs/ARABIC_ALGEBRA_DECISION_TREE.md``. The shared 0.7 confidence
+# reflects the fact that, in isolation (no syntactic context, no
+# lexicon lookup), all three carry the *same* level of ambiguity vs.
+# the proper-noun / nickname reading. Extending this table is a Phase 2
+# concern; the real evidence will come from ``c2b.RootExtractor``.
 _WAZN_FAEL_TABLE: Mapping[str, _PatternHit] = {
     "كاتب": _PatternHit(pattern="فاعل", root_letters=("ك", "ت", "ب"), confidence=0.7),
     "قارئ": _PatternHit(pattern="فاعل", root_letters=("ق", "ر", "أ"), confidence=0.7),
@@ -122,47 +128,36 @@ class ArabicAlgebraDecisionTree:
             return self._no_pattern_match(token)
 
         evidence, residuals = self._collect(token, hit)
-
-        report = AnalysisReport(
-            surface=token,
-            pattern=hit.pattern,
-            root=hit.root_letters,
-            rank=Rank.UNRESOLVED,  # placeholder, replaced below
-            residuals=residuals,
-            evidence=evidence,
-        )
-
         trace = Trace(operation="ArabicAlgebraDecisionTree.analyze")
-        raw = Result(
-            value=report,
+
+        # Validate the wazn→root bridge against an empty placeholder
+        # result; the CPB layer only needs to inspect the evidence/citation
+        # state, so we can run validation before deciding the final rank.
+        probe = Result(
+            value=token,
             rank=Rank.LICENSED,
             evidence=evidence,
             residuals=residuals,
             trace=trace,
         )
+        validated = validate_cpb(self._bridge_wazn_to_root, carrier, probe)
+        final_rank = apply_policy(validated, default_policy).rank
 
-        # CPB validation for the wazn→root bridge: the result must cite
-        # the input token.
-        validated = validate_cpb(self._bridge_wazn_to_root, carrier, raw)
-        ranked = apply_policy(validated, default_policy)
-
-        # Rewrite the rank inside the AnalysisReport for convenient
-        # downstream inspection (the canonical rank lives on the Result).
-        ranked_report = AnalysisReport(
-            surface=report.surface,
-            pattern=report.pattern,
-            root=report.root,
-            rank=ranked.rank,
-            residuals=report.residuals,
-            evidence=report.evidence,
+        report = AnalysisReport(
+            surface=token,
+            pattern=hit.pattern,
+            root=hit.root_letters,
+            rank=final_rank,
+            residuals=residuals,
+            evidence=evidence,
         )
         return Result(
-            value=ranked_report,
-            rank=ranked.rank,
-            evidence=ranked.evidence,
-            residuals=ranked.residuals,
-            failures=ranked.failures,
-            trace=ranked.trace,
+            value=report,
+            rank=final_rank,
+            evidence=evidence,
+            residuals=residuals,
+            failures=validated.failures,
+            trace=trace,
         )
 
     # -- helpers ------------------------------------------------------------
