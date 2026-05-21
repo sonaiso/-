@@ -25,7 +25,7 @@ but the proper-noun / nickname interpretation is an unresolved
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence, Tuple
+from typing import FrozenSet, List, Mapping, Sequence, Tuple
 
 from .arabic_layers import Domain
 from .core import Carrier, Evidence, Rank, Residual, Result, Trace
@@ -35,24 +35,146 @@ from .policies import default_policy, apply_policy
 
 @dataclass(frozen=True)
 class _PatternHit:
-    """A wazn-candidate match against a surface form."""
+    """A wazn-candidate match against a surface form.
+
+    Phase-1 extension: ``extra_residual_kinds`` carries token-level
+    residual hints (e.g. a token whose surface coincides with a known
+    proper-noun pattern adds ``proper_name.possible``). Family-level
+    hints come from :data:`_FAMILY_RESIDUALS` and are merged in by
+    :meth:`ArabicAlgebraDecisionTree._collect`.
+    """
 
     pattern: str
     root_letters: Tuple[str, ...]
     confidence: float
+    extra_residual_kinds: Tuple[str, ...] = ()
 
 
-# Minimal Phase-0 illustrative table — three wazn-فاعل exemplars used
-# only to drive the worked example in
-# ``docs/ARABIC_ALGEBRA_DECISION_TREE.md``. The shared 0.7 confidence
-# reflects the fact that, in isolation (no syntactic context, no
-# lexicon lookup), all three carry the *same* level of ambiguity vs.
-# the proper-noun / nickname reading. Extending this table is a Phase 2
-# concern; the real evidence will come from ``c2b.RootExtractor``.
+# Phase-1 surface catalog. Covers the nine wazn families documented in
+# ``docs/ARABIC_ALGEBRA_DECISION_TREE.md``. Hand-built fixtures only;
+# real evidence will come from ``c2b.RootExtractor`` in Phase 2.
+#
+# Confidence stays at 0.7 across the board: in isolation (no syntactic
+# context, no lexicon lookup), every match carries the *same* level of
+# residual ambiguity vs. the proper-noun / transferred-usage readings.
+_SURFACE_CATALOG: Mapping[str, _PatternHit] = {
+    # فاعل — active-participle-shape
+    "كاتب": _PatternHit("فاعل", ("ك", "ت", "ب"), 0.7),
+    "قارئ": _PatternHit("فاعل", ("ق", "ر", "أ"), 0.7),
+    "ناصر": _PatternHit("فاعل", ("ن", "ص", "ر"), 0.7, ("proper_name.possible",)),
+    "حامد": _PatternHit("فاعل", ("ح", "م", "د"), 0.7, ("proper_name.possible",)),
+    # مفعول — passive-participle-shape
+    "مكتوب": _PatternHit("مفعول", ("ك", "ت", "ب"), 0.7),
+    "مقروء": _PatternHit("مفعول", ("ق", "ر", "أ"), 0.7),
+    "محمود": _PatternHit("مفعول", ("ح", "م", "د"), 0.7, ("proper_name.possible",)),
+    # فعّال — intensive / professional shape
+    "كذّاب": _PatternHit("فعّال", ("ك", "ذ", "ب"), 0.7),
+    "نجّار": _PatternHit("فعّال", ("ن", "ج", "ر"), 0.7),
+    "خبّاز": _PatternHit("فعّال", ("خ", "ب", "ز"), 0.7),
+    # مفعال — tool / intensive shape
+    "مفتاح": _PatternHit("مفعال", ("ف", "ت", "ح"), 0.7),
+    "مكثار": _PatternHit("مفعال", ("ك", "ث", "ر"), 0.7),
+    "مهذار": _PatternHit("مفعال", ("ه", "ذ", "ر"), 0.7),
+    # مِفعل — tool shape (kasra)
+    "مِبرد": _PatternHit("مِفعل", ("ب", "ر", "د"), 0.7),
+    "مِنشار": _PatternHit("مِفعل", ("ن", "ش", "ر"), 0.7, ("pattern.collision",)),
+    "مِقص": _PatternHit("مِفعل", ("ق", "ص", "ص"), 0.7),
+    # مَفعل — place / time shape (fatha)
+    "مَكتب": _PatternHit("مَفعل", ("ك", "ت", "ب"), 0.7),
+    "مَلعب": _PatternHit("مَفعل", ("ل", "ع", "ب"), 0.7),
+    "مَجلس": _PatternHit("مَفعل", ("ج", "ل", "س"), 0.7),
+    # فعلة — small-noun shape
+    "غرفة": _PatternHit("فعلة", ("غ", "ر", "ف"), 0.7),
+    "شجرة": _PatternHit("فعلة", ("ش", "ج", "ر"), 0.7),
+    "نخلة": _PatternHit("فعلة", ("ن", "خ", "ل"), 0.7),
+    # فعول — intensive / quality shape
+    "صبور": _PatternHit("فعول", ("ص", "ب", "ر"), 0.7),
+    "شكور": _PatternHit("فعول", ("ش", "ك", "ر"), 0.7),
+    "غفور": _PatternHit("فعول", ("غ", "ف", "ر"), 0.7),
+    # فعيل — quality / participle shape
+    "كريم": _PatternHit("فعيل", ("ك", "ر", "م"), 0.7, ("proper_name.possible",)),
+    "عظيم": _PatternHit("فعيل", ("ع", "ظ", "م"), 0.7),
+    "حكيم": _PatternHit("فعيل", ("ح", "ك", "م"), 0.7, ("proper_name.possible",)),
+}
+
+# Backward-compatibility alias for any external code that imported the
+# Phase-0 table name. New code should use ``_SURFACE_CATALOG``.
 _WAZN_FAEL_TABLE: Mapping[str, _PatternHit] = {
-    "كاتب": _PatternHit(pattern="فاعل", root_letters=("ك", "ت", "ب"), confidence=0.7),
-    "قارئ": _PatternHit(pattern="فاعل", root_letters=("ق", "ر", "أ"), confidence=0.7),
-    "ناصر": _PatternHit(pattern="فاعل", root_letters=("ن", "ص", "ر"), confidence=0.7),
+    k: v for k, v in _SURFACE_CATALOG.items() if v.pattern == "فاعل"
+}
+
+
+# Family-level residuals. These are the residuals that apply to *every*
+# token in a wazn family, regardless of which specific exemplar was hit.
+# Per-token residuals (``_PatternHit.extra_residual_kinds``) are merged
+# on top.
+_FAMILY_RESIDUALS: Mapping[str, Tuple[str, ...]] = {
+    # فعّال is overwhelmingly read as a profession/intensive noun even
+    # without context, so the transferred-usage reading is the default
+    # alternative the surface analyzer must keep alive.
+    "فعّال": ("transfer.possible",),
+    # مَفعل surfaces are a chronic place/time/verb-noun collision point
+    # (مَفعِل vs مَفعَل vs مَفْعَل) — flag it at the family level.
+    "مَفعل": ("pattern.collision",),
+    # فعول shape readily transfers between intensive (صبور) and
+    # quality / divine-name readings (غفور) without a lexicon lookup.
+    "فعول": ("transfer.possible",),
+}
+
+
+# Residual kinds the surface analyzer is allowed to emit. Anything else
+# would be a Phase-1 contract violation (e.g., a future contributor
+# wiring a ``semantic.*`` or ``hukm.*`` residual into the surface tree).
+_ALLOWED_RESIDUAL_KINDS: FrozenSet[str] = frozenset(
+    {
+        "context.absent",
+        "lexical.ambiguity",
+        "proper_name.possible",
+        "transfer.possible",
+        "pattern.collision",
+        "pattern.no_match",
+    }
+)
+
+
+# Evidence-kind prefixes the surface analyzer must never emit. The
+# surface tree only deals in pattern matching and candidate-root
+# extraction; semantic interpretation and judgement live in later
+# phases (Phase 5+). The :class:`ArabicAlgebraDecisionTree` runtime
+# guard re-checks this set in case a future patch wires in a
+# higher-layer evidence kind by accident.
+_FORBIDDEN_EVIDENCE_PREFIXES: Tuple[str, ...] = ("semantic.", "hukm.")
+
+
+# Human-readable descriptions for every allowed residual kind.
+# Centralised so the surface tree emits consistent prose regardless of
+# which family contributed the kind.
+_RESIDUAL_DESCRIPTIONS: Mapping[str, str] = {
+    "context.absent": (
+        "no syntactic context supplied — operator scope, idafa, and "
+        "definiteness are unknown."
+    ),
+    "lexical.ambiguity": (
+        "surface candidate may be a proper noun, a nickname, or a "
+        "borrowed/transferred form (علمية/نقل/لقب)."
+    ),
+    "proper_name.possible": (
+        "surface coincides with a frequent proper-noun reading; "
+        "lexical confirmation is required before any rank promotion."
+    ),
+    "transfer.possible": (
+        "surface admits a transferred-usage (نقل) reading: "
+        "intensive/professional/quality alternatives compete with the "
+        "literal pattern reading."
+    ),
+    "pattern.collision": (
+        "surface admits two or more wazn parses (e.g. مَفعِل vs مَفعَل, "
+        "place vs time vs verb-noun); disambiguation requires context."
+    ),
+    "pattern.no_match": (
+        "no wazn candidate available for this surface in the Phase-1 "
+        "catalog; later phases will route this through c2b.RootExtractor."
+    ),
 }
 
 
@@ -123,12 +245,26 @@ class ArabicAlgebraDecisionTree:
             label=token,
         )
 
-        hit = _WAZN_FAEL_TABLE.get(token)
+        hit = _SURFACE_CATALOG.get(token)
         if hit is None:
             return self._no_pattern_match(token)
 
         evidence, residuals = self._collect(token, hit)
         trace = Trace(operation="ArabicAlgebraDecisionTree.analyze")
+
+        # Phase-1 surface guard: the surface tree must never emit a
+        # ``semantic.*`` or ``hukm.*`` evidence kind. This is enforced
+        # by construction (we only emit ``pattern.surface_match`` and
+        # ``root.candidate``); the runtime check defends against future
+        # patches that might wire a higher-layer evidence kind into the
+        # surface analyzer by accident.
+        for ev in evidence:
+            if ev.kind.startswith(_FORBIDDEN_EVIDENCE_PREFIXES):
+                raise AssertionError(
+                    f"surface analyzer emitted forbidden evidence kind "
+                    f"'{ev.kind}'; MORPH_SURFACE must not jump to "
+                    f"SEMANTICS or HUKM."
+                )
 
         # Validate the wazn→root bridge against an empty placeholder
         # result; the CPB layer only needs to inspect the evidence/citation
@@ -142,6 +278,19 @@ class ArabicAlgebraDecisionTree:
         )
         validated = validate_cpb(self._bridge_wazn_to_root, carrier, probe)
         final_rank = apply_policy(validated, default_policy).rank
+
+        # Phase-1 surface cap: a context-free surface result must never
+        # be promoted to ``CERTIFIED``. ``default_policy`` already
+        # respects this because we always emit at least the
+        # ``context.absent`` and ``lexical.ambiguity`` residuals, but
+        # the assertion is a defensive contract: if a future change
+        # ever drops both residuals, the failure should be loud, not
+        # silent rank theft.
+        if final_rank is Rank.CERTIFIED:
+            raise AssertionError(
+                "surface analyzer reached CERTIFIED without context; "
+                "MORPH_SURFACE must remain capped at LICENSED."
+            )
 
         report = AnalysisReport(
             surface=token,
@@ -181,23 +330,48 @@ class ArabicAlgebraDecisionTree:
                 weight=hit.confidence,
             ),
         )
-        residuals: Sequence[Residual] = (
-            Residual(
-                kind="context.absent",
-                description=(
-                    "no syntactic context supplied — operator scope, idafa, "
-                    "and definiteness are unknown."
-                ),
-            ),
-            Residual(
-                kind="lexical.ambiguity",
-                description=(
-                    "wazn 'فاعل' candidate may be a proper noun, a nickname, "
-                    "or a borrowed/transferred form (علمية/نقل/لقب)."
-                ),
-            ),
+        residuals = self._build_residuals(hit)
+        return tuple(evidence), residuals
+
+    def _build_residuals(self, hit: _PatternHit) -> Tuple[Residual, ...]:
+        """Merge universal, family-level, and per-token residuals.
+
+        - **Universal**: every surface match emits ``context.absent``
+          and ``lexical.ambiguity`` because in isolation no syntactic
+          context is available and the proper-noun / transferred reading
+          can never be ruled out.
+        - **Family-level**: pulled from :data:`_FAMILY_RESIDUALS` (e.g.
+          فعّال always carries ``transfer.possible``).
+        - **Per-token**: pulled from ``hit.extra_residual_kinds`` (e.g.
+          ``ناصر`` carries ``proper_name.possible``).
+
+        Residuals are deduplicated by ``kind`` while preserving order.
+        """
+        ordered_kinds: List[str] = []
+        for kind in (
+            "context.absent",
+            "lexical.ambiguity",
+            *_FAMILY_RESIDUALS.get(hit.pattern, ()),
+            *hit.extra_residual_kinds,
+        ):
+            if kind not in ordered_kinds:
+                ordered_kinds.append(kind)
+
+        residuals = tuple(
+            Residual(kind=kind, description=_RESIDUAL_DESCRIPTIONS[kind])
+            for kind in ordered_kinds
         )
-        return tuple(evidence), tuple(residuals)
+
+        # Phase-1 invariant: the surface analyzer is only allowed to
+        # emit residual kinds in the whitelisted set. A typo or future
+        # patch that introduces an unrecognised kind should fail loudly.
+        for r in residuals:
+            if r.kind not in _ALLOWED_RESIDUAL_KINDS:
+                raise AssertionError(
+                    f"surface analyzer produced disallowed residual kind "
+                    f"'{r.kind}'; allowed: {sorted(_ALLOWED_RESIDUAL_KINDS)}."
+                )
+        return residuals
 
     def _refuse_empty_input(self, surface: object) -> Result[AnalysisReport]:
         report = AnalysisReport(
@@ -217,10 +391,7 @@ class ArabicAlgebraDecisionTree:
     def _no_pattern_match(self, token: str) -> Result[AnalysisReport]:
         residual = Residual(
             kind="pattern.no_match",
-            description=(
-                f"no wazn candidate available for '{token}' in the Phase-0 "
-                "table; later phases will route this through c2b.RootExtractor."
-            ),
+            description=_RESIDUAL_DESCRIPTIONS["pattern.no_match"],
         )
         report = AnalysisReport(
             surface=token,

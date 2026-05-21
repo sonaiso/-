@@ -1,0 +1,318 @@
+[
+  {
+    "input": "كاتب",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فاعل",
+    "expected_root_letters": ["ك", "ت", "ب"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": ["proper_name.possible"],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "قارئ",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فاعل",
+    "expected_root_letters": ["ق", "ر", "أ"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": ["proper_name.possible"],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "ناصر",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فاعل",
+    "expected_root_letters": ["ن", "ص", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "proper_name.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "حامد",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فاعل",
+    "expected_root_letters": ["ح", "م", "د"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "proper_name.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+
+  {
+    "input": "مكتوب",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مفعول",
+    "expected_root_letters": ["ك", "ت", "ب"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": ["transfer.possible"],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "مقروء",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مفعول",
+    "expected_root_letters": ["ق", "ر", "أ"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "محمود",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مفعول",
+    "expected_root_letters": ["ح", "م", "د"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "proper_name.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+
+  {
+    "input": "كذّاب",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعّال",
+    "expected_root_letters": ["ك", "ذ", "ب"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "transfer.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "نجّار",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعّال",
+    "expected_root_letters": ["ن", "ج", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "transfer.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "خبّاز",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعّال",
+    "expected_root_letters": ["خ", "ب", "ز"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "transfer.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+
+  {
+    "input": "مفتاح",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مفعال",
+    "expected_root_letters": ["ف", "ت", "ح"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": ["transfer.possible"],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "مكثار",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مفعال",
+    "expected_root_letters": ["ك", "ث", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "مهذار",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مفعال",
+    "expected_root_letters": ["ه", "ذ", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+
+  {
+    "input": "مِبرد",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مِفعل",
+    "expected_root_letters": ["ب", "ر", "د"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "مِنشار",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مِفعل",
+    "expected_root_letters": ["ن", "ش", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "pattern.collision"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "مِقص",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مِفعل",
+    "expected_root_letters": ["ق", "ص", "ص"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+
+  {
+    "input": "مَكتب",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مَفعل",
+    "expected_root_letters": ["ك", "ت", "ب"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "pattern.collision"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "مَلعب",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مَفعل",
+    "expected_root_letters": ["ل", "ع", "ب"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "pattern.collision"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "مَجلس",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "مَفعل",
+    "expected_root_letters": ["ج", "ل", "س"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "pattern.collision"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+
+  {
+    "input": "غرفة",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعلة",
+    "expected_root_letters": ["غ", "ر", "ف"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "شجرة",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعلة",
+    "expected_root_letters": ["ش", "ج", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "نخلة",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعلة",
+    "expected_root_letters": ["ن", "خ", "ل"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+
+  {
+    "input": "صبور",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعول",
+    "expected_root_letters": ["ص", "ب", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "transfer.possible"],
+    "optional_residuals": ["proper_name.possible"],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "شكور",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعول",
+    "expected_root_letters": ["ش", "ك", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "transfer.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "غفور",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعول",
+    "expected_root_letters": ["غ", "ف", "ر"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "transfer.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+
+  {
+    "input": "كريم",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعيل",
+    "expected_root_letters": ["ك", "ر", "م"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "proper_name.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "عظيم",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعيل",
+    "expected_root_letters": ["ع", "ظ", "م"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  },
+  {
+    "input": "حكيم",
+    "surface_domain": "MORPH_SURFACE",
+    "expected_pattern": "فعيل",
+    "expected_root_letters": ["ح", "ك", "م"],
+    "expected_rank": "LICENSED",
+    "forbidden_ranks": ["CERTIFIED"],
+    "required_residuals": ["context.absent", "lexical.ambiguity", "proper_name.possible"],
+    "optional_residuals": [],
+    "forbidden_target_domains": ["SEMANTICS", "HUKM", "MORPH_DEEP"]
+  }
+]

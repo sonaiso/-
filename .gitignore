@@ -124,6 +124,8 @@ pipeline.log
 !data/verb_abwab.json
 !data/valency_seed.json
 !data/verb_governance.json
+# Phase-1 algebra surface fixtures — must be tracked
+!tests/fixtures/algebra/wazn_surface_cases.json
 out*.txt
 output_final.json
 pipeline.log
