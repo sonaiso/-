@@ -239,7 +239,7 @@ tests remain green.
 
 ---
 
-## Phase 5 — Dāl/Madlūl/Dalālah/Ifādah Algebra (Semantic Layers)
+## Phase 5 — Dāl/Madlūl/Dalālah/Ifādah Algebra (Semantic Layers) ✅ (merged via PR #41)
 
 **Critical Insight**: Semantics is not a single layer. Before ifādah (semantic
 completion) can be achieved, we must establish:
@@ -465,6 +465,55 @@ assert ifādah_cannot_issue_hukm()
 > **Architecture Mapping**: Phase 5A-5I implements layers A5-A9 from
 > `PROJECT_ALGEBRA_ARCHITECTURE_MAP.md`. See that document for the
 > complete 11-layer architecture (A0-A10).
+
+---
+
+## Phase 5.5 — Semantic Boundary Hardening (this PR)
+
+**Goal.** Lock the merged Phase 5 semantic algebra so future PRs cannot silently
+violate the boundaries between dāl, madlūl, dalālah, ifādah, and HUKM.
+No production code changes; only tests + docs.
+
+**Deliverables.**
+- `tests/fvafk/algebra/test_semantic_boundary_hardening.py` — 14 tests covering
+  gates 1-11 (dāl/madlūl separation, dalālah enforcement, nisbah insufficiency,
+  reference completion)
+- `tests/fvafk/algebra/test_ifadah_forbidden_jumps.py` — 14 tests covering
+  gates 12-17 (speech force boundaries, domain jump prevention)
+- `docs/PHASE5_5_SEMANTIC_BOUNDARY_HARDENING.md` — Complete hardening
+  documentation with rationale, threat model, 17 hard gates, mutation testing
+  strategy, and CI integration guide
+- `docs/ARABIC_ALGEBRA_ROADMAP.md` — Updated to mark Phase 5.5
+
+**17 Hard Gates Enforced:**
+1. Dāl alone never becomes meaning (الدال وحده ليس معنى)
+2. Madlūl alone never becomes dalālah (المدلول وحده ليس دلالة)
+3. Dāl/Madlūl binding required before dalālah (لا دلالة بلا ربط)
+4. Mutābaqah alone does not become ifādah (المطابقة لا تصبح إفادة وحدها)
+5. Taḍammun alone does not become ifādah (التضمن لا يصبح إفادة وحده)
+6. Iltizām without gate is not licensed (الالتزام ليس تلقائياً)
+7. Majāz without qarīnah is not licensed (المجاز بلا قرينة ليس مرخصاً)
+8. Idāfah alone does not become ifādah (النسبة الإضافية لا تصبح إفادة)
+9. Taqyīd alone does not become ifādah (التقييد لا يصبح إفادة حتى يكمل الإسناد)
+10. Conditional without jawāb does not become ifādah (الشرط بلا جواب لا يصبح إفادة)
+11. Pronoun without referent cannot certify ifādah (الضمير بلا مرجع لا يصبح إفادة معتمدة)
+12. Khabar does not become HUKM (الخبر ليس حكماً)
+13. Amr does not become obligation in Phase 5 (الأمر ليس وجوباً في Phase 5)
+14. Nahy does not become prohibition in Phase 5 (النهي ليس حراماً/فساداً في Phase 5)
+15. Ifādah with residuals cannot become CERTIFIED (الإفادة ذات البقايا لا تُعتَمد)
+16. SEMANTICS cannot jump to HUKM (SEMANTICS لا يقفز إلى HUKM)
+17. IFADAH cannot issue HUKM (الإفادة لا تُصدِر حكماً)
+
+**Mutation Resistance:**
+- Tests fail if developer removes residual kinds
+- Tests fail if developer bypasses evidence requirements
+- Tests fail if developer emits `hukm.*` evidence from semantic operations
+- Tests fail if developer allows SEMANTICS → HUKM bridge
+- Tests fail if developer certifies ifādah with residuals
+
+**Exit criterion.** All 28 Phase 5.5 tests pass; all Phase 0-5 tests remain
+green; no production code changes; the 17 hard gates are pinned by tests.
+**Phase 5 is merged and hardened; the next substantive milestone is Phase 6 HUKM.**
 
 ---
 
