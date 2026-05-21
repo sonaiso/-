@@ -28,8 +28,8 @@ Hard Gates Tested (11 total):
 """
 
 import pytest
-from src.fvafk.algebra.core import Result, Rank, Evidence, Residual, Carrier, Domain
-from src.fvafk.algebra.semantics import (
+from fvafk.algebra.core import Result, Rank, Evidence, Residual, Carrier, Domain
+from fvafk.algebra.semantics import (
     # Operations
     DalCandidateOperation,
     MadlulCandidateOperation,
@@ -397,7 +397,7 @@ def test_mutation_resistance_residual_kinds_unchanged():
     This test acts as a canary: if someone removes a residual kind,
     the count changes and this test fails.
     """
-    from src.fvafk.algebra.semantics import SEMANTICS_RESIDUAL_KINDS
+    from fvafk.algebra.semantics import SEMANTICS_RESIDUAL_KINDS
 
     assert len(SEMANTICS_RESIDUAL_KINDS) == 13, \
         "SEMANTICS_RESIDUAL_KINDS must contain exactly 13 residuals"
@@ -428,7 +428,7 @@ def test_mutation_resistance_operations_exist():
 
     If a developer removes an operation, this test fails.
     """
-    from src.fvafk.algebra.semantics import (
+    from fvafk.algebra.semantics import (
         DalCandidateOperation,
         MadlulCandidateOperation,
         WadhBindingOperation,

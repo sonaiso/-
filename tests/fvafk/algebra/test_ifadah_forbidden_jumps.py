@@ -21,8 +21,8 @@ Hard Gates Tested (6 total):
 """
 
 import pytest
-from src.fvafk.algebra.core import Result, Rank, Evidence, Residual, Carrier, Domain
-from src.fvafk.algebra.semantics import (
+from fvafk.algebra.core import Result, Rank, Evidence, Residual, Carrier, Domain
+from fvafk.algebra.semantics import (
     # Operations
     SpeechForceOperation,
     IfadahClosureOperation,
