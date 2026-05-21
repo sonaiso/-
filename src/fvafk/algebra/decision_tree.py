@@ -25,7 +25,7 @@ but the proper-noun / nickname interpretation is an unresolved
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence, Tuple
+from typing import FrozenSet, List, Mapping, Sequence, Tuple
 
 from .arabic_layers import Domain
 from .core import Carrier, Evidence, Rank, Residual, Result, Trace
@@ -125,7 +125,7 @@ _FAMILY_RESIDUALS: Mapping[str, Tuple[str, ...]] = {
 # Residual kinds the surface analyzer is allowed to emit. Anything else
 # would be a Phase-1 contract violation (e.g., a future contributor
 # wiring a ``semantic.*`` or ``hukm.*`` residual into the surface tree).
-_ALLOWED_RESIDUAL_KINDS: frozenset[str] = frozenset(
+_ALLOWED_RESIDUAL_KINDS: FrozenSet[str] = frozenset(
     {
         "context.absent",
         "lexical.ambiguity",
@@ -347,7 +347,7 @@ class ArabicAlgebraDecisionTree:
 
         Residuals are deduplicated by ``kind`` while preserving order.
         """
-        ordered_kinds: list[str] = []
+        ordered_kinds: List[str] = []
         for kind in (
             "context.absent",
             "lexical.ambiguity",
