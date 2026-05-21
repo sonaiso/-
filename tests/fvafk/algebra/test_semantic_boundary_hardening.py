@@ -234,20 +234,24 @@ def test_certificate_03_tadammun_never_reaches_certified():
 # Phase 5D: Iltizām Gate (3 tests)
 # =============================================================================
 
-def test_hard_gate_06_iltizam_without_gate_is_candidate():
-    """Iltizām without gate_type must be CANDIDATE."""
+def test_hard_gate_06_iltizam_without_gate_is_not_licensed():
+    """Iltizām without gate is not licensed; with gate can be LICENSED."""
     gate = IltizamGate()
-    result = gate.run(binding="طلوع:الشمس", consequence="نهار", gate_type="", evidence=())
 
-    # Hard gate: no gate_type → CANDIDATE
-    assert result.rank is Rank.CANDIDATE
-    assert result.residuals
-    assert any(r.kind == "semantics.iltizam.gate_missing" for r in result.residuals)
+    # Part 1: Without gate → NOT LICENSED (CANDIDATE)
+    result_without_gate = gate.run(
+        binding="طلوع:الشمس",
+        consequence="نهار",
+        gate_type="",
+        evidence=()
+    )
 
+    # Hard gate: no gate_type → CANDIDATE (not licensed)
+    assert result_without_gate.rank is Rank.CANDIDATE
+    assert result_without_gate.residuals
+    assert any(r.kind == "semantics.iltizam.gate_missing" for r in result_without_gate.residuals)
 
-def test_soft_gate_06_iltizam_with_gate_is_licensed():
-    """Iltizām with explicit gate and evidence can be LICENSED."""
-    gate = IltizamGate()
+    # Part 2: With gate → CAN be LICENSED
     ev = (Evidence(kind="test.iltizam", source="logical_entailment", detail="causality"),)
     result_with_gate = gate.run(
         binding="طلوع:الشمس",
