@@ -239,17 +239,232 @@ tests remain green.
 
 ---
 
-## Phase 5 — Semantics, إفادة, and حكم
+## Phase 5 — Dāl/Madlūl/Dalālah/Ifādah Algebra (Semantic Layers)
 
-Add the final three domains: `SYNTAX → SEMANTICS → HUKM`. Residuals at
-this layer capture the gap between *form* and *intended meaning*; only
-explicit evidence (rhetoric markers, scope operators, lexicon entries
-with `haqiqa_majaz` annotation) may upgrade rank to `CERTIFIED`.
+**Critical Insight**: Semantics is not a single layer. Before ifādah (semantic
+completion) can be achieved, we must establish:
+
+1. **Dāl algebra** (signifier alone - linguistic carrier)
+2. **Madlūl algebra** (signified alone - possible meanings)
+3. **Wadh' contract** (signifier-signified binding)
+4. **Dalālah gates** (semantic relations: mutābaqah, taḍammun, iltizām)
+5. **Nisbah algebra** (compositional semantics)
+6. **Ifādah closure** (complete statement)
+7. **Judgment boundary** (prevent premature HUKM)
+
+> **Core Principle**: الإفادة لا تبدأ من النحو مباشرة ولا من المعجم مباشرة
+>
+> (Ifādah does not begin directly from syntax or directly from lexicon.
+> It requires intermediate layers of dāl, madlūl, binding, and dalālah.)
+
+### Phase 5A — Dāl Algebra (Signifier Candidates)
+
+**Goal**: Represent signifier alone as governed candidate (not meaning).
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/dal_candidates.py`
+- Dāl candidate structure with residuals (polysemy.possible, context.absent)
+- No semantic interpretation at this layer
+
+**Key Law**: الدال وحده ليس معنى (Dāl alone is not meaning)
+
+---
+
+### Phase 5B — Madlūl Algebra (Signified Candidates)
+
+**Goal**: Represent possible signifieds as candidates (not dalālah).
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/madlul_candidates.py`
+- Multiple madlūl candidates per dāl
+- Residuals: dal_binding.absent
+
+**Key Law**: المدلول وحده ليس دلالة (Madlūl alone is not dalālah)
+
+---
+
+### Phase 5C — Dāl/Madlūl Binding (Wadh' Contract)
+
+**Goal**: License transition from signifier to signified through wadh'/usage.
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/wadh_binding.py`
+- Binding operation: Dāl + Madlūl + Evidence → Licensed binding
+- Evidence types: lexical attestation, conventional usage, context
+
+**Key Law**: لا دلالة بلا ربط (No dalālah without binding)
+
+**Maps to**: A5 in PROJECT_ALGEBRA_ARCHITECTURE_MAP.md
+
+---
+
+### Phase 5D — Individual Dalālah Gates
+
+**Goal**: Implement three classical semantic relations as **pre-ifādah conditions**.
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/dalalah_gates.py`
+- `MutabaqahGate` — Direct correspondence (word → total meaning)
+- `TadammunGate` — Partial inclusion (word → part of meaning)
+- `IltizamGate` — Entailment (word → necessary consequence)
+
+**Critical Rules**:
+- Mutābaqah alone does NOT produce ifādah
+- Taḍammun alone does NOT produce ifādah
+- Iltizām requires explicit gate (not automatic)
+- All three are **شروط غير موجبة** (necessary but not sufficient conditions)
+
+**Key Law**: المطابقة والتضمن والالتزام قبل الإفادة (Mutābaqah, taḍammun,
+iltizām are before ifādah, not ifādah itself)
+
+**Maps to**: A7 in PROJECT_ALGEBRA_ARCHITECTURE_MAP.md
+
+---
+
+### Phase 5E — Nisbah Algebra (Compositional Semantics)
+
+**Goal**: Distinguish relations that can produce ifādah from those that cannot.
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/nisbah_semantic.py`
+- Semantic composition from Phase 4 syntactic nisbah
+- Isnadi relation → ifādah candidate
+- Iḍāfah relation alone → NOT ifādah
+- Taqyīd relation alone → NOT ifādah (until complete predication)
+
+**Key Laws**:
+- النسبة الإضافية لا تصبح إفادة (Iḍāfah relation alone does not become ifādah)
+- الشرط بلا جواب لا يصبح إفادة (Conditional without jawāb does not become ifādah)
+
+---
+
+### Phase 5F — Reference and Completion
+
+**Goal**: Resolve anaphora, ellipsis, and incomplete structures.
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/reference_resolution.py`
+- Pronoun resolution (requires referent)
+- Demonstrative resolution
+- Relative clause resolution
+- Ellipsis handling
+- Conditional jawāb requirement
+
+**Key Law**: الضمير بلا مرجع لا يصبح إفادة معتمدة
+(Pronoun without referent cannot produce CERTIFIED ifādah)
+
+---
+
+### Phase 5G — Speech Force (Illocutionary Force)
+
+**Goal**: Detect speech act type without issuing HUKM.
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/speech_force.py`
+- Speech force types: khabar, inshā, amr, nahy, istifhām, shart, nidā,
+  tamannī, tarjjī, taʿajjub
+- Force detection from markers and structure
+
+**Critical Rules**:
+- Khabar does NOT become final HUKM
+- Inshā does NOT become legal judgment
+- Istifhām does NOT become denial without qarīnah
+- Amr does NOT become obligation at this layer
+- Nahy does NOT become prohibition at this layer
+
+**Maps to**: Partial A8 in PROJECT_ALGEBRA_ARCHITECTURE_MAP.md
+
+---
+
+### Phase 5H — Ifādah Closure
+
+**Goal**: Close semantic completion with full residual accounting.
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/ifadah_closure.py`
+- Ifādah requires ALL of:
+  1. Licensed parties
+  2. Licensed dāl/madlūl binding
+  3. Licensed dalālah (mutābaqah/taḍammun/iltizām)
+  4. Licensed nisbah
+  5. Complete structure
+  6. Resolved references or residuals
+  7. Known speech force or residual
+  8. Full residual accounting
+
+**Rank Rules**:
+- Ifādah with residuals → LICENSED only
+- Ifādah without residuals + full evidence → CERTIFIED
+- Incomplete ifādah → CANDIDATE
+
+**Maps to**: Partial A9 in PROJECT_ALGEBRA_ARCHITECTURE_MAP.md
+
+---
+
+### Phase 5I — Judgment Boundary Guard
+
+**Goal**: Prevent any SEMANTICS → HUKM or IFADAH → HUKM jump.
+
+**Deliverables**:
+- `src/fvafk/algebra/semantics/boundary_guards.py`
+- Hard gates preventing:
+  - Direct SEMANTICS → HUKM certification
+  - Direct IFADAH → HUKM inference
+  - Bypassing murad layer (A9)
+
+**Test Requirements**:
+- Every forbidden jump must fail
+- Every incomplete structure must remain residual-bearing
+- HUKM is Phase 6 (future, separate algebra)
+
+**Maps to**: A9/A10 boundary in PROJECT_ALGEBRA_ARCHITECTURE_MAP.md
+
+---
+
+### Phase 5 Hard Gates (All Subphases)
+
+These gates must be enforced across all Phase 5 subphases:
+
+```python
+# Dāl/Madlūl separation
+assert dāl_alone_is_not_meaning()
+assert madlūl_alone_is_not_dalālah()
+assert dāl_madlūl_binding_required()
+
+# Dalālah gates
+assert mutābaqah_is_not_ifādah()
+assert taḍammun_is_not_ifādah()
+assert iltizām_requires_gate()  # Not automatic
+
+# Nisbah gates
+assert iḍāfah_alone_is_not_ifādah()
+assert taqyīd_alone_is_not_ifādah()
+assert conditional_without_jawāb_is_not_ifādah()
+
+# Reference gates
+assert pronoun_without_referent_cannot_certify_ifādah()
+
+# Speech force gates
+assert khabar_is_not_hukm()
+assert amr_is_not_obligation_at_phase5()
+assert nahy_is_not_prohibition_at_phase5()
+
+# Boundary gates
+assert ifādah_with_residuals_cannot_certify()
+assert semantics_cannot_jump_to_hukm()
+assert ifādah_cannot_issue_hukm()
+```
+
+---
 
 > **Note.** This phase must respect the
 > [`dal_core` meaning-field prohibition](SPEC_DAL_CORE.md): no leakage
 > of `meaning` / `murad` / `haqiqa_majaz` fields into the `MORPH_*` or
 > `SYNTAX` domains.
+>
+> **Architecture Mapping**: Phase 5A-5I implements layers A5-A9 from
+> `PROJECT_ALGEBRA_ARCHITECTURE_MAP.md`. See that document for the
+> complete 11-layer architecture (A0-A10).
 
 ---
 
