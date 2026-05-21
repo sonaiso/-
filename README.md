@@ -91,6 +91,44 @@ See `docs/MIGRATION_GUIDE.md` for migration notes and JSON schema details.
 
 ---
 
+## 🧮 Arabic Correspondence-Preserving Algebra (`fvafk.algebra`)
+
+A typed algebraic layer that sits on top of the FVAFK pipeline and
+enforces the constitution:
+
+> **لا مخرج عارٍ.**
+> Every `Result = value + rank + evidence + residuals + failures + replay`.
+
+Quick demo:
+
+```python
+from fvafk.algebra import ArabicAlgebraDecisionTree
+
+result = ArabicAlgebraDecisionTree().analyze("كاتب")
+# → wazn فاعل candidate, root ('ك','ت','ب')
+# → rank = LICENSED  (not CERTIFIED)
+# → residuals: context.absent, lexical.ambiguity
+# → certificate_allowed = False
+```
+
+The algebra is **non-invasive** in Phase 0: it does not modify any
+existing `c1` / `c2a` / `c2b` / `syntax` module. See:
+
+- [`docs/ARABIC_ALGEBRA_ARCHITECTURE.md`](docs/ARABIC_ALGEBRA_ARCHITECTURE.md) — constitution, domains, CPB contract
+- [`docs/ARABIC_ALGEBRA_ROADMAP.md`](docs/ARABIC_ALGEBRA_ROADMAP.md) — 8-phase plan (Phase 0 complete in this PR)
+- [`docs/ARABIC_ALGEBRA_DECISION_TREE.md`](docs/ARABIC_ALGEBRA_DECISION_TREE.md) — worked example for `كاتب`
+
+Run the algebra tests:
+
+```bash
+PYTHONPATH=src pytest -q \
+    tests/test_algebra_cpb.py \
+    tests/test_algebra_decision_tree.py \
+    tests/test_algebra_code_learning.py
+```
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -106,6 +144,7 @@ Eqratech_Hussein_Hiyassat_Project/
 │   ├── c2a/                # Phonology layer (gates)
 │   ├── c2b/                # Morphology layer (roots, patterns)
 │   ├── syntax/             # Syntax layer (links, constraints)
+│   ├── algebra/            # 🆕 Correspondence-Preserving Algebra (Phase 0)
 │   ├── cli/                # Command-line interface
 │   ├── phonology_v2/       # Enhanced phonology engine
 │   └── __init__.py
