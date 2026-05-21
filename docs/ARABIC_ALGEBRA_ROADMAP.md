@@ -196,11 +196,46 @@ core.py, cpb.py, policies.py, or arabic_layers.py.**
 
 ---
 
-## Phase 4 — Algebraic syntax
+## Phase 4 — Algebraic syntax ✅ (this PR)
 
-Same shape as Phase 3 but for the syntax layer: `ROOT → SYNTAX` and
-`MORPH_DEEP → SYNTAX` bridges, with `Failure`s reflecting
-case/agreement violations.
+**Goal.** Transform syntax operations from plain analysis into governed
+algebraic operations that produce `Result` with full provenance.
+
+**Deliverables.**
+- `src/fvafk/algebra/syntax/{__init__,residual_taxonomy,operations}.py`
+- `tests/test_algebra_syntax_phase4.py`
+- `docs/PHASE4_ALGEBRAIC_SYNTAX_SUMMARY.md`
+
+**Status.** Implemented via this PR. Phase 4 syntax suite provides:
+
+1. **Five governed syntax operations** that return `Result`:
+   - `MabniClosedOperatorOperation` (مبني: لم، إن، من...)
+   - `MurabOpenCarrierOperation` (معرب: open relational carriers)
+   - `AmilFunctionOperation` (عامل: governor functions)
+   - `IrabRelationEffectOperation` (إعراب: case as relational effect)
+   - `NisbahBindingOperation` (نسبة: ISN/TADMN/TAQYID bindings)
+
+2. **Ten syntax residual kinds** covering:
+   - `syntax.context_absent` — Surrounding tokens needed
+   - `syntax.operator_scope_unresolved` — Operator scope undetermined
+   - `syntax.case_missing` / `case_estimated` / `case_ambiguous` — Case marks
+   - `syntax.governor_ambiguous` — Multiple عامل candidates
+   - `syntax.ellipsis_possible` — Possible حذف
+   - `syntax.attachment_ambiguous` — Unclear attachment
+   - `syntax.relation_candidate` — Relation type not finalized
+   - `syntax.word_order_ambiguous` — Multiple interpretations
+
+3. **Domain boundaries enforced**:
+   - No `SYNTAX → HUKM` jump
+   - No `SYNTAX → SEMANTICS` certification with residuals
+   - Syntax operations never emit `semantic.*` or `hukm.*` evidence
+
+4. **Core principle**: النحو الجبري يرخص علاقة تركيبية، لا يحكم بالمعنى النهائي
+   (Syntax licenses relational structure, does not judge final meaning)
+
+**Exit criterion.** ✅ All 43 Phase 4 tests pass; syntax operations stay
+LICENSED when residuals remain; no SYNTAX → HUKM jump; all Phase 0-3
+tests remain green.
 
 ---
 
