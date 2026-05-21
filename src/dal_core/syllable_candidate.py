@@ -1,20 +1,28 @@
 """
-Syllable Candidate Layer (D1) - PR #30
+Syllable Candidate Layer (D1) - PR #30 + PR #32
 
 Domain: SYLLABIC (D1)
 Transition: Atom sequence → Syllable candidates
 Purpose: Generate syllable structure candidates with boundaries
 
-Implements PR #30 deliverables:
+PR #30: Base syllable candidate generation
+PR #32: Integrated D1 certification (Corr_D1 + Failure_D1 + RankPolicy_D1 + ProofObject_D1)
+
+Implements:
 - SyllableCandidate class following DalCandidateProtocol
 - Syllable candidate generator (atom → syllable transitions)
 - Syllable boundary detection
 - Evidence-based syllable validation
+- Integrated Corr_D1 validation in generation path
+- D1FailureSet replacing generic residuals
+- SyllableRankVector replacing simple confidence
+- ProofObject_D1 for certification
 """
 
 from dataclasses import dataclass, field
 from typing import List, Optional
 from uuid import uuid4
+import warnings
 
 from dal_core.atoms import ArabicAtom, AtomKind
 from dal_core.syllables import (
@@ -36,6 +44,21 @@ from dal_core.dal_algebra import (
 )
 from dal_core.residuals import Residual, make_blocker, make_warning, ResidualType
 
+# PR #32: D1 certification imports
+from dal_core.d1_correctness import validate_corr_d1, Corr_D1_Result, reverse_syllable_candidate
+from dal_core.d1_failures import (
+    D1FailureSet,
+    D1Failure,
+    make_missing_nucleus_failure,
+    make_illegal_pattern_failure,
+    make_atom_loss_failure,
+    make_atom_order_violation_failure,
+    make_trace_loss_failure,
+    make_non_reversible_trace_failure
+)
+from dal_core.d1_rank_policy import SyllableRankVector, compute_syllable_rank
+from dal_core.d1_proof import ProofObject_D1, create_proof
+
 
 @dataclass
 class SyllableCandidate:
@@ -46,6 +69,12 @@ class SyllableCandidate:
 
     Each candidate represents one possible syllabification of an atom sequence.
     Multiple candidates may exist for ambiguous sequences.
+
+    PR #32 Updates:
+    - failures: D1FailureSet (replaces residuals)
+    - rank_vector: SyllableRankVector (replaces confidence)
+    - proof: ProofObject_D1 (certification proof)
+    - validate() method for integrated certification
     """
     # Required by DalCandidateProtocol
     candidate_id: str = field(default_factory=lambda: f"syl-{uuid4().hex[:8]}")
@@ -60,6 +89,13 @@ class SyllableCandidate:
 
     # Transition metadata
     trace: Optional[DalTraceRef] = None
+
+    # PR #32: New certification fields
+    failures: D1FailureSet = field(default_factory=D1FailureSet)
+    rank_vector: Optional[SyllableRankVector] = None
+    proof: Optional[ProofObject_D1] = None
+
+    # Legacy fields (deprecated, kept for backward compatibility)
     residuals: List[Residual] = field(default_factory=list)
     confidence: float = 1.0  # [0.0, 1.0]
 
@@ -72,13 +108,196 @@ class SyllableCandidate:
         if self.span[0] < 0:
             raise ValueError(f"Invalid span: negative start ({self.span})")
 
+        # PR #32: Sync legacy residuals with failures for backward compatibility
+        if self.residuals and not self.failures.failures:
+            # If legacy residuals exist but no failures, keep residuals as primary
+            pass
+        elif self.failures.failures and not self.residuals:
+            # If failures exist but no residuals, sync for backward compat
+            self.residuals = self._convert_failures_to_residuals()
+
     def is_valid(self) -> bool:
-        """Check if this candidate has no blocking residuals."""
-        return not any(r.is_blocker() for r in self.residuals)
+        """Check if this candidate has no blocking issues.
+
+        PR #32: Checks both proof certification and critical failures.
+
+        Returns:
+            True if certified OR (no critical failures and no blockers)
+        """
+        # If we have a proof, use it
+        if self.proof is not None:
+            return self.proof.is_certified
+
+        # Otherwise check failures and residuals
+        has_critical_failure = self.failures.has_critical_failure()
+        has_blocker = any(r.is_blocker() for r in self.residuals)
+
+        return not (has_critical_failure or has_blocker)
 
     def has_blocker(self) -> bool:
         """Check if this candidate has blocking residuals."""
-        return any(r.is_blocker() for r in self.residuals)
+        return any(r.is_blocker() for r in self.residuals) or self.failures.has_critical_failure()
+
+    def validate(self, original_atoms: List[ArabicAtom]) -> ProofObject_D1:
+        """Run full D1 certification on this candidate.
+
+        This integrates:
+        - Corr_D1 validation
+        - D1 failure detection
+        - Rank vector computation
+        - Proof object creation
+
+        Args:
+            original_atoms: Original atom sequence from D0
+
+        Returns:
+            ProofObject_D1 with certification result
+
+        Side Effects:
+            Updates self.failures, self.rank_vector, self.proof
+        """
+        # 1. Run Corr_D1 validation
+        corr_result = validate_corr_d1(self, original_atoms)
+
+        # 2. Convert Corr_D1 failures to D1FailureSet
+        failure_set = self._convert_corr_to_failures(corr_result)
+
+        # 3. Add failures from residuals (backward compat)
+        for residual in self.residuals:
+            if residual.is_blocker():
+                # Add as critical failure
+                failure_set.add(D1Failure(
+                    failure_type=D1FailureType.TRACE_LOSS,  # Generic type
+                    span=self.span,
+                    message=residual.message,
+                    severity=1.0,
+                    context={'residual_type': str(residual.type)}
+                ))
+
+        # 4. Compute rank vector
+        context = {
+            'is_reversible_verified': self._verify_reversibility(original_atoms),
+            'competing_candidate_count': 1  # Default, can be updated by set
+        }
+        rank_vector = compute_syllable_rank(self, context)
+
+        # 5. Create proof object
+        proof = create_proof(
+            candidate_id=self.candidate_id,
+            corr_result=corr_result,
+            failure_set=failure_set,
+            rank_vector=rank_vector,
+            metadata={
+                'domain': self.domain.value,
+                'span': self.span,
+                'syllable_type': self.syllable.type.value
+            }
+        )
+
+        # 6. Update self
+        self.failures = failure_set
+        self.rank_vector = rank_vector
+        self.proof = proof
+
+        return proof
+
+    def _convert_corr_to_failures(self, corr_result: Corr_D1_Result) -> D1FailureSet:
+        """Convert Corr_D1 check results to D1 failures.
+
+        Args:
+            corr_result: Corr_D1 validation result
+
+        Returns:
+            D1FailureSet with typed failures
+        """
+        from dal_core.d1_failures import D1FailureType
+
+        failure_set = D1FailureSet()
+
+        for check in corr_result.failed_checks():
+            # Map check name to failure type and create appropriate failure
+            if check.name == "source_atoms_preserved":
+                failure_set.add(make_atom_loss_failure(
+                    span=self.span,
+                    expected_count=check.evidence.get('expected_count', 0),
+                    actual_count=check.evidence.get('actual_count', 0)
+                ))
+            elif check.name == "atom_order_preserved":
+                failure_set.add(make_atom_order_violation_failure(
+                    span=self.span,
+                    position=check.evidence.get('position', 0)
+                ))
+            elif check.name == "no_atom_loss":
+                failure_set.add(make_atom_loss_failure(
+                    span=self.span,
+                    expected_count=check.evidence.get('expected', 0),
+                    actual_count=check.evidence.get('actual', 0)
+                ))
+            elif check.name == "nucleus_valid":
+                failure_set.add(make_missing_nucleus_failure(
+                    span=self.span,
+                    onset_count=len(self.syllable.onset)
+                ))
+            elif check.name == "syllable_pattern_legal":
+                failure_set.add(make_illegal_pattern_failure(
+                    span=self.span,
+                    attempted_pattern=check.evidence.get('type', 'UNKNOWN')
+                ))
+            elif check.name == "trace_exists" or check.name == "trace_actually_reversible":
+                if not check.evidence.get('reversible', False):
+                    failure_set.add(make_non_reversible_trace_failure(span=self.span))
+                else:
+                    failure_set.add(make_trace_loss_failure(span=self.span))
+            else:
+                # Generic failure for unknown check type
+                failure_set.add(D1Failure(
+                    failure_type=D1FailureType.TRACE_LOSS,
+                    span=self.span,
+                    message=check.reason,
+                    severity=1.0,
+                    context={'check_name': check.name}
+                ))
+
+        return failure_set
+
+    def _verify_reversibility(self, original_atoms: List[ArabicAtom]) -> bool:
+        """Actually verify reversibility (not just check flag).
+
+        Args:
+            original_atoms: Original atom sequence
+
+        Returns:
+            True if reverse operation succeeds and matches
+        """
+        try:
+            reversed_atoms = reverse_syllable_candidate(self)
+            start, end = self.span
+            expected = original_atoms[start:end]
+            return reversed_atoms == expected
+        except Exception:
+            return False
+
+    def _convert_failures_to_residuals(self) -> List[Residual]:
+        """Convert D1 failures to legacy residuals for backward compat.
+
+        Returns:
+            List of Residual objects
+        """
+        residuals = []
+        for failure in self.failures.failures:
+            if failure.is_critical():
+                residuals.append(make_blocker(
+                    ResidualType.INVALID_SYLLABLE,
+                    failure.message,
+                    location=f"span {failure.span}"
+                ))
+            else:
+                residuals.append(make_warning(
+                    ResidualType.INVALID_SYLLABLE,
+                    failure.message,
+                    location=f"span {failure.span}"
+                ))
+        return residuals
 
 
 @dataclass
@@ -214,12 +433,15 @@ def generate_syllable_candidate(
     """
     Generate a single syllable candidate from atom sequence.
 
+    PR #32: Now includes integrated D1 certification.
+
     Args:
         atoms: Full atom sequence
         span: (start, end) indices for this syllable
         candidate_id: Optional explicit ID
 
-    Returns: SyllableCandidate
+    Returns:
+        SyllableCandidate with integrated certification (failures, rank_vector, proof)
     """
     start, end = span
     syllable_atoms = atoms[start:end]
@@ -306,10 +528,11 @@ def generate_syllable_candidate(
         }
     )
 
-    # Compute confidence
+    # Legacy confidence (will be replaced by rank)
     confidence = 0.9 if not validation_residuals else 0.5
 
-    return SyllableCandidate(
+    # Create candidate (without certification yet)
+    candidate = SyllableCandidate(
         candidate_id=candidate_id or f"syl-{uuid4().hex[:8]}",
         domain=DalTransitionDomain.SYLLABIC,
         evidence=evidence,
@@ -322,6 +545,19 @@ def generate_syllable_candidate(
         confidence=confidence
     )
 
+    # PR #32: Run integrated D1 certification
+    try:
+        candidate.validate(atoms)
+    except Exception as e:
+        # If validation fails, create uncertified proof
+        from dal_core.d1_proof import create_uncertified_proof
+        candidate.proof = create_uncertified_proof(
+            candidate_id=candidate.candidate_id,
+            reason=f"Validation failed: {str(e)}"
+        )
+
+    return candidate
+
 
 def generate_syllable_candidates(atoms: List[ArabicAtom]) -> SyllableCandidateSet:
     """
@@ -329,10 +565,12 @@ def generate_syllable_candidates(atoms: List[ArabicAtom]) -> SyllableCandidateSe
 
     This is the main D0 → D1 transition function.
 
+    PR #32: Now includes integrated D1 certification for all candidates.
+
     Args:
         atoms: Atom sequence from D0 (GRAPHOPHONEMIC domain)
 
-    Returns: SyllableCandidateSet with all candidates
+    Returns: SyllableCandidateSet with all candidates (with certification)
     """
     candidates = []
     global_residuals = []
@@ -361,6 +599,17 @@ def generate_syllable_candidates(atoms: List[ArabicAtom]) -> SyllableCandidateSe
             candidate_id=f"syl-{i:03d}"
         )
         candidates.append(candidate)
+
+    # PR #32: Update ambiguity penalty for all candidates
+    if len(candidates) > 1:
+        for candidate in candidates:
+            if candidate.rank_vector is not None:
+                # Recompute with correct competing_candidate_count
+                context = {
+                    'competing_candidate_count': len(candidates),
+                    'is_reversible_verified': candidate._verify_reversibility(atoms)
+                }
+                candidate.rank_vector = compute_syllable_rank(candidate, context)
 
     return SyllableCandidateSet(
         candidates=candidates,
