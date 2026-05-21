@@ -68,13 +68,25 @@ substantive milestone is Phase 1 surface coverage.**
 
 ---
 
-## Phase 1 — Decision-tree surface coverage
+## Phase 1 — Decision-tree surface coverage ✅ (PR #37)
 
 Extend `ArabicAlgebraDecisionTree` from the Phase-0 illustrative table
 to cover the wazn families already documented under `awzan-claude-atwah.csv`
 and `src/fvafk/c2b/pattern_catalog.py`. Still no coupling to
 `RootExtractor`: the goal is to verify the algebra holds at scale on
 hand-built fixtures.
+
+**Status.** Implemented via PR #37. The Phase-1 catalog covers nine
+wazn families — `فاعل`, `مفعول`, `فعّال`, `مفعال`, `مِفعل`, `مَفعل`,
+`فعلة`, `فعول`, `فعيل` — with hand-built fixtures under
+`tests/fixtures/algebra/wazn_surface_cases.json`. Every covered
+surface returns `Rank.LICENSED` with explicit residuals
+(`context.absent`, `lexical.ambiguity`, plus per-family/per-token
+hints such as `transfer.possible`, `proper_name.possible`,
+`pattern.collision`); none ever reaches `CERTIFIED` and none emits a
+`semantic.*` or `hukm.*` evidence kind. The neighbouring families
+`فِعال` and `فُعَل` are deliberately out of scope and reserved for
+Phase 1.5.
 
 **Touches.** `decision_tree.py`; new fixtures under
 `tests/fixtures/algebra/`.
