@@ -153,6 +153,14 @@ from .ishtiqaq_judge import (
     IshtiqaqJudgmentResult,
     judge_ishtiqaq,
 )
+from .syllable_candidate import (
+    SyllableCandidate,
+    SyllableCandidateSet,
+    detect_syllable_boundaries,
+    generate_syllable_candidate,
+    generate_syllable_candidates,
+    syllabify_word,
+)
 
 __all__ = [
     "Rank",
@@ -280,4 +288,11 @@ __all__ = [
     "IshtiqaqJudgeInput",
     "IshtiqaqJudgmentResult",
     "judge_ishtiqaq",
+    # Syllable Candidate Layer (PR #30)
+    "SyllableCandidate",
+    "SyllableCandidateSet",
+    "detect_syllable_boundaries",
+    "generate_syllable_candidate",
+    "generate_syllable_candidates",
+    "syllabify_word",
 ]
