@@ -72,7 +72,7 @@ def make_polysemy_possible(term: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.polysemy.possible",
-        detail=f"polysemy:{term}" if term else "polysemy:unspecified"
+        description=f"polysemy:{term}" if term else "polysemy:unspecified"
     )
 
 
@@ -90,7 +90,7 @@ def make_dal_binding_absent(madlul: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.dal_binding.absent",
-        detail=f"madlul:{madlul}" if madlul else "madlul:unbound"
+        description=f"madlul:{madlul}" if madlul else "madlul:unbound"
     )
 
 
@@ -108,7 +108,7 @@ def make_dalalah_gate_required(evidence_type: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.dalalah_gate.required",
-        detail=f"evidence:{evidence_type}" if evidence_type else "evidence:required"
+        description=f"evidence:{evidence_type}" if evidence_type else "evidence:required"
     )
 
 
@@ -127,7 +127,7 @@ def make_mutabaqah_insufficient() -> Residual:
     """
     return Residual(
         kind="semantics.mutabaqah.insufficient",
-        detail="mutabaqah:pre_ifadah_condition"
+        description="mutabaqah:pre_ifadah_condition"
     )
 
 
@@ -142,7 +142,7 @@ def make_tadammun_insufficient() -> Residual:
     """
     return Residual(
         kind="semantics.tadammun.insufficient",
-        detail="tadammun:pre_ifadah_condition"
+        description="tadammun:pre_ifadah_condition"
     )
 
 
@@ -160,7 +160,7 @@ def make_iltizam_gate_missing(iltizam_type: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.iltizam.gate_missing",
-        detail=f"iltizam:{iltizam_type}" if iltizam_type else "iltizam:gate_required"
+        description=f"iltizam:{iltizam_type}" if iltizam_type else "iltizam:gate_required"
     )
 
 
@@ -182,7 +182,7 @@ def make_idafah_not_ifadah(terms: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.idafah.not_ifadah",
-        detail=f"idafah:{terms}" if terms else "idafah:requires_predication"
+        description=f"idafah:{terms}" if terms else "idafah:requires_predication"
     )
 
 
@@ -201,7 +201,7 @@ def make_taqyid_incomplete(modifier: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.taqyid.incomplete",
-        detail=f"taqyid:{modifier}" if modifier else "taqyid:awaits_predication"
+        description=f"taqyid:{modifier}" if modifier else "taqyid:awaits_predication"
     )
 
 
@@ -217,7 +217,7 @@ def make_conditional_jawab_missing() -> Residual:
     """
     return Residual(
         kind="semantics.conditional.jawab_missing",
-        detail="conditional:requires_jawab"
+        description="conditional:requires_jawab"
     )
 
 
@@ -240,7 +240,7 @@ def make_pronoun_referent_missing(pronoun: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.pronoun.referent_missing",
-        detail=f"pronoun:{pronoun}" if pronoun else "pronoun:requires_referent"
+        description=f"pronoun:{pronoun}" if pronoun else "pronoun:requires_referent"
     )
 
 
@@ -262,7 +262,7 @@ def make_speech_force_uncertain(candidates: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.speech_force.uncertain",
-        detail=f"force:{candidates}" if candidates else "force:undetermined"
+        description=f"force:{candidates}" if candidates else "force:undetermined"
     )
 
 
@@ -292,7 +292,7 @@ def make_ifadah_incomplete(missing_requirements: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.ifadah.incomplete",
-        detail=f"missing:{missing_requirements}" if missing_requirements else "ifadah:requirements_unmet"
+        description=f"missing:{missing_requirements}" if missing_requirements else "ifadah:requirements_unmet"
     )
 
 
@@ -316,5 +316,5 @@ def make_hukm_boundary_violation(attempted_jump: str = "") -> Residual:
     """
     return Residual(
         kind="semantics.hukm_boundary.violation",
-        detail=f"violation:{attempted_jump}" if attempted_jump else "hukm:boundary_crossed"
+        description=f"violation:{attempted_jump}" if attempted_jump else "hukm:boundary_crossed"
     )

@@ -19,8 +19,7 @@ Operation Categories:
 """
 
 from typing import Tuple
-from ..core import Result, Rank, Evidence, Residual, Failure, Carrier, Domain
-from ..cpb import validate_cpb, ALLOWED_BRIDGES
+from ..core import Result, Rank, Evidence, Residual, Failure, Carrier, Domain, Trace
 from .residual_taxonomy import (
     make_polysemy_possible,
     make_dal_binding_absent,
@@ -74,10 +73,10 @@ class DalCandidateOperation:
                 residuals=(),
                 failures=(Failure(
                     kind="domain.mismatch",
-                    detail=f"expected SYNTAX/SEMANTICS, got {carrier.domain}",
+                    description=f"expected SYNTAX/SEMANTICS, got {carrier.domain}",
                     fatal=True
                 ),),
-                replay=""
+                
             )
 
         # Dāl alone creates polysemy residual
@@ -92,7 +91,7 @@ class DalCandidateOperation:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"dal_candidate({carrier.value})"
+            trace=f"dal_candidate({carrier.value})"
         )
 
 
@@ -148,10 +147,10 @@ class MadlulCandidateOperation:
                 residuals=(),
                 failures=(Failure(
                     kind="domain.mismatch",
-                    detail=f"expected SEMANTICS, got {carrier.domain}",
+                    description=f"expected SEMANTICS, got {carrier.domain}",
                     fatal=True
                 ),),
-                replay=""
+                
             )
 
         # Madlūl alone creates binding residual
@@ -166,7 +165,7 @@ class MadlulCandidateOperation:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"madlul_candidate({carrier.value})"
+            trace=f"madlul_candidate({carrier.value})"
         )
 
 
@@ -229,7 +228,7 @@ class WadhBindingOperation:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"wadh_binding({dal}, {madlul})"
+            trace=f"wadh_binding({dal}, {madlul})"
         )
 
 
@@ -289,7 +288,7 @@ class MutabaqahGate:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"mutabaqah({binding})"
+            trace=f"mutabaqah({binding})"
         )
 
 
@@ -336,7 +335,7 @@ class TadammunGate:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"tadammun({binding}, {part})"
+            trace=f"tadammun({binding}, {part})"
         )
 
 
@@ -389,7 +388,7 @@ class IltizamGate:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"iltizam({binding}, {consequence}, {gate_type})"
+            trace=f"iltizam({binding}, {consequence}, {gate_type})"
         )
 
 
@@ -460,7 +459,7 @@ class NisbahSemanticOperation:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"nisbah_semantic({nisbah_type}, {parties})"
+            trace=f"nisbah_semantic({nisbah_type}, {parties})"
         )
 
 
@@ -515,7 +514,7 @@ class ReferenceResolutionOperation:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"reference_resolution({reference}, {referent})"
+            trace=f"reference_resolution({reference}, {referent})"
         )
 
 
@@ -578,7 +577,7 @@ class SpeechForceOperation:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"speech_force({utterance}, {force})"
+            trace=f"speech_force({utterance}, {force})"
         )
 
 
@@ -650,9 +649,14 @@ class IfadahClosureOperation:
             residuals = (make_ifadah_incomplete(",".join(missing)),)
             rank = Rank.CANDIDATE
         else:
-            # Complete ifādah → LICENSED (CERTIFIED requires no residuals)
+            # Complete ifādah → CERTIFIED with evidence, CANDIDATE without
             residuals = ()
-            rank = Rank.CERTIFIED if evidence else Rank.LICENSED
+            if evidence:
+                rank = Rank.CERTIFIED
+            else:
+                # Without evidence, cannot be LICENSED (requires evidence)
+                # Return CANDIDATE with note that evidence is needed
+                rank = Rank.CANDIDATE
 
         return Result(
             value=f"ifadah:{components.get('nisbah', 'unknown')}",
@@ -660,7 +664,7 @@ class IfadahClosureOperation:
             evidence=evidence,
             residuals=residuals,
             failures=(),
-            replay=f"ifadah_closure({components})"
+            trace=f"ifadah_closure({components})"
         )
 
 
@@ -709,10 +713,10 @@ class BoundaryGuardOperation:
                 residuals=(make_hukm_boundary_violation(f"{source}→{target}"),),
                 failures=(Failure(
                     kind="boundary.violation",
-                    detail=f"SEMANTICS→HUKM jump forbidden",
+                    description=f"SEMANTICS→HUKM jump forbidden",
                     fatal=True
                 ),),
-                replay=f"boundary_guard({source}, {target}, {value})"
+                trace=f"boundary_guard({source}, {target}, {value})"
             )
 
         # All other transitions pass (may be invalid for other reasons)
@@ -722,7 +726,7 @@ class BoundaryGuardOperation:
             evidence=(),
             residuals=(),
             failures=(),
-            replay=f"boundary_guard({source}, {target}, {value})"
+            trace=f"boundary_guard({source}, {target}, {value})"
         )
 
 
