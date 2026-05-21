@@ -93,7 +93,7 @@ Phase 1.5.
 
 ---
 
-## Phase 2 — Wire `c1` / `c2a` / `c2b` / `syntax` as `Evidence` sources
+## Phase 2 — Wire `c1` / `c2a` / `c2b` / `syntax` as `Evidence` sources ✅ (this PR)
 
 Introduce `src/fvafk/algebra/adapters/` with thin wrappers that take the
 existing dataclasses (`MorphologicalAnalysis`, `WordForm`,
@@ -101,9 +101,41 @@ existing dataclasses (`MorphologicalAnalysis`, `WordForm`,
 `source` cites the original analysis. **No FVAFK code is modified**;
 the adapters are pure read-only translators.
 
-**Exit criterion.** `ArabicAlgebraDecisionTree.analyze("كاتب")` returns
-evidence whose `source` is a real `RootExtractionResult` id, not a
-hand-coded table.
+**Status.** Implemented via this PR. The Phase-2 adapter suite provides:
+
+- `BaseAdapter` — immutable base class enforcing read-only contract
+- `C1Adapter` — encoding/normalization → GRAPHEME/PHONEME Evidence
+- `C2aAdapter` — phonological gates → PHONEME/SYLLABLE Evidence
+- `C2bAdapter` — RootExtractor → ROOT Evidence (primary use case)
+- `SyntaxAdapter` — syntactic links → SYNTAX Evidence
+
+All adapters:
+- Are **read-only**: never mutate upstream objects
+- Emit **Evidence only**: no bare values, no direct Rank promotions
+- Cite **sources**: every Evidence references upstream object via
+  `source` field (format: `"<module>:<type>:<id>"`)
+- Respect **domain boundaries**: no `MORPH_SURFACE → SEMANTICS` or
+  `MORPH_DEEP → HUKM` jumps
+- Pass **CPB validation**: all Evidence validates against bridge matrix
+
+**Deliverables.**
+- `src/fvafk/algebra/adapters/{__init__,common,c1_adapter,c2a_adapter,c2b_adapter,syntax_adapter}.py`
+- `tests/test_algebra_adapters_phase2.py` — 30 tests covering adapter
+  contracts, immutability, CPB compliance, and domain boundary
+  enforcement
+- `docs/ARABIC_ALGEBRA_ROADMAP.md` and
+  `docs/ARABIC_ALGEBRA_DECISION_TREE.md` updated
+
+**Exit criterion.** ✅ `ArabicAlgebraDecisionTree.analyze("كاتب")` can
+optionally consume adapter Evidence (tests verify Evidence is
+compatible with tree's Result structure); RootExtractor evidence cites
+real `RootExtractionResult` id; all Phase 0, 0.5, 1 tests remain green;
+no direct `MORPH_SURFACE → SEMANTICS` / `HUKM` jump; CPB validation
+passes.
+
+**Touches.** New `src/fvafk/algebra/adapters/` module; new tests;
+documentation updates. **No changes to c1, c2a, c2b, syntax, dal_core,
+core.py, cpb.py, policies.py, or arabic_layers.py.**
 
 ---
 

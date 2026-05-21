@@ -203,3 +203,145 @@ Phase 2 will replace the hand-built catalog with adapters over
 self-contained so the algebra can be audited without pulling the rest
 of the FVAFK pipeline in.
 
+---
+
+## 7. Phase 2 — FVAFK Evidence adapters
+
+Phase 2 introduces `src/fvafk/algebra/adapters/` to wire real FVAFK
+pipeline outputs (C1, C2a, C2b, syntax) as Evidence sources for the
+algebra layer. **No FVAFK pipeline code is modified**; adapters are
+pure read-only translators.
+
+### Adapter architecture
+
+All adapters inherit from `BaseAdapter` which enforces:
+
+1. **Immutability** — adapters are stateless transformers; no state
+   mutation after initialization
+2. **Evidence-only output** — adapters return `Tuple[Evidence, ...]`,
+   never bare values
+3. **Source citation** — every Evidence cites upstream object via
+   `source` field (format: `"<module>:<type>:<id>"`)
+4. **Domain boundaries** — adapters respect forbidden bridges (no
+   `MORPH_SURFACE → SEMANTICS` jump)
+
+### C2bAdapter — RootExtractor → Evidence (primary use case)
+
+The primary Phase-2 use case is `C2bAdapter`, which translates
+`RootExtractionResult` from `fvafk.c2b.RootExtractor` into ROOT domain
+Evidence:
+
+```python
+from fvafk.c2b import RootExtractor
+from fvafk.algebra.adapters import C2bAdapter
+
+extractor = RootExtractor()
+result = extractor.extract_with_affixes("كاتب")
+
+adapter = C2bAdapter()
+evidence_tuple = adapter.adapt(result)
+
+for ev in evidence_tuple:
+    print(ev.kind, ev.source, ev.detail)
+# Output:
+# root.candidate c2b:RootExtractionResult:كاتب root=('ك', 'ت', 'ب') from 'كاتب'
+```
+
+Key contracts:
+
+- **Root evidence** — when `result.root` is not `None`, adapter emits
+  Evidence with kind `"root.candidate"`
+- **Weight by confidence** — roots with weak letters (و/ي/ا) receive
+  lower weight (more ambiguous)
+- **Affix evidence** — prefix/suffix information translated to
+  `"affix.detected"` Evidence
+- **Residuals for gaps** — `adapt_with_residuals()` method emits
+  residuals for aggressive stripping or multiple weak letters
+- **No semantic/hukm jump** — C2bAdapter never emits `semantic.*` or
+  `hukm.*` Evidence kinds
+
+### Other adapters
+
+- **C1Adapter** — encoding/normalization → GRAPHEME/PHONEME Evidence
+  - Emits `"encoding.validated"` and `"encoding.normalized"` kinds
+  - Operates on plain strings or dict-like objects
+
+- **C2aAdapter** — phonological gates → PHONEME/SYLLABLE Evidence
+  - Emits `"phonology.gate_fired"` and
+    `"syllable.structure_detected"` kinds
+  - Adapts gate traces and syllable structures
+
+- **SyntaxAdapter** — syntactic links → SYNTAX Evidence
+  - Emits `"syntax.relation_candidate"` kind
+  - Assigns weight by link type (ISNADI > TADMINI > TAQYIDI)
+  - Never emits SEMANTICS or HUKM evidence kinds
+
+### CPB validation
+
+All adapter Evidence must pass CPB validation. Example:
+
+```python
+from fvafk.algebra import CPB, Domain, Carrier, validate_cpb
+
+# C2bAdapter Evidence validates for MORPH_SURFACE → ROOT bridge
+cpb = CPB(name="c2b_bridge", source=Domain.MORPH_SURFACE, target=Domain.ROOT)
+carrier = Carrier(domain=Domain.MORPH_SURFACE, value="كاتب", label="كاتب")
+
+result_with_evidence = Result(
+    value="كاتب",
+    rank=Rank.LICENSED,
+    evidence=evidence_tuple,  # from adapter
+    trace=Trace(operation="test"),
+)
+
+validated = validate_cpb(cpb, carrier, result_with_evidence)
+# Passes without fatal failures
+```
+
+### Integration with ArabicAlgebraDecisionTree
+
+In Phase 2, the decision tree does **not** consume adapter Evidence
+directly (it still uses hand-built fixtures from Phase 1). The adapter
+suite provides the **infrastructure** for Phase 3+ to wire real FVAFK
+outputs into algebraic operations.
+
+Tests verify that adapter Evidence is **compatible** with the tree's
+Result structure:
+
+```python
+from fvafk.c2b import RootExtractor
+from fvafk.algebra import ArabicAlgebraDecisionTree
+from fvafk.algebra.adapters import C2bAdapter
+
+# Extract root using real RootExtractor
+extractor = RootExtractor()
+extraction_result = extractor.extract_with_affixes("كاتب")
+
+# Adapt to Evidence
+adapter = C2bAdapter()
+evidence_tuple = adapter.adapt(extraction_result)
+
+# Verify compatibility with decision tree Result
+tree = ArabicAlgebraDecisionTree()
+tree_result = tree.analyze("كاتب")
+
+# Tree result surface matches extraction
+assert tree_result.value.surface == extraction_result.normalized_word
+
+# Adapter evidence cites same root
+assert str(extraction_result.root.letters) in evidence_tuple[0].detail
+```
+
+### Phase 2 acceptance criteria
+
+✅ All criteria met:
+
+1. Adapters are **read-only** (tests verify no upstream mutation)
+2. Adapters emit **Evidence only** (no bare values)
+3. All Evidence **cites source** (format: `"c2b:RootExtractionResult:كاتب"`)
+4. No **semantic/hukm jump** (forbidden evidence kinds rejected)
+5. Evidence **passes CPB validation** (bridge matrix enforced)
+6. All **Phase 0, 0.5, 1 tests remain green** (227 tests pass)
+7. **30 new Phase 2 tests** cover adapter contracts
+
+---
