@@ -240,7 +240,7 @@ def test_hard_gate_06_iltizam_without_gate_is_not_licensed():
 
     # Iltizām with gate evidence can be licensed
     evidence = (Evidence(kind="iltizam.logical", source="test"),)
-    result_with_gate = governed_iltizam(binding, consequence, evidence=evidence)
+    result_with_gate = governed_iltizam(binding, consequence, gate_type="logical", evidence=evidence)
 
     assert result_with_gate.rank in (Rank.LICENSED, Rank.CERTIFIED), \
         "Iltizām with gate can be LICENSED"
@@ -270,7 +270,7 @@ def test_hard_gate_07_majaz_without_qarinah_is_not_licensed():
 
     # Majāz with qarīnah (contextual evidence)
     evidence = (Evidence(kind="iltizam.contextual", source="qarinah:context_indicates_metaphor"),)
-    result_with_qarinah = governed_iltizam(binding, majaz_consequence, evidence=evidence)
+    result_with_qarinah = governed_iltizam(binding, majaz_consequence, gate_type="contextual", evidence=evidence)
 
     assert result_with_qarinah.rank in (Rank.LICENSED, Rank.CERTIFIED), \
         "Majāz with qarīnah can be LICENSED"
