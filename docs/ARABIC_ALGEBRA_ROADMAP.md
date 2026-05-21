@@ -12,7 +12,7 @@ The cardinal rule across all phases:
 
 ---
 
-## Phase 0 — CPB, ranks, and residuals ✅ (this PR)
+## Phase 0 — CPB, ranks, and residuals ✅ (merged via PR #35)
 
 **Goal.** Land the constitution and the typed primitives without
 touching the existing FVAFK pipeline.
@@ -23,7 +23,48 @@ touching the existing FVAFK pipeline.
 - `tests/test_algebra_{cpb,decision_tree,code_learning}.py`
 - `docs/ARABIC_ALGEBRA_{ARCHITECTURE,ROADMAP,DECISION_TREE}.md`
 
-**Exit criterion.** All algebra tests pass; no existing test changes.
+**Status.** **Merged into `main` via PR #35.** Phase 0 is no longer a
+proposal; the constitution **لا مخرج عارٍ** (every Result =
+`value + rank + evidence + residuals + failures + replay`) is now a
+runtime contract enforced by `core.Result`, `cpb.validate_cpb`, and the
+typed `ALLOWED_BRIDGES` / `FORBIDDEN_BRIDGES` matrix.
+
+The canonical `Rank` set is exactly:
+
+> `UNRESOLVED`, `CANDIDATE`, `LICENSED`, `CERTIFIED`, `REFUTED`.
+
+Legacy names (e.g. `CERTIFICATE`, `BLOCKED`) are forbidden and pinned
+out by `tests/fvafk/algebra/test_result_invariants.py`.
+
+**Exit criterion.** ✅ All algebra tests pass; no existing test changes.
+
+---
+
+## Phase 0.5 — Governance hardening (this PR)
+
+**Goal.** Lock the merged constitution so future PRs cannot silently
+violate it. No production code changes; only tests + CI + docs.
+
+**Deliverables.**
+- `tests/fvafk/algebra/test_bridge_matrix.py` — parametrised tests over
+  every entry of `ALLOWED_BRIDGES` and `FORBIDDEN_BRIDGES`, plus a
+  topology consistency check (the two sets are disjoint; identity
+  bridges are always legal; unspecified pairs default to forbidden).
+- `tests/fvafk/algebra/test_result_invariants.py` — pins the canonical
+  `Rank` names, the four `Result` invariants (`LICENSED`/`CERTIFIED`
+  require evidence; `CERTIFIED` forbids residuals; fatal `Failure`
+  forces `REFUTED`), and the `default_policy` truth table.
+- `tests/fvafk/algebra/test_cpb_contract.py` — full coverage of
+  `validate_cpb`: domain mismatch, uncited output (LICENSED and
+  CERTIFIED), `UNRESOLVED` exemption, label/domain citation fallback.
+- `.github/workflows/ci.yml` — new blocking `algebra-governance` job
+  on Python 3.11 / 3.12 that runs the algebra tests on every push and
+  pull request to `main` / `develop`.
+
+**Exit criterion.** All algebra tests green in CI; the canonical Rank
+set and bridge matrix are pinned by tests; legacy `tests/test_algebra_*`
+files continue to pass unmodified. **Phase 0 is merged; the next
+substantive milestone is Phase 1 surface coverage.**
 
 ---
 
