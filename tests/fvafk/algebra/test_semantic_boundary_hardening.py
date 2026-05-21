@@ -29,6 +29,41 @@ Hard Gates Tested (11 total):
 
 import pytest
 from fvafk.algebra.core import Result, Rank, Evidence, Residual, Carrier, Domain
+Phase 5.5: Semantic Boundary Hardening with 29 Mutation-Resistant Tests
+
+Comprehensive mutation-resistant test suite for all 9 semantic operations across
+Phase 5A-5I.
+
+Test Strategy:
+    Each operation tested with:
+        1. Hard gate: what MUST fail (REFUTED or CANDIDATE)
+        2. Soft gate: what MAY succeed (LICENSED)
+        3. Certificate path: what CAN reach CERTIFIED (if applicable)
+
+Coverage:
+    - Phase 5A: DalCandidateOperation (3 tests)
+    - Phase 5B: MadlulCandidateOperation (3 tests)
+    - Phase 5C: WadhBindingOperation (3 tests)
+    - Phase 5D: MutabaqahGate (2 tests)
+    - Phase 5D: TadammunGate (2 tests)
+    - Phase 5D: IltizamGate (2 tests)
+    - Phase 5E: NisbahSemanticOperation (4 tests)
+    - Phase 5F: ReferenceResolutionOperation (2 tests)
+    - Phase 5G: SpeechForceOperation (2 tests)
+    - Phase 5H: IfadahClosureOperation (2 tests)
+    - Phase 5I: BoundaryGuardOperation (2 tests)
+
+Total: 29 tests
+"""
+
+from __future__ import annotations
+
+from fvafk.algebra import (
+    Carrier,
+    Domain,
+    Evidence,
+    Rank,
+)
 from fvafk.algebra.semantics import (
     # Operations
     DalCandidateOperation,
