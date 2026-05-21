@@ -139,14 +139,60 @@ core.py, cpb.py, policies.py, or arabic_layers.py.**
 
 ---
 
-## Phase 3 — Algebraic morphology
+## Phase 3 — Algebraic morphology ✅ (this PR)
 
 Promote morphology operations (pattern matching, root extraction,
 broken-plural derivation, augmentation operators) from "functions that
 return values" to first-class `Operation` instances. Each is gated by
 a CPB declaring `MORPH_SURFACE → ROOT` or `ROOT → MORPH_DEEP`.
 
-**Touches.** New `algebra/morphology.py`; no edits to `c2b/`.
+**Goal.** Transform morphology from plain functions into governed
+algebraic operations that produce Result objects with full provenance:
+`value + rank + evidence + residuals + failures + replay`.
+
+**Status.** Implemented via this PR. Phase 3 morphology suite provides:
+
+- `MORPHOLOGY_RESIDUAL_KINDS` — 9 morphology-specific residual kinds
+  (context.absent, lexical.ambiguity, proper_name.possible,
+  transfer.possible, weak_letter.present, affix.aggressive_strip,
+  root.ambiguous, pattern.collision, broken_plural.possible)
+- `PatternMatchOperation` — MORPH_SURFACE → MORPH_SURFACE Result
+- `RootExtractionOperation` — MORPH_SURFACE → ROOT Result
+- `AffixDetectionOperation` — MORPH_SURFACE → MORPH_SURFACE Result
+  with affix residuals
+- Convenience wrappers: `governed_pattern_match()`,
+  `governed_root_extract()`, `governed_affix_detect()`
+
+All operations:
+- **License structure, not meaning** (الصرف يرخص بنية، ولا يصدر حكماً)
+- **Root is not meaning** (الجذر ليس معنى): ROOT evidence never
+  claims SEMANTICS or HUKM
+- **Pattern is not judgment** (الوزن ليس حكماً): Pattern matching
+  stays LICENSED when residuals remain
+- **Never promote to CERTIFIED with residuals**: All morphology
+  operations emit residuals for context absence, ambiguity, weak
+  letters, aggressive affix stripping
+- **Full provenance**: Every Result includes trace, evidence, residuals
+
+**Deliverables.**
+- `src/fvafk/algebra/morphology/{__init__,residual_taxonomy,operations}.py`
+- `tests/test_algebra_morphology_phase3.py` — 33 tests covering
+  residual taxonomy, governed operations, evidence integration, domain
+  boundary enforcement, rank invariants, and regression tests
+- `docs/ARABIC_ALGEBRA_ROADMAP.md` updated
+
+**Exit criterion.** ✅ All 33 Phase 3 tests pass; root extraction with
+Evidence promotes to LICENSED (never CERTIFIED with residuals); weak
+letters create `weak_letter.present` residual; aggressive affix
+stripping creates `affix.aggressive_strip` residual; fatal
+contradiction forces REFUTED; all Phase 0, 0.5, 1, 2 tests remain green
+(63 total passing); no MORPH_SURFACE → SEMANTICS or MORPH_DEEP → HUKM
+jump; morphology operations never emit `semantic.*` or `hukm.*`
+evidence kinds.
+
+**Touches.** New `src/fvafk/algebra/morphology/` module; new tests;
+documentation updates. **No changes to c1, c2a, c2b, syntax, dal_core,
+core.py, cpb.py, policies.py, or arabic_layers.py.**
 
 ---
 
