@@ -61,6 +61,46 @@ jobs:
         run: |
           echo "Orchestrator CI job completed. Check previous step output for any failures."
 
+  # Phase 0.5 — Arabic algebra governance gate.
+  # Locks the constitution merged in PR #35 (src/fvafk/algebra):
+  #   - rank/evidence/residual/failure invariants ("لا مخرج عارٍ"),
+  #   - ALLOWED_BRIDGES / FORBIDDEN_BRIDGES topology,
+  #   - CPB correspondence (no uncited outputs).
+  # Any future PR that breaks one of these will fail this job.
+  algebra-governance:
+    name: Arabic algebra governance
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+
+      - name: Run algebra governance tests (matrix + invariants + CPB)
+        env:
+          PYTHONPATH: src
+        run: |
+          pytest tests/fvafk/algebra -q -ra
+
+      - name: Run legacy algebra tests (regression guard)
+        env:
+          PYTHONPATH: src
+        run: |
+          pytest tests/test_algebra_cpb.py tests/test_algebra_decision_tree.py tests/test_algebra_code_learning.py -q -ra
+
   # Existing Coq skeleton job (optional; does not block orchestrator pass)
   coq-skeleton:
     name: Coq skeleton
