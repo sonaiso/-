@@ -5,7 +5,7 @@ Critical Law:
     الربط ليس دلالة كاملة
     Binding is NOT full Dalālah.
 
-Test Coverage (20 tests):
+Test Coverage (26 tests):
     1. test_binding_requires_dal_candidate
     2. test_binding_requires_madlul_lafzi_candidate
     3. test_binding_requires_lafzi_registration
@@ -25,7 +25,15 @@ Test Coverage (20 tests):
     17. test_binding_blocks_domain_mismatch
     18. test_unknown_binding_basis_becomes_residual
     19. test_binding_returns_governed_failure_not_exception
-    20. test_binding_full_success_path
+    20. test_binding_candidate_admission_success
+
+    Hardening Guards (6 tests):
+    H1. test_binding_success_is_not_dalalah_success
+    H2. test_prior_information_permits_binding_but_does_not_certify_dalalah
+    H3. test_conventional_hint_does_not_implement_wadh
+    H4. test_usage_hint_does_not_implement_usage_gate
+    H5. test_lexical_hint_does_not_certify_binding
+    H6. test_binding_preserves_distinct_trace_lineages
 """
 
 import pytest
@@ -551,11 +559,17 @@ def test_binding_returns_governed_failure_not_exception():
     assert len(result.failure.residuals) > 0
 
 
-# Test 20: Full success path
+# Test 20: Binding candidate admission success path
 
-def test_binding_full_success_path():
+def test_binding_candidate_admission_success():
     """
-    Law: Full success path with all requirements satisfied.
+    Law: Binding candidate admission success path.
+
+    Critical clarification:
+        Success means: binding candidate ADMITTED
+        Success does NOT mean: full Dalālah achieved
+        Success does NOT mean: semantic certification
+        Success does NOT mean: signification completed
 
     Expected: Success with valid DalMadlulBindingCandidate.
     """
@@ -583,6 +597,336 @@ def test_binding_full_success_path():
     assert result.candidate.dal_trace_id == trace_id
     assert result.candidate.madlul_trace_id == trace_id
     assert result.failure is None
+
+
+# ============================================================================
+# HARDENING TESTS: Guard against semantic drift
+# ============================================================================
+# These tests prevent PR-L4 from accidentally implementing full Dalālah,
+# Wadh, or semantic interpretation.
+
+
+# Test H1: Binding success is NOT Dalālah success
+
+def test_binding_success_is_not_dalalah_success():
+    """
+    Hardening Guard: Binding success ≠ Dalālah success.
+
+    Critical Law:
+        الربط شرط إمكان الدلالة، لا الدلالة المكتملة
+        Binding is a condition for possible Dalālah, NOT full signification.
+
+    This test ensures that:
+        - Successful binding creates a BindingCandidate
+        - BindingCandidate does NOT have dalalah, meaning, wadh fields
+        - Success means "binding candidate admitted", not "signification achieved"
+
+    Expected:
+        - Result is success
+        - Candidate has NO attributes: dalalah, wadh, meaning, hukm
+        - Candidate is only a governed relation candidate
+    """
+    dal = make_valid_dal_candidate()
+    madlul = make_valid_madlul_lafzi_candidate()
+    style_spec = make_valid_style_spec()
+    neutral_binding = make_valid_neutral_binding_result()
+
+    input_data = DalMadlulBindingInput(
+        dal_candidate=dal,
+        madlul_candidate=madlul,
+        binding_basis=BindingBasis.PRIOR_INFORMATION,
+        style_spec=style_spec,
+        neutral_binding_result=neutral_binding,
+        lafzi_registration_success=True,
+    )
+
+    result = DalMadlulBindingGate.create_binding(input_data)
+
+    assert result.is_success
+    assert result.candidate is not None
+
+    # Critical: Candidate must NOT have semantic fields
+    candidate = result.candidate
+    assert not hasattr(candidate, "dalalah"), "Binding must NOT have dalalah field"
+    assert not hasattr(candidate, "wadh"), "Binding must NOT have wadh field"
+    assert not hasattr(candidate, "meaning"), "Binding must NOT have meaning field"
+    assert not hasattr(candidate, "hukm"), "Binding must NOT have hukm field"
+    assert not hasattr(candidate, "haqiqah"), "Binding must NOT have haqiqah field"
+    assert not hasattr(candidate, "majaz"), "Binding must NOT have majaz field"
+    assert not hasattr(candidate, "mutabaqah"), "Binding must NOT have mutabaqah field"
+    assert not hasattr(candidate, "tadammun"), "Binding must NOT have tadammun field"
+    assert not hasattr(candidate, "iltizam"), "Binding must NOT have iltizam field"
+
+    # Success means: binding candidate admitted, not semantic truth
+    assert isinstance(candidate, DalMadlulBindingCandidate)
+    assert candidate.is_valid
+
+
+# Test H2: PriorInformation permits binding but does NOT certify Dalālah
+
+def test_prior_information_permits_binding_but_does_not_certify_dalalah():
+    """
+    Hardening Guard: PriorInformation permits binding, does NOT certify signification.
+
+    Critical Law:
+        PriorInformation permits binding candidate.
+        PriorInformation does NOT certify Dalālah.
+
+    This test ensures:
+        - PriorInformation allows binding attempt
+        - Binding success does NOT mean semantic certification
+        - No rank elevation from prior presence
+
+    Expected:
+        - Binding succeeds with PriorInformation
+        - No semantic certification implied
+        - Candidate remains at candidate rank (not certified)
+    """
+    dal = make_valid_dal_candidate()
+    madlul = make_valid_madlul_lafzi_candidate()
+    style_spec = make_valid_style_spec()
+    neutral_binding = make_valid_neutral_binding_result()
+
+    input_data = DalMadlulBindingInput(
+        dal_candidate=dal,
+        madlul_candidate=madlul,
+        binding_basis=BindingBasis.PRIOR_INFORMATION,
+        style_spec=style_spec,
+        neutral_binding_result=neutral_binding,
+        lafzi_registration_success=True,
+    )
+
+    result = DalMadlulBindingGate.create_binding(input_data)
+
+    assert result.is_success
+    candidate = result.candidate
+
+    # PriorInformation permits binding
+    assert candidate.binding_basis == BindingBasis.PRIOR_INFORMATION
+
+    # But does NOT certify Dalālah
+    assert not hasattr(candidate, "certified"), "Binding must NOT be certified"
+    assert not hasattr(candidate, "rank"), "Binding must NOT have rank field"
+    assert not hasattr(candidate, "semantic_certification"), "No semantic certification"
+
+    # Remains a candidate
+    assert isinstance(candidate, DalMadlulBindingCandidate)
+
+
+# Test H3: CONVENTIONAL_HINT does NOT implement Wadh
+
+def test_conventional_hint_does_not_implement_wadh():
+    """
+    Hardening Guard: CONVENTIONAL_HINT ≠ Wadh.
+
+    Critical Law:
+        CONVENTIONAL_HINT is a hint, NOT full Wadh (convention).
+        Wadh requires explicit convention establishment (future PR-L5).
+
+    This test ensures:
+        - CONVENTIONAL_HINT can be used as binding basis
+        - It does NOT constitute Wadh
+        - No conventional establishment implied
+
+    Expected:
+        - Binding succeeds with CONVENTIONAL_HINT
+        - No Wadh field or implementation
+        - Hint status preserved
+    """
+    dal = make_valid_dal_candidate()
+    madlul = make_valid_madlul_lafzi_candidate()
+    style_spec = make_valid_style_spec()
+    neutral_binding = make_valid_neutral_binding_result()
+
+    input_data = DalMadlulBindingInput(
+        dal_candidate=dal,
+        madlul_candidate=madlul,
+        binding_basis=BindingBasis.CONVENTIONAL_HINT,  # Hint only!
+        style_spec=style_spec,
+        neutral_binding_result=neutral_binding,
+        lafzi_registration_success=True,
+    )
+
+    result = DalMadlulBindingGate.create_binding(input_data)
+
+    assert result.is_success
+    candidate = result.candidate
+
+    # CONVENTIONAL_HINT is basis
+    assert candidate.binding_basis == BindingBasis.CONVENTIONAL_HINT
+
+    # But does NOT implement Wadh
+    assert not hasattr(candidate, "wadh"), "CONVENTIONAL_HINT must NOT be Wadh"
+    assert not hasattr(candidate, "convention"), "No convention field"
+    assert not hasattr(candidate, "wadh_type"), "No wadh_type field"
+
+    # Remains hint-based candidate
+    assert isinstance(candidate, DalMadlulBindingCandidate)
+
+
+# Test H4: USAGE_HINT does NOT implement UsageGate
+
+def test_usage_hint_does_not_implement_usage_gate():
+    """
+    Hardening Guard: USAGE_HINT ≠ UsageGate.
+
+    Critical Law:
+        USAGE_HINT is a hint from usage evidence.
+        USAGE_HINT does NOT implement full usage validation gate.
+
+    This test ensures:
+        - USAGE_HINT can support binding
+        - It does NOT constitute usage proof
+        - No usage certification implied
+
+    Expected:
+        - Binding succeeds with USAGE_HINT
+        - No usage gate implementation
+        - Hint status preserved
+    """
+    dal = make_valid_dal_candidate()
+    madlul = make_valid_madlul_lafzi_candidate()
+    style_spec = make_valid_style_spec()
+    neutral_binding = make_valid_neutral_binding_result()
+
+    input_data = DalMadlulBindingInput(
+        dal_candidate=dal,
+        madlul_candidate=madlul,
+        binding_basis=BindingBasis.USAGE_HINT,  # Hint only!
+        style_spec=style_spec,
+        neutral_binding_result=neutral_binding,
+        lafzi_registration_success=True,
+    )
+
+    result = DalMadlulBindingGate.create_binding(input_data)
+
+    assert result.is_success
+    candidate = result.candidate
+
+    # USAGE_HINT is basis
+    assert candidate.binding_basis == BindingBasis.USAGE_HINT
+
+    # But does NOT implement UsageGate
+    assert not hasattr(candidate, "usage_validated"), "USAGE_HINT must NOT be usage gate"
+    assert not hasattr(candidate, "usage_proof"), "No usage proof"
+    assert not hasattr(candidate, "usage_certification"), "No usage certification"
+
+    # Remains hint-based candidate
+    assert isinstance(candidate, DalMadlulBindingCandidate)
+
+
+# Test H5: LEXICAL_HINT does NOT certify binding
+
+def test_lexical_hint_does_not_certify_binding():
+    """
+    Hardening Guard: LEXICAL_HINT ≠ Lexical Proof.
+
+    Critical Law:
+        LEXICAL_HINT provides lexical evidence.
+        LEXICAL_HINT does NOT certify binding as lexically proven.
+
+    This test ensures:
+        - LEXICAL_HINT supports binding attempt
+        - It does NOT constitute lexical certification
+        - No semantic proof implied
+
+    Expected:
+        - Binding succeeds with LEXICAL_HINT
+        - No lexical certification
+        - Hint status preserved
+    """
+    dal = make_valid_dal_candidate()
+    madlul = make_valid_madlul_lafzi_candidate()
+    style_spec = make_valid_style_spec()
+    neutral_binding = make_valid_neutral_binding_result()
+
+    input_data = DalMadlulBindingInput(
+        dal_candidate=dal,
+        madlul_candidate=madlul,
+        binding_basis=BindingBasis.LEXICAL_HINT,  # Hint only!
+        style_spec=style_spec,
+        neutral_binding_result=neutral_binding,
+        lafzi_registration_success=True,
+    )
+
+    result = DalMadlulBindingGate.create_binding(input_data)
+
+    assert result.is_success
+    candidate = result.candidate
+
+    # LEXICAL_HINT is basis
+    assert candidate.binding_basis == BindingBasis.LEXICAL_HINT
+
+    # But does NOT certify binding
+    assert not hasattr(candidate, "lexically_certified"), "LEXICAL_HINT must NOT certify"
+    assert not hasattr(candidate, "lexical_proof"), "No lexical proof"
+    assert not hasattr(candidate, "semantic_proof"), "No semantic proof"
+
+    # Remains hint-based candidate
+    assert isinstance(candidate, DalMadlulBindingCandidate)
+
+
+# Test H6: Binding preserves distinct trace lineages
+
+def test_binding_preserves_distinct_trace_lineages():
+    """
+    Hardening Guard: Binding preserves both trace lineages.
+
+    Critical Law:
+        Binding must preserve trace lineage from both Dāl and Madlūl.
+        Different trace_ids are allowed (warning, not blocker).
+
+    This test ensures:
+        - Dāl trace preserved even when different from Madlūl
+        - Madlūl trace preserved even when different from Dāl
+        - Trace mismatch creates warning residual, not failure
+
+    Expected:
+        - Success with different trace_ids
+        - Both lineages preserved
+        - Warning residual present (not blocker)
+    """
+    dal_trace = uuid4().hex
+    madlul_trace = uuid4().hex  # Different!
+
+    dal = make_valid_dal_candidate(trace_id=dal_trace)
+    madlul = make_valid_madlul_lafzi_candidate(trace_id=madlul_trace)
+    style_spec = make_valid_style_spec()
+    neutral_binding = make_valid_neutral_binding_result()
+
+    input_data = DalMadlulBindingInput(
+        dal_candidate=dal,
+        madlul_candidate=madlul,
+        binding_basis=BindingBasis.PRIOR_INFORMATION,
+        style_spec=style_spec,
+        neutral_binding_result=neutral_binding,
+        lafzi_registration_success=True,
+    )
+
+    result = DalMadlulBindingGate.create_binding(input_data)
+
+    # Must succeed (mismatch is warning, not blocker)
+    assert result.is_success
+    candidate = result.candidate
+
+    # Both lineages preserved
+    assert candidate.dal_trace_id == dal_trace, "Dāl trace must be preserved"
+    assert candidate.madlul_trace_id == madlul_trace, "Madlūl trace must be preserved"
+    assert candidate.dal_trace_id != candidate.madlul_trace_id, "Traces remain distinct"
+
+    # Warning residual present
+    assert any(
+        r.kind == BindingResidualKind.TRACE_ID_MISMATCH
+        for r in candidate.residuals
+    ), "TRACE_ID_MISMATCH residual must be present"
+
+    # Verify it's warning, not blocker
+    mismatch_residual = next(
+        r for r in candidate.residuals
+        if r.kind == BindingResidualKind.TRACE_ID_MISMATCH
+    )
+    assert mismatch_residual.severity == "warning", "Trace mismatch must be warning"
+    assert not mismatch_residual.is_blocker, "Trace mismatch must NOT be blocker"
 
 
 if __name__ == "__main__":
