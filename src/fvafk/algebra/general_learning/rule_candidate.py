@@ -108,6 +108,20 @@ class RuleStatus(Enum):
 # ===========================================================================
 
 
+class RefinementPolicy(Enum):
+    """Policy for how to refine a rule in response to counterexamples.
+
+    Each policy represents a different type of refinement action.
+    """
+
+    SCOPE_NARROWING = auto()      # تضييق النطاق - narrow rule scope
+    SCOPE_BROADENING = auto()     # توسيع النطاق - broaden rule scope
+    MANAAT_CORRECTION = auto()    # تصحيح المناط - correct determining factor
+    EXCEPTION_RECORDING = auto()  # تسجيل الاستثناء - record exception
+    RULE_REJECTION = auto()       # رفض القاعدة - reject rule entirely
+    RANK_DEMOTION = auto()        # تخفيض الرتبة - demote rank without changing rule
+
+
 @dataclass(frozen=True)
 class RuleModification:
     """A record of a single modification to a rule.
@@ -115,7 +129,7 @@ class RuleModification:
     Tracks what changed, why, and the evidence for the change.
 
     Attributes:
-        modification_type: Type of modification (refinement, generalization, etc.).
+        modification_type: Type of modification (use RefinementPolicy enum).
         before_description: Rule description before modification.
         after_description: Rule description after modification.
         trigger: What triggered this modification (counterexample, new evidence, etc.).
@@ -125,16 +139,16 @@ class RuleModification:
 
     Example:
         >>> mod = RuleModification(
-        ...     modification_type="scope_refinement",
+        ...     modification_type=RefinementPolicy.SCOPE_NARROWING,
         ...     before_description="All فاعل → agentive",
         ...     after_description="فاعل from event roots → agentive potential",
         ...     trigger="Counterexample: طاهر (qualitative, not agentive)",
         ... )
         >>> mod.modification_type
-        'scope_refinement'
+        <RefinementPolicy.SCOPE_NARROWING: 1>
     """
 
-    modification_type: str
+    modification_type: RefinementPolicy | str  # RefinementPolicy preferred, str for backward compatibility
     before_description: str
     after_description: str
     trigger: str = ""
@@ -149,6 +163,17 @@ class RuleModification:
             raise ValueError("RuleModification.before_description must be non-empty")
         if not self.after_description:
             raise ValueError("RuleModification.after_description must be non-empty")
+
+    @property
+    def policy(self) -> RefinementPolicy | None:
+        """Get refinement policy (if modification_type is RefinementPolicy)."""
+        if isinstance(self.modification_type, RefinementPolicy):
+            return self.modification_type
+        # Try to convert string to policy
+        try:
+            return RefinementPolicy[self.modification_type.upper().replace(" ", "_")]
+        except (KeyError, AttributeError):
+            return None
 
 
 # ===========================================================================
@@ -276,7 +301,7 @@ class RuleCandidate:
             <RuleStatus.REFINED: 3>
         """
         modification = RuleModification(
-            modification_type="scope_refinement",
+            modification_type=RefinementPolicy.SCOPE_NARROWING,
             before_description=self.description,
             after_description=new_description,
             trigger=trigger,

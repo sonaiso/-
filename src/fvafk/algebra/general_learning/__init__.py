@@ -61,7 +61,7 @@ from __future__ import annotations
 from .origin import Origin, OriginSet, extract_origin, make_origin_set
 from .invariant import Invariant, InvariantKind, detect_invariants
 from .manaat import Manaat, ManaatScope, determine_manaat
-from .rule_candidate import RuleCandidate, RuleStatus, RuleModification, make_rule_candidate
+from .rule_candidate import RuleCandidate, RuleStatus, RuleModification, RefinementPolicy, make_rule_candidate
 from .learner import GeneralLearner, LearningCycle
 from .verification import verify_rule, detect_counterexamples, Counterexample, CounterexampleKind, VerificationResult
 from .explanation import Explanation, ExplanationKind, explain_modification, explain_rank_change, explain_counterexample_handling
@@ -92,6 +92,7 @@ __all__ = [
     "RuleCandidate",
     "RuleStatus",
     "RuleModification",
+    "RefinementPolicy",
     "make_rule_candidate",
     # Learner
     "GeneralLearner",

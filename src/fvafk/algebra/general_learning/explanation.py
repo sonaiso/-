@@ -230,17 +230,38 @@ def explain_modification(
     """
     # Auto-detect kind from modification type
     if kind is None:
-        mod_type = getattr(modification, "modification_type", "").lower()
-        if "scope" in mod_type and "narrow" in mod_type:
-            kind = ExplanationKind.SCOPE_NARROWING
-        elif "scope" in mod_type and "broad" in mod_type:
-            kind = ExplanationKind.SCOPE_BROADENING
-        elif "scope" in mod_type or "refine" in mod_type:
-            kind = ExplanationKind.SCOPE_REFINEMENT
-        elif "manaat" in mod_type:
-            kind = ExplanationKind.MANAAT_CHANGE
+        mod_type_raw = getattr(modification, "modification_type", "")
+
+        # Handle RefinementPolicy enum
+        if hasattr(mod_type_raw, "name"):  # It's an enum
+            mod_type_name = mod_type_raw.name.lower()
+            if "scope_narrowing" in mod_type_name:
+                kind = ExplanationKind.SCOPE_NARROWING
+            elif "scope_broadening" in mod_type_name:
+                kind = ExplanationKind.SCOPE_BROADENING
+            elif "manaat" in mod_type_name:
+                kind = ExplanationKind.MANAAT_CHANGE
+            elif "exception" in mod_type_name:
+                kind = ExplanationKind.EXCEPTION_ADDED
+            elif "rank_demotion" in mod_type_name:
+                kind = ExplanationKind.RANK_DEMOTION
+            elif "rule_rejection" in mod_type_name:
+                kind = ExplanationKind.RULE_DEPRECATED
+            else:
+                kind = ExplanationKind.SCOPE_REFINEMENT  # Default
         else:
-            kind = ExplanationKind.SCOPE_REFINEMENT  # Default
+            # Handle string (legacy)
+            mod_type = mod_type_raw.lower() if isinstance(mod_type_raw, str) else ""
+            if "scope" in mod_type and "narrow" in mod_type:
+                kind = ExplanationKind.SCOPE_NARROWING
+            elif "scope" in mod_type and "broad" in mod_type:
+                kind = ExplanationKind.SCOPE_BROADENING
+            elif "scope" in mod_type or "refine" in mod_type:
+                kind = ExplanationKind.SCOPE_REFINEMENT
+            elif "manaat" in mod_type:
+                kind = ExplanationKind.MANAAT_CHANGE
+            else:
+                kind = ExplanationKind.SCOPE_REFINEMENT  # Default
 
     what_changed = f"{getattr(modification, 'before_description', '')} → {getattr(modification, 'after_description', '')}"
     why_changed = f"Modification type: {getattr(modification, 'modification_type', 'unknown')}"
