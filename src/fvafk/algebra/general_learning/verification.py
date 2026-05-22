@@ -263,12 +263,16 @@ def verify_rule(
     new_rank = _compute_verification_rank(rule, counterexamples, confirmed)
 
     # Generate evidence
+    # Weight must be strictly positive; use confirmation rate or minimum 0.01
+    confirmation_rate = len(confirmed) / len(test_examples) if test_examples else 0.0
+    evidence_weight = max(0.01, confirmation_rate)  # Ensure strictly positive
+
     evidence_list = [
         Evidence(
             kind="rule.verification",
             source="verification_test",
             detail=f"Tested {len(test_examples)} examples: {len(confirmed)} confirmed, {len(counterexamples)} counterexamples",
-            weight=len(confirmed) / len(test_examples) if test_examples else 0.0,
+            weight=evidence_weight,
         )
     ]
 
