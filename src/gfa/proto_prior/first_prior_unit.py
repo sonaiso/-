@@ -118,32 +118,30 @@ class FirstPriorUnit:
     - FirstPriorUnit CANNOT produce rules/meanings/judgments/certificates
     """
 
-    # Core identity
+    # Core identity (no defaults)
     entity_or_effect: Any
     existence_type: ExistenceType
     domain: Domain
 
-    # Fundamental properties
+    # Fundamental properties (no defaults)
     distinction: Distinction
     boundary: Boundary
 
-    # Anchoring (MANDATORY)
+    # Anchoring - MANDATORY (no defaults)
     time_anchor: TimeAnchor
     place_anchor: PlaceAnchor
     reference_anchor: ReferenceAnchor
 
-    # Access
+    # Access (no defaults)
     channel: Channel
 
-    # Trace identity
-    trace_id: UUID = field(default_factory=uuid4)
-
-    # Capabilities (MANDATORY)
+    # Capabilities - MANDATORY (no defaults)
     retention_state: RetentionState
     comparability_state: ComparabilityState
     primitive_bindability: PrimitiveBindability
 
-    # Epistemic status
+    # Fields with defaults (must come last)
+    trace_id: UUID = field(default_factory=uuid4)
     residuals: FrozenSet[Residual] = field(default_factory=frozenset)
     rank: Rank = Rank.CANDIDATE
 
