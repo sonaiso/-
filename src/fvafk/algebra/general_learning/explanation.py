@@ -44,7 +44,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Tuple, Mapping, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fvafk.algebra import Evidence, Residual, Rank, Trace
 
@@ -120,7 +120,7 @@ class Explanation:
     confidence: float = 0.7
     actor: str = "general_learner"
     trace: Trace = field(default_factory=lambda: Trace(operation="explanation"))
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
