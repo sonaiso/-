@@ -16,8 +16,16 @@ What PR-L5A Implements:
     - MawduLahStructure (placed-for candidate)
     - WadhResidual taxonomy
 
-What PR-L5A Does NOT Implement:
-    - WadhGate (→ PR-L5B)
+What PR-L5A Implements:
+    - WadhSource, WadhTransmissionMode, WadhScope
+    - WadhEvidence, WadhClaim, MawduLahStructure
+    - WadhResidual taxonomy
+
+What PR-L5B Implements:
+    - WadhGate (admission/blocking logic)
+    - WadhGateResult (governed results)
+
+What Is NOT Implemented:
     - Full Dalālah (→ PR-L6+)
     - Mutabaqah/Tadammun/Iltizam classification (→ PR-L6+)
     - Haqiqah/Majaz/Naql classification (→ PR-L7+)
@@ -116,6 +124,13 @@ from .wadh_claim import (
 # MawduLah structure
 from .mawdu_lah_structure import MawduLahStructure
 
+# Gate (PR-L5B)
+from .wadh_gate import WadhGate
+from .wadh_gate_result import (
+    WadhGateResult,
+    WadhGateFailure,
+)
+
 
 __all__ = [
     # Source
@@ -166,4 +181,9 @@ __all__ = [
 
     # MawduLah
     "MawduLahStructure",
+
+    # Gate (PR-L5B)
+    "WadhGate",
+    "WadhGateResult",
+    "WadhGateFailure",
 ]
