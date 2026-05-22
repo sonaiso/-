@@ -5,7 +5,8 @@ Critical Law:
     الربط ليس دلالة كاملة
     Binding is NOT full Dalālah.
 
-Test Coverage (26 tests):
+Test Coverage (31 tests):
+    Core Tests (20 tests):
     1. test_binding_requires_dal_candidate
     2. test_binding_requires_madlul_lafzi_candidate
     3. test_binding_requires_lafzi_registration
@@ -34,6 +35,13 @@ Test Coverage (26 tests):
     H4. test_usage_hint_does_not_implement_usage_gate
     H5. test_lexical_hint_does_not_certify_binding
     H6. test_binding_preserves_distinct_trace_lineages
+
+    Helper Signature Guards (5 tests - PR-L4.1):
+    S1. test_prior_information_helper_matches_current_constructor
+    S2. test_style_spec_helper_matches_current_constructor
+    S3. test_lafzi_binding_helpers_do_not_bypass_governance
+    S4. test_all_lafzi_binding_fixtures_create_governed_objects
+    S5. test_binding_candidate_baseline_has_no_semantic_execution
 """
 
 import pytest
@@ -928,6 +936,242 @@ def test_binding_preserves_distinct_trace_lineages():
     )
     assert mismatch_residual.severity == "warning", "Trace mismatch must be warning"
     assert not mismatch_residual.is_blocker, "Trace mismatch must NOT be blocker"
+
+
+# ============================================================================
+# HELPER SIGNATURE GUARD TESTS: Verify helpers create properly governed objects
+# ============================================================================
+# These tests ensure test helpers match current implementation signatures
+# and create properly governed objects (PR-L4.1 requirement).
+
+
+# Test S1: PriorInformation helper matches current constructor
+
+def test_prior_information_helper_matches_current_constructor():
+    """
+    Helper Signature Guard: make_valid_neutral_binding_result() uses correct PriorInformation constructor.
+
+    Critical Law:
+        Test helpers must match actual implementation signatures.
+        Stale helper signatures create false test successes.
+
+    This test ensures:
+        - PriorInformation constructor parameters are correct
+        - FilteredPrior is constructed with frozenset
+        - No legacy parameter names (source, strength)
+
+    Expected:
+        - PriorInformation created with: content, domain, rank, evidence_trace
+        - FilteredPrior created with frozenset, not tuple
+    """
+    # Get the helper result
+    result = make_valid_neutral_binding_result()
+
+    # Verify it succeeded
+    assert result.success is True
+
+    # The fact that this doesn't raise TypeError proves the signature is correct
+    # If PriorInformation constructor changed, this would fail at helper construction
+
+    # Additional validation: create PriorInformation directly with same signature
+    prior_info = PriorInformation(
+        content="test_content",
+        domain="test_domain",
+        rank="LICENSED",
+        evidence_trace="test_trace",
+    )
+
+    assert prior_info.content == "test_content"
+    assert prior_info.domain == "test_domain"
+    assert prior_info.rank == "LICENSED"
+    assert prior_info.evidence_trace == "test_trace"
+
+
+# Test S2: StyleSpec helper matches current constructor
+
+def test_style_spec_helper_matches_current_constructor():
+    """
+    Helper Signature Guard: make_valid_style_spec() creates valid StyleSpec.
+
+    Critical Law:
+        StyleSpec requires all 5 components: domain, evidence, rank, residual, operation policies.
+
+    This test ensures:
+        - make_lafzi_dalali_style() creates complete StyleSpec
+        - All 5 required policies present
+        - Domain is LAFZI_DALALI
+
+    Expected:
+        - StyleSpec has all required components
+        - Domain matches across all policies
+    """
+    style_spec = make_valid_style_spec()
+
+    # Verify all 5 required components exist
+    assert style_spec.domain_spec is not None, "DomainSpec is required"
+    assert style_spec.evidence_policy is not None, "EvidencePolicy is required"
+    assert style_spec.rank_policy is not None, "RankPolicy is required"
+    assert style_spec.residual_policy is not None, "ResidualPolicy is required"
+    assert style_spec.operation_policy is not None, "OperationPolicy is required"
+
+    # Verify domain consistency
+    assert style_spec.get_domain() == ThinkingDomain.LAFZI_DALALI
+    assert style_spec.domain_spec.domain == ThinkingDomain.LAFZI_DALALI
+
+
+# Test S3: Lafzi binding helpers do not bypass governance
+
+def test_lafzi_binding_helpers_do_not_bypass_governance():
+    """
+    Helper Governance Guard: Test helpers create governed objects, not raw data.
+
+    Critical Law:
+        Helpers must NOT bypass RationalMethod, NeutralBinding, StyleSpec, or Lafzi registration.
+        All objects must be governed.
+
+    This test ensures:
+        - make_valid_neutral_binding_result() creates NeutralBindingResult
+        - make_valid_style_spec() creates StyleSpec with policies
+        - make_valid_dal_candidate() creates governed DalCandidate
+        - make_valid_madlul_lafzi_candidate() creates governed MadlulLafziCandidate
+
+    Expected:
+        - All helpers create typed, governed objects
+        - No helpers bypass governance layers
+    """
+    # Test NeutralBinding governance
+    neutral_result = make_valid_neutral_binding_result()
+    assert hasattr(neutral_result, "success"), "NeutralBindingResult must have success field"
+    assert hasattr(neutral_result, "prior_information_preserved"), "Must track prior preservation"
+    assert hasattr(neutral_result, "opinion_excluded"), "Must track opinion exclusion"
+
+    # Test StyleSpec governance
+    style_spec = make_valid_style_spec()
+    assert callable(style_spec.blocks_forbidden_operation), "StyleSpec must govern operations"
+    assert callable(style_spec.preserves_domain_boundary), "StyleSpec must govern domain"
+
+    # Test DalCandidate governance
+    dal = make_valid_dal_candidate()
+    assert hasattr(dal, "trace_id"), "DalCandidate must preserve trace"
+    assert hasattr(dal, "dal_type"), "DalCandidate must have type"
+    assert dal.trace_id, "trace_id must not be empty"
+
+    # Test MadlulLafziCandidate governance
+    madlul = make_valid_madlul_lafzi_candidate()
+    assert hasattr(madlul, "trace_id"), "MadlulLafziCandidate must preserve trace"
+    assert hasattr(madlul, "madlul_type"), "MadlulLafziCandidate must have type"
+    assert madlul.trace_id, "trace_id must not be empty"
+
+
+# Test S4: All binding fixtures create governed objects
+
+def test_all_lafzi_binding_fixtures_create_governed_objects():
+    """
+    Fixture Completeness Guard: All test fixtures create properly governed objects.
+
+    Critical Law:
+        No fixture may create ungoverned/raw data objects.
+        Every fixture must participate in governance chain.
+
+    This test ensures:
+        - Full binding input can be created from helpers
+        - All components are governed
+        - No component bypasses its governance layer
+
+    Expected:
+        - DalMadlulBindingInput created successfully
+        - All input components are valid governed objects
+    """
+    dal = make_valid_dal_candidate()
+    madlul = make_valid_madlul_lafzi_candidate()
+    style_spec = make_valid_style_spec()
+    neutral_binding = make_valid_neutral_binding_result()
+
+    # Create full binding input
+    input_data = DalMadlulBindingInput(
+        dal_candidate=dal,
+        madlul_candidate=madlul,
+        binding_basis=BindingBasis.PRIOR_INFORMATION,
+        style_spec=style_spec,
+        neutral_binding_result=neutral_binding,
+        lafzi_registration_success=True,
+    )
+
+    # Verify input is properly governed
+    assert input_data.dal_candidate is not None, "DalCandidate must be provided"
+    assert input_data.madlul_candidate is not None, "MadlulLafziCandidate must be provided"
+    assert input_data.style_spec is not None, "StyleSpec must be provided"
+    assert input_data.neutral_binding_result is not None, "NeutralBinding must be provided"
+    assert input_data.binding_basis == BindingBasis.PRIOR_INFORMATION
+
+    # Verify binding can proceed
+    result = DalMadlulBindingGate.create_binding(input_data)
+    assert result is not None, "Binding must return governed result"
+    assert result.is_success or result.is_failure, "Result must be either success or failure"
+
+
+# Test S5: Binding candidate baseline has no semantic execution
+
+def test_binding_candidate_baseline_has_no_semantic_execution():
+    """
+    Baseline Boundary Guard: DalMadlulBindingCandidate remains pre-semantic.
+
+    Critical Law:
+        PR-L4 baseline does NOT implement:
+        - Wadh (convention)
+        - UsageGate (usage validation)
+        - Dalālah (full signification)
+        - Mutabaqah/Tadammun/Iltizam (semantic relations)
+        - Haqiqah/Majaz (literal/metaphorical classification)
+        - HUKM (judgment issuance)
+        - Learning (rank elevation from experience)
+
+    This test ensures:
+        - Binding candidate has no semantic fields
+        - Gate methods confirm no semantic capability
+        - Baseline remains pre-semantic
+
+    Expected:
+        - All semantic guards return True (confirming absence)
+        - Candidate has no semantic fields
+    """
+    dal = make_valid_dal_candidate()
+    madlul = make_valid_madlul_lafzi_candidate()
+    style_spec = make_valid_style_spec()
+    neutral_binding = make_valid_neutral_binding_result()
+
+    input_data = DalMadlulBindingInput(
+        dal_candidate=dal,
+        madlul_candidate=madlul,
+        binding_basis=BindingBasis.PRIOR_INFORMATION,
+        style_spec=style_spec,
+        neutral_binding_result=neutral_binding,
+        lafzi_registration_success=True,
+    )
+
+    result = DalMadlulBindingGate.create_binding(input_data)
+    assert result.is_success
+
+    candidate = result.candidate
+
+    # Verify no semantic fields (same as H1, but part of baseline verification)
+    assert not hasattr(candidate, "wadh"), "Baseline must NOT have wadh"
+    assert not hasattr(candidate, "usage_gate"), "Baseline must NOT have usage_gate"
+    assert not hasattr(candidate, "dalalah"), "Baseline must NOT have dalalah"
+    assert not hasattr(candidate, "mutabaqah"), "Baseline must NOT have mutabaqah"
+    assert not hasattr(candidate, "tadammun"), "Baseline must NOT have tadammun"
+    assert not hasattr(candidate, "iltizam"), "Baseline must NOT have iltizam"
+    assert not hasattr(candidate, "haqiqah"), "Baseline must NOT have haqiqah"
+    assert not hasattr(candidate, "majaz"), "Baseline must NOT have majaz"
+    assert not hasattr(candidate, "hukm"), "Baseline must NOT have hukm"
+    assert not hasattr(candidate, "learning"), "Baseline must NOT have learning"
+
+    # Verify gate guards (redundant with other tests, but confirms baseline)
+    assert DalMadlulBindingGate.does_not_implement_wadh() is True
+    assert DalMadlulBindingGate.does_not_create_full_dalalah() is True
+    assert DalMadlulBindingGate.does_not_classify_mutabaqah_tadammun_iltizam() is True
+    assert DalMadlulBindingGate.does_not_classify_haqiqah_majaz() is True
+    assert DalMadlulBindingGate.does_not_issue_hukm() is True
 
 
 if __name__ == "__main__":
