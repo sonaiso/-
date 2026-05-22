@@ -287,7 +287,7 @@ def test_cpb_letter_harakah_checks_internal_closure():
 def test_cpb_root_pattern_basic():
     """cpb_root_pattern should bind root and pattern into form."""
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     form = cpb_root_pattern(root, pattern)
 
@@ -299,7 +299,7 @@ def test_cpb_root_pattern_basic():
 def test_cpb_root_pattern_preserves_trace():
     """cpb_root_pattern must preserve trace from both inputs."""
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     form = cpb_root_pattern(root, pattern)
 
@@ -311,7 +311,7 @@ def test_cpb_root_pattern_preserves_trace():
 def test_cpb_root_pattern_preserves_rank():
     """cpb_root_pattern must preserve rank conservatively."""
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     form = cpb_root_pattern(root, pattern)
 
@@ -322,7 +322,7 @@ def test_cpb_root_pattern_preserves_rank():
 def test_cpb_root_pattern_preserves_residuals():
     """cpb_root_pattern must accumulate residuals."""
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     form = cpb_root_pattern(root, pattern)
 
@@ -336,7 +336,7 @@ def test_cpb_root_pattern_no_meaning():
     **Critical test**: Root ⊗ Pattern creates FORMAL structure, NOT meaning.
     """
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     form = cpb_root_pattern(root, pattern)
 
@@ -351,7 +351,7 @@ def test_cpb_root_pattern_no_meaning():
 def test_cpb_root_pattern_applies_pattern_correctly():
     """cpb_root_pattern should correctly map root letters to pattern slots."""
     root = RootCandidateAlgebra(consonants=("د", "ر", "س"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَاعِل")
+    pattern = PatternTemplateAlgebra(template="فَاعِل")
 
     form = cpb_root_pattern(root, pattern)
 
@@ -368,7 +368,7 @@ def test_cpb_root_pattern_checks_internal_closure():
         internal_bindings = {}
 
     incomplete = IncompleteRoot()
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     with pytest.raises(ValueError, match="incomplete"):
         cpb_root_pattern(incomplete, pattern)
@@ -417,7 +417,7 @@ def test_full_transition_root_pattern_to_form():
     assert is_closed
 
     # Build pattern
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     # Check internal closure
     is_closed, _ = internal_closure_law(pattern)
@@ -458,7 +458,7 @@ def test_cpb_cannot_leak_meaning_letter_harakah():
 def test_cpb_cannot_leak_meaning_root_pattern():
     """CPB root⊗pattern must never produce semantic meaning."""
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     form = cpb_root_pattern(root, pattern)
 

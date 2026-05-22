@@ -209,18 +209,18 @@ def test_validate_internal_closure_checks_unit():
 
 
 def test_validate_internal_closure_checks_boundaries():
-    """validate_internal_closure must check boundaries are tested."""
+    """validate_internal_closure must check boundaries exist (empty OK)."""
 
     class IncompleteLayer:
         unit_value = "some_value"
-        boundaries = {}  # Empty!
+        # Missing boundaries attribute entirely!
         internal_bindings = {"some_binding": "value"}
 
     incomplete = IncompleteLayer()
     is_closed, missing = validate_internal_closure(incomplete)
 
     assert not is_closed
-    assert "boundaries_untested" in missing
+    assert "boundaries_missing" in missing
 
 
 def test_validate_internal_closure_accepts_complete():

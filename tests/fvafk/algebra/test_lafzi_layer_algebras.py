@@ -72,12 +72,12 @@ def test_letter_from_form_simple():
 
 
 def test_letter_from_form_vowel():
-    """LetterAlgebra.from_form should classify vowels correctly."""
+    """LetterAlgebra.from_form should classify alif correctly."""
     alif = LetterAlgebra.from_form("ا")
 
     assert alif.unit_value == "ا"
-    # Alif can be either consonant or vowel, depends on context
-    assert alif.letter_type in (LetterType.CONSONANT, LetterType.LONG_VOWEL)
+    # Alif defaults to consonant (context determines if it's vowel)
+    assert alif.letter_type == LetterType.CONSONANT
 
 
 def test_letter_from_form_hamza():
@@ -358,7 +358,7 @@ def test_root_candidate_quadrilateral():
 
 def test_pattern_template_construction():
     """PatternTemplateAlgebra should construct from pattern form."""
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     assert pattern.pattern_form == "فَعَلَ"
     assert pattern.slot_count == 3
@@ -370,7 +370,7 @@ def test_pattern_template_no_meaning():
     **Critical test**: Pattern is NOT meaning.
     Pattern does NOT guarantee fā'iliyyah or maf'ūliyyah.
     """
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     # Must not have meaning field
     assert not hasattr(pattern, "meaning")
@@ -390,7 +390,7 @@ def test_pattern_template_no_meaning():
 def test_built_form_construction():
     """BuiltFormAlgebra should bind root ⊗ pattern."""
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
 
     form = BuiltFormAlgebra(
         root=root,
@@ -409,7 +409,7 @@ def test_built_form_no_meaning():
     **Critical test**: BuiltForm is formal structure, NOT meaning.
     """
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
     form = BuiltFormAlgebra(root=root, pattern=pattern, surface_form="كَتَبَ")
 
     # Must not have meaning field
@@ -428,18 +428,16 @@ def test_built_form_no_meaning():
 def test_word_candidate_construction():
     """WordCandidateAlgebra should construct with usage status."""
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
     form = BuiltFormAlgebra(root=root, pattern=pattern, surface_form="كَتَبَ")
 
     word = WordCandidateAlgebra(
-        form=form,
-        is_attested=True,
-        usage_status="مُستعمَل",
+        built_form=form,
+        word_status="مُستعمَل",
     )
 
-    assert word.form == form
-    assert word.is_attested
-    assert word.usage_status == "مُستعمَل"
+    assert word.built_form == form
+    assert word.word_status == "مُستعمَل"
 
 
 def test_word_candidate_no_meaning():
@@ -449,9 +447,9 @@ def test_word_candidate_no_meaning():
     Meaning comes from external semantic layer.
     """
     root = RootCandidateAlgebra(consonants=("ك", "ت", "ب"))
-    pattern = PatternTemplateAlgebra(pattern_form="فَعَلَ")
+    pattern = PatternTemplateAlgebra(template="فَعَلَ")
     form = BuiltFormAlgebra(root=root, pattern=pattern, surface_form="كَتَبَ")
-    word = WordCandidateAlgebra(form=form, is_attested=True)
+    word = WordCandidateAlgebra(built_form=form)
 
     # Must not have meaning field
     assert not hasattr(word, "meaning")

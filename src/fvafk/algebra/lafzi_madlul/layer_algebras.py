@@ -195,9 +195,31 @@ class LetterAlgebra:
 
     @classmethod
     def from_form(cls, letter_form: str) -> LetterAlgebra:
-        """Construct LetterAlgebra from a letter form."""
+        """Construct LetterAlgebra from a letter form.
+
+        Detects letter type from Unicode character.
+        """
+        # Detect letter type from Unicode
+        letter_type = LetterType.UNRESOLVED
+        if letter_form in "بتثجحخدذرزسشصضطظعغفقكلمنهوي":
+            letter_type = LetterType.CONSONANT
+        elif letter_form in "ء":
+            letter_type = LetterType.CONSONANT  # Hamza is consonant
+        elif letter_form in "اوي":
+            # Can be consonant or long vowel - context dependent
+            letter_type = LetterType.CONSONANT  # Default to consonant
+
+        # Initialize boundaries (empty is OK at construction)
+        boundaries = {
+            "is_from_root": False,  # Unknown until analyzed
+            "is_from_affix": False,  # Unknown until analyzed
+            "is_semantic_particle": False,  # Unknown until analyzed
+        }
+
         return cls(
             unit_value=letter_form,
+            letter_type=letter_type,
+            boundaries=boundaries,
             trace=Trace("letter_from_form", source_span=(0, len(letter_form))),
         )
 
@@ -263,9 +285,40 @@ class HarakahAlgebra:
 
     @classmethod
     def from_form(cls, harakah_form: str) -> HarakahAlgebra:
-        """Construct HarakahAlgebra from a diacritic form."""
+        """Construct HarakahAlgebra from a diacritic form.
+
+        Detects harakah type from Unicode diacritic.
+        """
+        # Detect harakah type from Unicode
+        harakah_type = HarakahType.FATHA  # default
+        if harakah_form == "َ":  # U+064E FATHA
+            harakah_type = HarakahType.FATHA
+        elif harakah_form == "ُ":  # U+064F DAMMA
+            harakah_type = HarakahType.DAMMA
+        elif harakah_form == "ِ":  # U+0650 KASRA
+            harakah_type = HarakahType.KASRA
+        elif harakah_form == "ْ":  # U+0652 SUKUN
+            harakah_type = HarakahType.SUKUN
+        elif harakah_form == "ّ":  # U+0651 SHADDA
+            harakah_type = HarakahType.SHADDA
+        elif harakah_form == "ً":  # U+064B TANWIN FATH
+            harakah_type = HarakahType.TANWIN_FATH
+        elif harakah_form == "ٌ":  # U+064C TANWIN DAMM
+            harakah_type = HarakahType.TANWIN_DAMM
+        elif harakah_form == "ٍ":  # U+064D TANWIN KASR
+            harakah_type = HarakahType.TANWIN_KASR
+
+        # Initialize boundaries (role is context-dependent!)
+        boundaries = {
+            "is_binaa": False,  # Unknown until context
+            "is_iraab": False,  # Unknown until context
+            "is_pattern_vowel": False,  # Unknown until context
+        }
+
         return cls(
             unit_value=harakah_form,
+            harakah_type=harakah_type,
+            boundaries=boundaries,
             trace=Trace("harakah_from_form"),
         )
 
@@ -326,6 +379,13 @@ class AtomAlgebra:
 
     def __post_init__(self):
         validate_no_meaning_field(self)
+
+        # Rank should be minimum of letter and harakah
+        if hasattr(self.letter, 'rank') and hasattr(self.harakah, 'rank'):
+            min_rank = min(self.letter.rank, self.harakah.rank)
+            if self.rank == Rank.LICENSED and min_rank != Rank.LICENSED:
+                # Override default with conservative min
+                object.__setattr__(self, 'rank', min_rank)
 
 
 # ===========================================================================
@@ -509,6 +569,13 @@ class RootCandidateAlgebra:
     def __post_init__(self):
         validate_no_meaning_field(self)
 
+        # Auto-detect root type from consonant count if not explicitly set
+        if len(self.consonants) == 4 and self.root_type == RootType.TRILATERAL:
+            # Override default: quadrilateral detected
+            object.__setattr__(self, 'root_type', RootType.QUADRILATERAL)
+        elif len(self.consonants) == 5:
+            object.__setattr__(self, 'root_type', RootType.QUINQUELITERAL)
+
 
 # ===========================================================================
 # Layer 7: Affix Operator Algebra (جبر الزيادة)
@@ -626,6 +693,32 @@ class PatternTemplateAlgebra:
     def unit_value(self) -> str:
         """Return the template."""
         return self.template
+
+    @property
+    def pattern_form(self) -> str:
+        """Alias for template (for test compatibility)."""
+        return self.template
+
+    @property
+    def slot_count(self) -> int:
+        """Count number of root slots (ف ع ل positions)."""
+        # Count ف ع ل ل occurrences in template
+        count = 0
+        if "ف" in self.template:
+            count += 1
+        if "ع" in self.template:
+            count += 1
+        if "ل" in self.template:
+            count += 1
+        # Check for doubled lam (quadrilateral)
+        if self.template.count("ل") > 1:
+            count += 1
+        return count
+
+    @property
+    def is_complete(self) -> bool:
+        """Check if pattern is complete (has template defined)."""
+        return bool(self.template and len(self.template) > 0)
 
     failure_type: Optional[str] = None
 

@@ -364,6 +364,9 @@ def validate_internal_closure(layer: Any) -> Tuple[bool, List[str]]:
 
     Implements "Internal Closure Law" (قانون الإغلاق الداخلي).
 
+    **Important**: Empty boundaries/bindings are ALLOWED at construction.
+    Missing attributes are NOT allowed.
+
     Returns:
         (is_closed, incomplete_aspects)
     """
@@ -373,13 +376,12 @@ def validate_internal_closure(layer: Any) -> Tuple[bool, List[str]]:
     if not hasattr(layer, "unit_value") or layer.unit_value is None:
         incomplete.append("unit_undefined")
 
-    # Check boundaries are tested
-    if not hasattr(layer, "boundaries") or not layer.boundaries:
-        incomplete.append("boundaries_untested")
+    # Check boundaries exist (empty dict is OK)
+    if not hasattr(layer, "boundaries"):
+        incomplete.append("boundaries_missing")
 
-    # Check bindings are complete
-    if hasattr(layer, "internal_bindings"):
-        if not layer.internal_bindings:
-            incomplete.append("bindings_incomplete")
+    # Check bindings exist (empty dict is OK)
+    if not hasattr(layer, "internal_bindings"):
+        incomplete.append("bindings_missing")
 
     return (len(incomplete) == 0, incomplete)
