@@ -22,6 +22,32 @@ Critical Laws:
     4. BindingBasis does NOT create meaning
     5. BindingBasis does NOT issue HUKM
     6. BindingBasis does NOT raise PredicateRank
+
+IMPORTANT CLARIFICATIONS:
+
+1. BindingBasis values are HINTS, not GATES:
+   - CONVENTIONAL_HINT ≠ Wadh implementation
+   - USAGE_HINT ≠ UsageGate implementation
+   - LEXICAL_HINT ≠ Lexical certification
+   - PRIOR_INFORMATION permits binding, does NOT certify Dalālah
+
+2. Hints vs Gates:
+   - Hint: Evidence suggesting possible binding
+   - Gate: Validation enforcing requirements
+   - BindingBasis provides hints only
+   - Gates live in DalMadlulBindingGate
+
+3. No semantic authority:
+   - BindingBasis does NOT establish Wadh
+   - BindingBasis does NOT certify meaning
+   - BindingBasis does NOT prove signification
+   - BindingBasis only supports binding candidacy
+
+4. Future work:
+   - Wadh implementation → PR-L5
+   - UsageGate → PR-L5
+   - Full Dalālah → PR-L6
+   - Haqiqah/Majaz → PR-L7
 """
 
 from __future__ import annotations
