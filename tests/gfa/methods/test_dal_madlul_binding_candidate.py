@@ -89,10 +89,11 @@ def make_valid_neutral_binding_result() -> "NeutralBindingResult":
     """Create a valid NeutralBindingResult for testing."""
     prior_info = PriorInformation(
         content="test_prior",
-        source="test",
-        strength="strong",
+        domain="test_domain",
+        rank="LICENSED",
+        evidence_trace="test_evidence_trace",
     )
-    filtered_prior = FilteredPrior(information=(prior_info,))
+    filtered_prior = FilteredPrior(information=frozenset([prior_info]), excluded_opinions=frozenset())
     aql_input = AqlOperationInput(
         reality="test_reality",
         sensory_transfer="test_sensory",
