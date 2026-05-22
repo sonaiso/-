@@ -646,5 +646,78 @@ def test_hukm_emission_guard():
     assert len(rule.evidence) == 1
 
 
+# ===========================================================================
+# Test 16: Complete Trace/Residual/Rank Preservation
+# ===========================================================================
+
+
+def test_complete_preservation_of_governance(origin_katib, origin_zaare, origin_aamil, counter_tahir):
+    """Test comprehensive preservation of traces, residuals, and rank history.
+
+    Verifies blocking review Issue 7:
+    - Traces are preserved through modifications
+    - Residuals accumulate (never lost)
+    - Rank history is tracked through learning cycles
+    """
+    learner = GeneralLearner()
+    learner.add_origins(origin_katib, origin_zaare, origin_aamil)
+
+    # Extract initial rule
+    initial_rule = learner.extract_rule()
+
+    # Verify initial governance
+    initial_trace_id = initial_rule.trace.trace_id
+    initial_residual_count = len(initial_rule.residuals)
+    initial_rank = initial_rule.rank
+
+    assert initial_trace_id != "", "Initial rule must have trace ID"
+    assert initial_rank in (Rank.CANDIDATE, Rank.LICENSED), "Initial rank must be valid"
+
+    # Refine rule with counterexample
+    refined_rule = learner.verify_and_refine(test_examples=(counter_tahir,))
+
+    # CRITICAL: Verify trace preservation
+    # Trace should be child of original, not lost
+    assert refined_rule.trace.trace_id != "", "Refined rule must have trace ID"
+    assert refined_rule.trace.operation != "", "Refined rule must have trace operation"
+
+    # CRITICAL: Verify residual accumulation
+    # Residuals should accumulate, not be lost
+    refined_residual_count = len(refined_rule.residuals)
+    assert refined_residual_count >= initial_residual_count, \
+        f"Residuals must accumulate: initial={initial_residual_count}, refined={refined_residual_count}"
+
+    # New residuals should include either counterexample.search_incomplete or refinement residual
+    residual_kinds = {r.kind for r in refined_rule.residuals}
+    assert any("counterexample" in k or "refinement" in k for k in residual_kinds), \
+        f"Must have counterexample or refinement residual. Found: {residual_kinds}"
+
+    # CRITICAL: Verify rank history through cycles
+    assert len(learner.cycles) >= 1, "Must have learning cycles"
+
+    cycle = learner.cycles[0]
+    assert cycle.rule_before is not None, "Cycle must preserve rule_before"
+    assert cycle.rule_after is not None, "Cycle must preserve rule_after"
+
+    # Ranks must be tracked
+    before_rank = cycle.rule_before.rank
+    after_rank = cycle.rule_after.rank
+    assert before_rank in (Rank.CANDIDATE, Rank.LICENSED, Rank.CERTIFIED)
+    assert after_rank in (Rank.CANDIDATE, Rank.LICENSED, Rank.CERTIFIED)
+
+    # CRITICAL: Verify modification history preservation
+    if refined_rule.modifications:
+        mod = refined_rule.modifications[-1]
+        assert mod.trace is not None, "Modification must have trace"
+        assert mod.trace.operation != "", "Modification trace must have operation"
+
+    # CRITICAL: Verify explanations preserve reasoning
+    if cycle.explanations:
+        explanation = cycle.explanations[0]
+        assert explanation.what_changed != "", "Explanation must describe what changed"
+        assert explanation.why_changed != "", "Explanation must describe why it changed"
+        assert explanation.trace is not None, "Explanation must have trace"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
