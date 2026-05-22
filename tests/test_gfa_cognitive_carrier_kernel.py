@@ -586,6 +586,309 @@ def test_carrier_serializes_without_losing_capacities():
 
 
 # ============================================================================
+# Test 13: GUARD - No Premature Layer Implementation
+# ============================================================================
+
+def test_guard_no_attention_geometry_implementation():
+    """GUARD TEST: Prove no AttentionGeometry implementation exists."""
+    # AttentionGeometry is PR-A2 - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import AttentionGeometry  # noqa: F401
+
+
+def test_guard_no_memory_geometry_implementation():
+    """GUARD TEST: Prove no MemoryGeometry implementation exists."""
+    # MemoryGeometry is PR-A3 - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import MemoryGeometry  # noqa: F401
+
+
+def test_guard_no_comparison_geometry_implementation():
+    """GUARD TEST: Prove no ComparisonGeometry implementation exists."""
+    # ComparisonGeometry is PR-A4 - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import ComparisonGeometry  # noqa: F401
+
+
+def test_guard_no_binding_core_implementation():
+    """GUARD TEST: Prove no BindingCore implementation exists."""
+    # BindingCore is PR-A6 - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import BindingCore  # noqa: F401
+
+
+def test_guard_no_primitive_binding_implementation():
+    """GUARD TEST: Prove no PrimitiveBinding implementation exists."""
+    # PrimitiveBinding is PR-A6 - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import PrimitiveBinding  # noqa: F401
+
+
+def test_guard_no_cpb_implementation():
+    """GUARD TEST: Prove no CPB (μΦ) implementation exists."""
+    # CPB is PR-A8 - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import CPB  # noqa: F401
+
+
+def test_guard_no_learning_implementation():
+    """GUARD TEST: Prove no Learning implementation exists."""
+    # Learning is PR-A7 - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import BindingConditionLearning  # noqa: F401
+
+
+def test_guard_no_prior_geometry_implementation():
+    """GUARD TEST: Prove no PriorGeometry implementation exists."""
+    # PriorGeometry is future - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import PriorGeometry  # noqa: F401
+
+
+def test_guard_no_identity_difference_implementation():
+    """GUARD TEST: Prove no IdentityDifferenceGeometry implementation exists."""
+    # IdentityDifferenceGeometry is PR-A5 - must NOT exist in PR-A1
+    with pytest.raises(ImportError):
+        from gfa.cognitive_carrier import IdentityDifferenceGeometry  # noqa: F401
+
+
+# ============================================================================
+# Test 14: GUARD - Capacity Does NOT Imply Correctness (Explicit)
+# ============================================================================
+
+def test_guard_full_capacity_does_not_guarantee_correct_output():
+    """GUARD TEST: Having FULL capacity does NOT guarantee correct outputs."""
+    embodied_state = EmbodiedState(
+        embodiment_type=EmbodimentType.ARTIFICIAL,
+        functional_status="functional",
+        known_limitations=frozenset(),
+    )
+
+    carrier = CognitiveCarrier(
+        carrier_id="full_capacity_carrier",
+        embodied_state=embodied_state,
+        sensory_capacity=SensoryCapacity(capacity_level=CapacityLevel.FULL),
+        attention_capacity=AttentionCapacity(capacity_level=CapacityLevel.FULL),
+        memory_capacity=MemoryCapacity(capacity_level=CapacityLevel.FULL),
+        comparison_capacity=ComparisonCapacity(capacity_level=CapacityLevel.FULL),
+        binding_capacity=BindingCapacity(capacity_level=CapacityLevel.FULL),
+        interpretation_capacity=InterpretationCapacity(capacity_level=CapacityLevel.FULL),
+        feedback_capacity=FeedbackCapacity(capacity_level=CapacityLevel.FULL),
+        output_capacity=OutputCapacity(capacity_level=CapacityLevel.FULL),
+    )
+
+    # CRITICAL: All capacities FULL, but correctness NOT guaranteed
+    assert carrier.sensory_capacity.capacity_level == CapacityLevel.FULL
+    assert carrier.attention_capacity.capacity_level == CapacityLevel.FULL
+    assert carrier.memory_capacity.capacity_level == CapacityLevel.FULL
+    assert carrier.comparison_capacity.capacity_level == CapacityLevel.FULL
+    assert carrier.binding_capacity.capacity_level == CapacityLevel.FULL
+
+    # BUT: Capacity ≠ Proof of correctness
+    assert not carrier.capacity_proves_correctness()
+
+    # Carrier CAN process, but outputs may be incorrect
+    assert carrier.can_process_traces
+
+
+def test_guard_capacity_is_declaration_not_proof():
+    """GUARD TEST: Capacity is DECLARATION of ability, NOT proof of correctness."""
+    # Create carrier with all FULL capacities
+    embodied_state = EmbodiedState(
+        embodiment_type=EmbodimentType.BIOLOGICAL,
+        functional_status="functional",
+        known_limitations=frozenset(),
+    )
+
+    carrier = CognitiveCarrier(
+        carrier_id="declared_carrier",
+        embodied_state=embodied_state,
+        sensory_capacity=SensoryCapacity(capacity_level=CapacityLevel.FULL),
+        attention_capacity=AttentionCapacity(capacity_level=CapacityLevel.FULL),
+        memory_capacity=MemoryCapacity(capacity_level=CapacityLevel.FULL),
+        comparison_capacity=ComparisonCapacity(capacity_level=CapacityLevel.FULL),
+        binding_capacity=BindingCapacity(capacity_level=CapacityLevel.FULL),
+        interpretation_capacity=InterpretationCapacity(capacity_level=CapacityLevel.FULL),
+        feedback_capacity=FeedbackCapacity(capacity_level=CapacityLevel.FULL),
+        output_capacity=OutputCapacity(capacity_level=CapacityLevel.FULL),
+    )
+
+    # Capacity declared = carrier CAN attempt operations
+    assert carrier.can_process_traces
+    assert carrier.attention_capacity.is_available
+    assert carrier.memory_capacity.is_available
+    assert carrier.comparison_capacity.is_available
+    assert carrier.binding_capacity.is_available
+
+    # But: NO guarantee operations will be correct
+    assert not carrier.capacity_proves_correctness()
+    assert not carrier.certifies_claims()
+    assert not carrier.raises_rank()
+
+
+# ============================================================================
+# Test 15: GUARD - Carrier Does NOT Raise Rank (Explicit)
+# ============================================================================
+
+def test_guard_carrier_never_raises_epistemic_rank():
+    """GUARD TEST: Carrier NEVER raises epistemic rank, regardless of capacities."""
+    # Test with FULL capacities
+    embodied_state_full = EmbodiedState(
+        embodiment_type=EmbodimentType.ARTIFICIAL,
+        functional_status="functional",
+        known_limitations=frozenset(),
+    )
+
+    carrier_full = CognitiveCarrier(
+        carrier_id="full_carrier",
+        embodied_state=embodied_state_full,
+        sensory_capacity=SensoryCapacity(capacity_level=CapacityLevel.FULL),
+        attention_capacity=AttentionCapacity(capacity_level=CapacityLevel.FULL),
+        memory_capacity=MemoryCapacity(capacity_level=CapacityLevel.FULL),
+        comparison_capacity=ComparisonCapacity(capacity_level=CapacityLevel.FULL),
+        binding_capacity=BindingCapacity(capacity_level=CapacityLevel.FULL),
+        interpretation_capacity=InterpretationCapacity(capacity_level=CapacityLevel.FULL),
+        feedback_capacity=FeedbackCapacity(capacity_level=CapacityLevel.FULL),
+        output_capacity=OutputCapacity(capacity_level=CapacityLevel.FULL),
+    )
+
+    # Test with DEGRADED capacities
+    embodied_state_degraded = EmbodiedState(
+        embodiment_type=EmbodimentType.BIOLOGICAL,
+        functional_status="degraded",
+        known_limitations=frozenset({"impaired"}),
+    )
+
+    carrier_degraded = CognitiveCarrier(
+        carrier_id="degraded_carrier",
+        embodied_state=embodied_state_degraded,
+        sensory_capacity=SensoryCapacity(capacity_level=CapacityLevel.DEGRADED),
+        attention_capacity=AttentionCapacity(capacity_level=CapacityLevel.DEGRADED),
+        memory_capacity=MemoryCapacity(capacity_level=CapacityLevel.DEGRADED),
+        comparison_capacity=ComparisonCapacity(capacity_level=CapacityLevel.DEGRADED),
+        binding_capacity=BindingCapacity(capacity_level=CapacityLevel.DEGRADED),
+        interpretation_capacity=InterpretationCapacity(capacity_level=CapacityLevel.DEGRADED),
+        feedback_capacity=FeedbackCapacity(capacity_level=CapacityLevel.DEGRADED),
+        output_capacity=OutputCapacity(capacity_level=CapacityLevel.DEGRADED),
+    )
+
+    # CRITICAL: NEITHER carrier raises rank
+    assert not carrier_full.raises_rank()
+    assert not carrier_degraded.raises_rank()
+
+    # Neither creates meaning, issues judgment, or certifies
+    assert not carrier_full.creates_meaning()
+    assert not carrier_full.issues_judgment()
+    assert not carrier_full.certifies_claims()
+
+    assert not carrier_degraded.creates_meaning()
+    assert not carrier_degraded.issues_judgment()
+    assert not carrier_degraded.certifies_claims()
+
+
+def test_guard_attention_never_raises_rank():
+    """GUARD TEST: Attention NEVER raises rank - only affects priority."""
+    # Test all capacity levels
+    attention_full = AttentionCapacity(capacity_level=CapacityLevel.FULL)
+    attention_partial = AttentionCapacity(capacity_level=CapacityLevel.PARTIAL)
+    attention_degraded = AttentionCapacity(capacity_level=CapacityLevel.DEGRADED)
+    attention_absent = AttentionCapacity(capacity_level=CapacityLevel.ABSENT)
+
+    # CRITICAL LAW: None raise rank
+    assert not attention_full.can_raise_rank()
+    assert not attention_partial.can_raise_rank()
+    assert not attention_degraded.can_raise_rank()
+    assert not attention_absent.can_raise_rank()
+
+
+def test_guard_memory_recall_never_equals_original():
+    """GUARD TEST: Memory recall NEVER equals original trace."""
+    # Test all capacity levels
+    memory_full = MemoryCapacity(capacity_level=CapacityLevel.FULL)
+    memory_partial = MemoryCapacity(capacity_level=CapacityLevel.PARTIAL)
+    memory_degraded = MemoryCapacity(capacity_level=CapacityLevel.DEGRADED)
+    memory_absent = MemoryCapacity(capacity_level=CapacityLevel.ABSENT)
+
+    # CRITICAL LAW: Recall(trace) ≠ original_trace for ALL levels
+    assert not memory_full.recall_equals_original()
+    assert not memory_partial.recall_equals_original()
+    assert not memory_degraded.recall_equals_original()
+    assert not memory_absent.recall_equals_original()
+
+
+def test_guard_binding_never_raises_rank():
+    """GUARD TEST: Primitive binding NEVER raises rank - produces CANDIDATE only."""
+    # Test all capacity levels
+    binding_full = BindingCapacity(capacity_level=CapacityLevel.FULL)
+    binding_partial = BindingCapacity(capacity_level=CapacityLevel.PARTIAL)
+    binding_degraded = BindingCapacity(capacity_level=CapacityLevel.DEGRADED)
+    binding_absent = BindingCapacity(capacity_level=CapacityLevel.ABSENT)
+
+    # CRITICAL LAW: Primitive binding produces CANDIDATE relations only
+    assert not binding_full.primitive_binding_raises_rank()
+    assert not binding_partial.primitive_binding_raises_rank()
+    assert not binding_degraded.primitive_binding_raises_rank()
+    assert not binding_absent.primitive_binding_raises_rank()
+
+
+def test_guard_interpretation_never_creates_meaning():
+    """GUARD TEST: Interpretation NEVER creates meaning - operates on traces."""
+    # Test all capacity levels
+    interpretation_full = InterpretationCapacity(capacity_level=CapacityLevel.FULL)
+    interpretation_partial = InterpretationCapacity(capacity_level=CapacityLevel.PARTIAL)
+    interpretation_degraded = InterpretationCapacity(capacity_level=CapacityLevel.DEGRADED)
+    interpretation_absent = InterpretationCapacity(capacity_level=CapacityLevel.ABSENT)
+
+    # CRITICAL LAW: Interpretation operates on existing traces
+    assert not interpretation_full.creates_meaning()
+    assert not interpretation_partial.creates_meaning()
+    assert not interpretation_degraded.creates_meaning()
+    assert not interpretation_absent.creates_meaning()
+
+
+# ============================================================================
+# Test 16: GUARD - Missing Capacity Handling
+# ============================================================================
+
+def test_guard_absent_capacity_tracked_as_residual():
+    """GUARD TEST: ABSENT capacity must be tracked as residual."""
+    embodied_state = EmbodiedState(
+        embodiment_type=EmbodimentType.ARTIFICIAL,
+        functional_status="functional",
+        known_limitations=frozenset({"no_vision"}),
+    )
+
+    carrier = CognitiveCarrier(
+        carrier_id="absent_carrier",
+        embodied_state=embodied_state,
+        sensory_capacity=SensoryCapacity(
+            capacity_level=CapacityLevel.ABSENT,
+            capacity_description="No visual sensors"
+        ),
+        attention_capacity=AttentionCapacity(capacity_level=CapacityLevel.FULL),
+        memory_capacity=MemoryCapacity(capacity_level=CapacityLevel.FULL),
+        comparison_capacity=ComparisonCapacity(capacity_level=CapacityLevel.FULL),
+        binding_capacity=BindingCapacity(capacity_level=CapacityLevel.FULL),
+        interpretation_capacity=InterpretationCapacity(capacity_level=CapacityLevel.FULL),
+        feedback_capacity=FeedbackCapacity(capacity_level=CapacityLevel.FULL),
+        output_capacity=OutputCapacity(capacity_level=CapacityLevel.FULL),
+        carrier_residuals=frozenset({
+            CarrierResidual(
+                description="No visual sensory capacity - cannot process visual traces",
+                residual_type="absent_capacity",
+                severity="high"
+            )
+        })
+    )
+
+    # ABSENT capacity must be tracked
+    assert carrier.sensory_capacity.capacity_level == CapacityLevel.ABSENT
+    assert not carrier.sensory_capacity.is_available
+    assert carrier.has_residuals
+    assert len(carrier.carrier_residuals) == 1
+
+
+# ============================================================================
 # Run all tests
 # ============================================================================
 
