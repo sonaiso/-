@@ -71,7 +71,7 @@ def make_valid_dal_candidate(trace_id: str = None) -> DalCandidate:
     return DalCandidate(
         trace_id=trace_id or uuid4().hex,
         signifier_form="كَتَبَ",
-        dal_type=DalType.SOUND_FORM,
+        dal_type=DalType.SOUND_SIGNIFIER,  # Corrected from SOUND_FORM
     )
 
 
@@ -79,7 +79,7 @@ def make_valid_madlul_lafzi_candidate(trace_id: str = None) -> MadlulLafziCandid
     """Create a valid MadlulLafziCandidate for testing."""
     return MadlulLafziCandidate(
         trace_id=trace_id or uuid4().hex,
-        madlul_type=MadlulLafziType.ROOT,
+        madlul_type=MadlulLafziType.ROOT_CANDIDATE,  # Corrected from ROOT
         candidate_form="ك-ت-ب",
         source_prior_information="lexicon_root",
     )
