@@ -325,14 +325,13 @@ class LafziStyleRegistration:
 
         # Law 6: Requires PriorInformation
         aql_input = neutral_binding_input.aql_input
-        prior = aql_input.prior_information
-        if not isinstance(prior, PriorInformation):
+        filtered_prior = aql_input.filtered_prior
+        if filtered_prior is None or not filtered_prior.has_valid_information():
             residuals.append(make_missing_prior_information_residual(trace_id))
             violations.append("Missing PriorInformation")
 
         # Law 7: Excludes PriorOpinion
-        from gfa.methods.rational import PriorOpinion
-        if isinstance(prior, PriorOpinion):
+        if filtered_prior is not None and filtered_prior.count_excluded() > 0:
             residuals.append(make_prior_opinion_present_residual(trace_id))
             violations.append("PriorOpinion not allowed")
 

@@ -105,6 +105,10 @@ class LafziGovernanceContract:
         if self.neutral_binding_input is None:
             raise ValueError("NeutralBindingInput is required for LafziMadlul governance")
 
+    def get_domain(self) -> ThinkingDomain:
+        """Get the domain of this governance contract."""
+        return self.style_spec.get_domain()
+
     def requires_style_spec(self) -> bool:
         """
         Law 1: No LafziMadlul without StyleSpec.
@@ -149,25 +153,31 @@ class LafziGovernanceContract:
         """
         Law 6: No LafziMadlul without PriorInformation.
 
-        Returns True if PriorInformation exists in aql_input.
+        Returns True if PriorInformation exists in aql_input.filtered_prior.
         """
         aql_input = self.neutral_binding_input.aql_input
-        prior = aql_input.prior_information
+        filtered_prior = aql_input.filtered_prior
 
-        # Check that prior is PriorInformation, not PriorOpinion
-        return isinstance(prior, PriorInformation)
+        if filtered_prior is None:
+            return False
+
+        # Check that filtered_prior has valid information
+        return filtered_prior.has_valid_information()
 
     def excludes_prior_opinion(self) -> bool:
         """
         Law 7: No LafziMadlul with PriorOpinion.
 
-        Returns True if prior is NOT PriorOpinion.
+        Returns True if no opinions in filtered_prior.
         """
         aql_input = self.neutral_binding_input.aql_input
-        prior = aql_input.prior_information
+        filtered_prior = aql_input.filtered_prior
 
-        # Prior must NOT be PriorOpinion
-        return not isinstance(prior, PriorOpinion)
+        if filtered_prior is None:
+            return True  # No prior at all means no opinion
+
+        # Prior must NOT have excluded opinions
+        return filtered_prior.count_excluded() == 0
 
     def preserves_trace(self) -> bool:
         """
