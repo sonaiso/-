@@ -326,9 +326,8 @@ def _check_example_against_rule(rule: Any, example: Any) -> Counterexample | Non
 
     Returns None if example confirms rule, Counterexample if it violates.
     """
-    # Extract rule expectation (simplified)
+    # Extract rule pattern
     rule_pattern = getattr(rule, "pattern", "")
-    expected_interpretation = _extract_expected_interpretation(rule)
 
     # Extract example actuals
     example_pattern = getattr(example, "pattern", "")
@@ -339,36 +338,71 @@ def _check_example_against_rule(rule: Any, example: Any) -> Counterexample | Non
         # Pattern doesn't match; not a counterexample to this rule
         return None
 
-    # Check if interpretation matches expectation
+    # Check if interpretation available
     if not actual_interpretation:
         # No interpretation available; can't verify
         return None
 
-    if actual_interpretation != expected_interpretation:
-        # This is a counterexample: pattern matches but interpretation doesn't
-        return Counterexample(
-            surface=getattr(example, "surface", ""),
-            pattern=example_pattern,
-            expected=expected_interpretation,
-            actual=actual_interpretation,
-            kind=CounterexampleKind.FALSE_POSITIVE,
-            description=f"Rule predicts '{expected_interpretation}' but actual is '{actual_interpretation}'",
-            evidence=(
-                Evidence(
-                    kind="counterexample.detection",
-                    source=getattr(example, "surface", ""),
-                    detail=f"Pattern {example_pattern} with interpretation {actual_interpretation}",
-                    weight=1.0,
+    # Use InterpretationClaim if available, otherwise fall back to description parsing
+    interpretation_claim = getattr(rule, "interpretation_claim", None)
+
+    if interpretation_claim is not None:
+        # Use structured claim
+        if not interpretation_claim.matches(actual_interpretation):
+            # This is a counterexample: interpretation not in expected set
+            primary = interpretation_claim.primary_interpretation or next(iter(interpretation_claim.expected_interpretations))
+            return Counterexample(
+                surface=getattr(example, "surface", ""),
+                pattern=example_pattern,
+                expected=primary,
+                actual=actual_interpretation,
+                kind=CounterexampleKind.FALSE_POSITIVE,
+                description=f"Rule expects one of {set(interpretation_claim.expected_interpretations)}, but got '{actual_interpretation}'",
+                evidence=(
+                    Evidence(
+                        kind="counterexample.detection",
+                        source=getattr(example, "surface", ""),
+                        detail=f"Pattern {example_pattern} with interpretation {actual_interpretation}",
+                        weight=1.0,
+                    ),
                 ),
-            ),
-        )
+            )
+    else:
+        # Fall back to legacy description parsing
+        expected_interpretation = _extract_expected_interpretation(rule)
+
+        if actual_interpretation != expected_interpretation:
+            # This is a counterexample: pattern matches but interpretation doesn't
+            return Counterexample(
+                surface=getattr(example, "surface", ""),
+                pattern=example_pattern,
+                expected=expected_interpretation,
+                actual=actual_interpretation,
+                kind=CounterexampleKind.FALSE_POSITIVE,
+                description=f"Rule predicts '{expected_interpretation}' but actual is '{actual_interpretation}'",
+                evidence=(
+                    Evidence(
+                        kind="counterexample.detection",
+                        source=getattr(example, "surface", ""),
+                        detail=f"Pattern {example_pattern} with interpretation {actual_interpretation}",
+                        weight=1.0,
+                    ),
+                ),
+            )
 
     # Example confirms the rule
     return None
 
 
 def _extract_expected_interpretation(rule: Any) -> str:
-    """Extract expected interpretation from rule description."""
+    """Extract expected interpretation from rule description.
+
+    DEPRECATED: This function parses description strings which is fragile.
+    Use rule.interpretation_claim (InterpretationClaim) instead.
+
+    This function is kept for backward compatibility with rules that don't
+    have interpretation_claim set.
+    """
     # Simplified: look for keywords in description
     description = getattr(rule, "description", "").lower()
 
