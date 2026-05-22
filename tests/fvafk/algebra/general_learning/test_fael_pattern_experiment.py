@@ -586,5 +586,65 @@ def test_rule_replay_ability(origin_katib, origin_zaare, origin_aamil):
     assert replay["origin_count"] == 3
 
 
+# ===========================================================================
+# Test 15: HUKM Emission Guard
+# ===========================================================================
+
+
+def test_hukm_emission_guard():
+    """Test that HUKM emission is blocked (forbidden jump to judgment layer)."""
+    import pytest
+    from fvafk.algebra.general_learning import make_rule_candidate, Manaat, ManaatScope
+
+    # HUKM evidence should be rejected
+    with pytest.raises(ValueError, match="HUKM emission forbidden"):
+        make_rule_candidate(
+            description="Invalid rule with HUKM",
+            pattern="فاعل",
+            manaat=Manaat(scope=ManaatScope.PATTERN_ONLY, positive_conditions=("test",)),
+            evidence=(
+                Evidence(
+                    kind="semantics.hukm.violation",  # Forbidden!
+                    source="test",
+                    detail="This should be rejected",
+                    weight=1.0,
+                ),
+            ),
+        )
+
+    # Arabic حكم should also be rejected
+    with pytest.raises(ValueError, match="HUKM emission forbidden"):
+        make_rule_candidate(
+            description="Invalid rule with حكم",
+            pattern="فاعل",
+            manaat=Manaat(scope=ManaatScope.PATTERN_ONLY, positive_conditions=("test",)),
+            evidence=(
+                Evidence(
+                    kind="دليل.حكم",  # Forbidden!
+                    source="test",
+                    detail="This should be rejected",
+                    weight=1.0,
+                ),
+            ),
+        )
+
+    # Valid evidence should be accepted
+    rule = make_rule_candidate(
+        description="Valid rule without HUKM",
+        pattern="فاعل",
+        manaat=Manaat(scope=ManaatScope.PATTERN_ONLY, positive_conditions=("test",)),
+        evidence=(
+            Evidence(
+                kind="rule.extraction",  # Valid!
+                source="test",
+                detail="This should be accepted",
+                weight=1.0,
+            ),
+        ),
+    )
+    assert rule is not None
+    assert len(rule.evidence) == 1
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

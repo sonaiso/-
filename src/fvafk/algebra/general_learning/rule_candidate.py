@@ -177,6 +177,36 @@ class RuleModification:
 
 
 # ===========================================================================
+# HUKM Emission Guard
+# ===========================================================================
+
+
+def _validate_no_hukm_emission(evidence: Tuple[Evidence, ...]) -> None:
+    """Validate that no evidence emits forbidden HUKM (judgment) kind.
+
+    Learned rules operate at pattern-licensing level, NOT judgment level.
+    HUKM (حكم) is Phase 6 (future, separate algebra).
+
+    Forbidden evidence kinds:
+        - "hukm"
+        - "semantics.hukm.*"
+        - "ifadah.hukm.*"
+        - Any kind containing "hukm"
+
+    Raises:
+        ValueError: If any evidence has forbidden HUKM kind.
+    """
+    for ev in evidence:
+        kind_lower = ev.kind.lower()
+        if "hukm" in kind_lower or "حكم" in ev.kind:
+            raise ValueError(
+                f"HUKM emission forbidden: Evidence kind '{ev.kind}' attempts "
+                f"forbidden jump to judgment layer. Learned rules must operate "
+                f"at pattern-licensing level only."
+            )
+
+
+# ===========================================================================
 # Rule Candidate
 # ===========================================================================
 
@@ -238,6 +268,10 @@ class RuleCandidate:
             raise ValueError("RuleCandidate.description must be non-empty")
         if not self.pattern:
             raise ValueError("RuleCandidate.pattern must be non-empty")
+
+        # CRITICAL GUARD: Ensure no HUKM emission
+        # Learned rules operate at pattern-licensing level, NOT judgment (HUKM) level
+        _validate_no_hukm_emission(self.evidence)
 
     @property
     def is_stable(self) -> bool:
