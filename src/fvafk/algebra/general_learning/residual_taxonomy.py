@@ -58,6 +58,7 @@ class LearningResidual(Enum):
     COUNTEREXAMPLE_UNRESOLVED = auto()  # مثال مضاد غير محسوم
     COUNTEREXAMPLE_IGNORED = auto()     # مثال مضاد مُهمل
     COUNTEREXAMPLE_EXPLAINED = auto()   # مثال مضاد مُفسّر (but not integrated)
+    COUNTEREXAMPLE_SEARCH_INCOMPLETE = auto()  # بحث الأمثلة المضادة ناقص
 
     # Refinement residuals (تعديل)
     REFINEMENT_INCOMPLETE = auto()      # تعديل ناقص
@@ -99,6 +100,7 @@ LEARNING_RESIDUAL_KINDS: FrozenSet[str] = frozenset({
     "counterexample.unresolved",
     "counterexample.ignored",
     "counterexample.explained",
+    "counterexample.search_incomplete",
     "refinement.incomplete",
     "refinement.unverified",
     "refinement.cyclic",
@@ -314,6 +316,29 @@ def make_counterexample_ignored(example: str = "", description: str = "") -> Res
     return Residual(kind="counterexample.ignored", description=description)
 
 
+def make_counterexample_search_incomplete(scope: str = "", description: str = "") -> Residual:
+    """Create residual for incomplete counterexample search.
+
+    Args:
+        scope: The search scope (e.g., "tested 5 examples").
+        description: Custom description (optional).
+
+    Returns:
+        Residual with kind ``counterexample.search_incomplete``.
+
+    Example:
+        >>> r = make_counterexample_search_incomplete(scope="5 examples")
+        >>> r.kind
+        'counterexample.search_incomplete'
+    """
+    if not description:
+        if scope:
+            description = f"Counterexample search incomplete (scope: {scope}); absence of counterexamples does not prove completeness"
+        else:
+            description = "Counterexample search incomplete; absence does not equal proof of correctness"
+    return Residual(kind="counterexample.search_incomplete", description=description)
+
+
 def make_refinement_incomplete(description: str = "") -> Residual:
     """Create residual for incomplete refinement.
 
@@ -402,6 +427,7 @@ __all__ = [
     "make_manaat_too_narrow",
     "make_counterexample_unresolved",
     "make_counterexample_ignored",
+    "make_counterexample_search_incomplete",
     "make_refinement_incomplete",
     "make_evidence_insufficient",
     "make_overgeneralization",

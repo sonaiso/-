@@ -71,6 +71,7 @@ from .residual_taxonomy import (
     make_invariant_unclear,
     make_manaat_ambiguous,
     make_counterexample_unresolved,
+    make_counterexample_search_incomplete,
 )
 
 __all__ = [
@@ -106,4 +107,5 @@ __all__ = [
     "make_invariant_unclear",
     "make_manaat_ambiguous",
     "make_counterexample_unresolved",
+    "make_counterexample_search_incomplete",
 ]

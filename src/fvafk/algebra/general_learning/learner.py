@@ -310,8 +310,16 @@ class GeneralLearner:
             # Check if refinement needed
             if not verification.needs_refinement:
                 # No refinement needed; mark as stable
+                # CRITICAL: No counterexamples does NOT mean CERTIFIED
+                # Add residual indicating search was incomplete
+                from .residual_taxonomy import make_counterexample_search_incomplete
+
+                search_scope = f"{len(test_examples)} examples tested"
+                search_residual = make_counterexample_search_incomplete(scope=search_scope)
+
                 self.current_rule = self.current_rule.with_status(RuleStatus.STABLE)
                 self.current_rule = self.current_rule.with_rank(verification.rank)
+                self.current_rule = self.current_rule.with_residual(search_residual)
 
                 # Record cycle
                 cycle = LearningCycle(
@@ -323,8 +331,8 @@ class GeneralLearner:
                         explain_rank_change(
                             before_rank=self.current_rule.rank,
                             after_rank=verification.rank,
-                            trigger="No counterexamples found",
-                            learned="Rule is stable",
+                            trigger="No counterexamples found in tested scope",
+                            learned="Rule is stable within tested scope (not proven complete)",
                         ),
                     ),
                 )

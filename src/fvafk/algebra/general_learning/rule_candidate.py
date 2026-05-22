@@ -45,6 +45,47 @@ from fvafk.algebra import Evidence, Residual, Rank, Trace
 
 
 # ===========================================================================
+# Structured Claims (replacing description parsing)
+# ===========================================================================
+
+
+@dataclass(frozen=True)
+class InterpretationClaim:
+    """A typed claim about expected interpretation(s).
+
+    This replaces parsing description strings with structured data.
+
+    Attributes:
+        expected_interpretations: Set of valid interpretations (e.g., {"agentive", "qualitative"}).
+        primary_interpretation: The primary/default interpretation (if known).
+        context_dependent: Whether interpretation depends on context.
+        conditions: Optional conditions determining which interpretation applies.
+
+    Example:
+        >>> claim = InterpretationClaim(
+        ...     expected_interpretations=frozenset({"agentive"}),
+        ...     primary_interpretation="agentive",
+        ...     context_dependent=False,
+        ... )
+        >>> "agentive" in claim.expected_interpretations
+        True
+    """
+
+    expected_interpretations: frozenset[str]
+    primary_interpretation: str | None = None
+    context_dependent: bool = False
+    conditions: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.expected_interpretations:
+            raise ValueError("InterpretationClaim must have at least one expected interpretation")
+
+    def matches(self, interpretation: str) -> bool:
+        """Check if an interpretation matches this claim."""
+        return interpretation in self.expected_interpretations
+
+
+# ===========================================================================
 # Rule Status
 # ===========================================================================
 
@@ -156,6 +197,7 @@ class RuleCandidate:
     description: str
     pattern: str
     manaat: Any  # Should be Manaat but avoiding circular import
+    interpretation_claim: InterpretationClaim | None = None  # Structured claim replacing description parsing
     origins: Tuple[Any, ...] = ()  # Should be Tuple[Origin, ...] but avoiding circular import
     invariants: Tuple[Any, ...] = ()  # Should be Tuple[Invariant, ...] but avoiding circular import
     evidence: Tuple[Evidence, ...] = ()
@@ -363,10 +405,11 @@ def make_rule_candidate(
         <Rank.CANDIDATE: 1>
     """
     # Auto-determine rank if not provided
+    # CRITICAL: Rules learned from positive examples can NEVER be CERTIFIED
+    # CERTIFIED requires independent proof policy, not just evidence + no residuals
     if rank is None:
-        if evidence and not residuals:
-            rank = Rank.CERTIFIED
-        elif evidence:
+        if evidence:
+            # Learned rules cap at LICENSED, never CERTIFIED
             rank = Rank.LICENSED
         else:
             rank = Rank.CANDIDATE
