@@ -334,14 +334,19 @@ def test_counterexample_detection(origin_katib, origin_zaare, origin_aamil, coun
     )
 
     # All three should be counterexamples (qualitative, not agentive)
-    assert len(counterexamples) >= 1  # At least one detected
+    assert len(counterexamples) == 3  # Exactly three counterexamples detected
 
-    # Check first counterexample
-    ce = counterexamples[0]
-    assert ce.pattern == "فاعل"
-    assert ce.expected != ce.actual  # Expected agentive, got qualitative
-    assert ce.kind == CounterexampleKind.FALSE_POSITIVE
-    assert ce.requires_refinement
+    # Check that all three specific counterexamples are detected
+    detected_surfaces = {ce.surface for ce in counterexamples}
+    expected_surfaces = {"طاهر", "حامض", "بارد"}
+    assert detected_surfaces == expected_surfaces, f"Expected {expected_surfaces}, got {detected_surfaces}"
+
+    # Check that all are FALSE_POSITIVE (pattern matches but wrong interpretation)
+    for ce in counterexamples:
+        assert ce.pattern == "فاعل"
+        assert ce.expected != ce.actual  # Expected agentive, got qualitative
+        assert ce.kind == CounterexampleKind.FALSE_POSITIVE
+        assert ce.requires_refinement
 
 
 # ===========================================================================
