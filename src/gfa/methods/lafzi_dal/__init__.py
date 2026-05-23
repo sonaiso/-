@@ -1,20 +1,25 @@
 """
 Lafzi Dal Module - بوابة الدال
 
-Critical Law:
-    الدال وحده حامل لفظي مرشح، لا معنى
-    Dāl-alone is a signifier candidate, not meaning, not Madlul, not Dalalah.
+PR-L3: Pure Dāl Geometry Contract
 
-PR-L2 Purpose:
-    Implement DalCandidate as governed linguistic signifier candidate
-    derived from LafziTrace.
+Critical Law:
+    الدال المرخّص له هندسة كاملة قبل السؤال عن معناه
+    A licensed signifier has complete geometry before asking about meaning.
+
+PR-L3 Purpose:
+    Implement DalCandidate as fully-licensed linguistic signifier
+    with complete geometric structure from C1→C2a→C2b pipeline.
 
 What This Module Does:
-    - Creates DalCandidate from LafziTrace
-    - Classifies signifier modality (DalType)
+    - Creates complete DalCandidate with 13 mandatory fields
+    - Validates phonic carriers, haraka operations, syllables
+    - Detects boundaries, clitics, patterns
+    - Classifies path type, pattern status, terminal state
+    - Projects syntactic readiness and role candidates
     - Preserves trace_id and residuals
     - Returns governed candidate results
-    - Maintains residuals for unknown signifier types
+    - Enforces 7 forbidden fields (no meaning/dalalah/wadh/hukm)
 
 What This Module Does NOT Do:
     - Does NOT create meaning
@@ -29,21 +34,49 @@ What This Module Does NOT Do:
     - Does NOT implement downward decomposition
 
 Position in Architecture:
-    RationalMethod (PR #55)
-    └── NeutralBinding (PR #56)
-        └── StyleSpec (PR #57)
-            └── LafziMadlul Registration (PR #58)
-                └── LafziTrace Gate (PR #59)
-                    └── Dāl-alone Gate (PR-L2) ← THIS MODULE
-                        └── Madlūl-lafẓī (future)
-                        └── Dālālah (future)
+    C1 (Encoding)
+    → C2a (Phonology Gates)
+    → C2b (Morphology)
+    → DalCandidate (PR-L3) ← THIS MODULE
+        → DalMadlulBinding (PR-L4)
+            → WadhGate (PR-L5)
+                → Dālālah (future)
 
 Critical:
-    DalCandidate is a signifier carrier, not semantic execution.
-    DalCandidate is a candidate for future binding, not bound meaning.
+    DalCandidate is a fully-licensed signifier candidate with complete
+    geometric structure, not semantic execution. It is hardened input
+    to PR-L4 binding, protected by 13 mandatory fields and 7 forbidden
+    fields.
 """
 
 from .dal_type import DalType
+from .dal_structures import (
+    # Phonic
+    PhonicCarrier,
+    # Haraka
+    HarakaOperationType,
+    HarakaOperation,
+    # Syllable
+    SyllableType,
+    SyllableLicense,
+    # Boundaries
+    WordBoundaryInfo,
+    # Clitics
+    Clitic,
+    CliticAnalysis,
+    # Formulas
+    FormulaClass,
+    FormulaCandidate,
+    # Classification
+    PathType,
+    PatternStatus,
+    TerminalState,
+    SyntacticReadiness,
+    SentenceShape,
+    # Roles
+    RoleType,
+    RoleProjection,
+)
 from .dal_candidate import DalCandidate, DalResult
 from .dal_gate import DalGate, DalFailure
 from .residual_taxonomy import (
@@ -68,6 +101,24 @@ from .residual_taxonomy import (
 __all__ = [
     # Signifier types
     "DalType",
+    # PR-L3 Structures
+    "PhonicCarrier",
+    "HarakaOperationType",
+    "HarakaOperation",
+    "SyllableType",
+    "SyllableLicense",
+    "WordBoundaryInfo",
+    "Clitic",
+    "CliticAnalysis",
+    "FormulaClass",
+    "FormulaCandidate",
+    "PathType",
+    "PatternStatus",
+    "TerminalState",
+    "SyntacticReadiness",
+    "SentenceShape",
+    "RoleType",
+    "RoleProjection",
     # Core candidate
     "DalCandidate",
     "DalResult",
