@@ -1,119 +1,101 @@
 """
-Lafzi Dalalah Module - الدلالة اللفظية
+Lafzi Dalalah Module - بوابة الدلالة اللفظية
 
 Critical Law:
-    الدلالة تبنى على الوضع، لا تساوي الحكم
-    Dalalah is built on Wadh, NOT equivalent to judgment.
+    الربط بين الدال والمدلول ليس دلالة كاملة
+    Binding between Dāl and Madlūl is NOT full Dalalah.
+    It is a neutral relation candidate, not semantic signification.
 
-This module implements Mutabaqah (conformity) processing for PR-L6A.
+PR-L4 Purpose:
+    Implement DalMadlulBindingCandidate as neutral relation between
+    Dāl (signifier) and Madlūl (signified) within LAFZI_DALALI domain.
 
-What PR-L6A Implements:
-    - MutabaqahCandidate structure
-    - MutabaqahGate (admission/blocking logic)
-    - MutabaqahResult (governed results)
-    - MutabaqahResidual taxonomy
+What This Module Does:
+    - Creates DalMadlulBindingCandidate from Dāl and Madlūl inputs
+    - Establishes neutral binding relation
+    - Preserves trace_id and residuals from both sides
+    - Preserves source prior information
+    - Returns governed binding results
+    - Maintains residuals for binding failures
 
-What PR-L6A Does NOT Implement:
-    - Tadammun (→ PR-L6B)
-    - Iltizam (→ PR-L6C)
-    - Haqiqah/Majaz/Naql classification (→ PR-L7+)
-    - HUKM issuance (→ Future)
-    - Ifadah (→ Future)
-    - Learning (→ Future)
-    - Upward transitions (→ Future)
-    - Downward decomposition (→ Future)
-
-Critical Laws Enforced:
-    1. MutabaqahCandidate requires admitted WadhClaim
-    2. MutabaqahCandidate requires MawduLahStructure
-    3. MutabaqahCandidate requires MawduLahStructure.whole
-    4. MutabaqahCandidate preserves WadhClaim trace
-    5. MutabaqahCandidate preserves binding trace
-    6. MutabaqahCandidate preserves residuals
-    7. MutabaqahCandidate does NOT create external meaning
-    8. MutabaqahCandidate does NOT issue HUKM
-    9. MutabaqahCandidate does NOT create Tadammun
-    10. MutabaqahCandidate does NOT create Iltizam
-    11. MutabaqahCandidate does NOT classify Haqiqah/Majaz/Naql
-    12. MutabaqahCandidate does NOT create Ifadah
-    13. MutabaqahCandidate does NOT raise PredicateRank to CERTIFIED
-    14. Unknown whole becomes residual, not exception
-    15. Polysemy possible becomes residual
-    16. Homonymy possible becomes residual
-    17. Partial usage blocks or residualizes
-    18. Success means candidate admitted, NOT truth certified
+What This Module Does NOT Do:
+    - Does NOT create full Dalalah (الدلالة الكاملة)
+    - Does NOT create Wadh (الوضع)
+    - Does NOT implement external meaning
+    - Does NOT issue HUKM
+    - Does NOT raise PredicateRank
+    - Does NOT perform semantic interpretation
+    - Does NOT implement Mutabaqah/Tadammun/Iltizam
+    - Does NOT create conventional placement
+    - Does NOT perform learning
 
 Position in Architecture:
-    RationalMethod
-    └── NeutralBinding
-        └── StyleSpec(LAFZI_DALALI)
-            └── LafziMadlul Registration
-                └── LafziTrace
-                    ├── DālCandidate
-                    └── MadlulLafziCandidate
-                        └── DalMadlulBindingCandidate (PR-L4)
-                            └── WadhGeometry (PR-L5A)
-                                └── WadhGate (PR-L5B)
-                                    └── MutabaqahGate (PR-L6A) ← THIS MODULE
+    RationalMethod (PR #55)
+    └── NeutralBinding (PR #56)
+        └── StyleSpec (PR #57)
+            └── LafziMadlul Registration (PR #58)
+                └── LafziTrace Gate (PR #59)
+                    └── Dāl-alone Gate (PR #60)
+                        └── Madlūl-lafẓī Gate (PR-L3/PR #61)
+                            └── Dāl/Madlūl Binding Gate (PR-L4) ← THIS MODULE
+                                └── Full Dālālah (future)
+
+Critical:
+    DalMadlulBindingCandidate is a NEUTRAL relation candidate.
+    It connects signifier and signified WITHOUT semantic interpretation.
+    It is a prerequisite for Dalalah, NOT Dalalah itself.
 """
 
-from __future__ import annotations
-
-# Residual taxonomy
-from .residual_taxonomy import (
-    MutabaqahResidualKind,
-    MutabaqahResidual,
-    make_wadh_claim_not_admitted_residual,
-    make_mawdu_lah_whole_unavailable_residual,
-    make_polysemy_possible_residual,
-    make_homonymy_possible_residual,
-    make_partial_usage_detected_residual,
-    make_external_meaning_injection_residual,
-    make_hukm_injection_residual,
-    make_tadammun_created_residual,
-    make_iltizam_created_residual,
-    make_haqiqah_majaz_classified_residual,
-    make_wadh_trace_lost_residual,
-    make_binding_trace_lost_residual,
+from .dal_madlul_binding_type import DalMadlulBindingType
+from .dal_madlul_binding_candidate import (
+    DalMadlulBindingCandidate,
+    DalMadlulBindingResult,
 )
-
-# Candidate structure
-from .mutabaqah_candidate import MutabaqahCandidate
-
-# Result structures
-from .mutabaqah_result import (
-    MutabaqahResult,
-    MutabaqahFailure,
+from .dal_madlul_binding_gate import (
+    DalMadlulBindingGate,
+    DalMadlulBindingFailure,
 )
-
-# Gate
-from .mutabaqah_gate import MutabaqahGate
-
+from .binding_residual_taxonomy import (
+    DalMadlulBindingFailureKind,
+    DalMadlulBindingResidual,
+    make_missing_dal_candidate_residual,
+    make_missing_madlul_candidate_residual,
+    make_dal_madlul_type_mismatch_residual,
+    make_binding_trace_not_preserved_residual,
+    make_binding_residuals_not_preserved_residual,
+    make_dalalah_creation_attempted_residual,
+    make_wadh_attempted_in_binding_residual,
+    make_meaning_creation_in_binding_residual,
+    make_hukm_issuance_in_binding_residual,
+    make_rank_inflation_in_binding_residual,
+    make_semantic_interpretation_attempted_residual,
+    make_mutabaqah_attempted_too_early_residual,
+    make_governed_failure_not_returned_residual,
+)
 
 __all__ = [
-    # Residuals
-    "MutabaqahResidualKind",
-    "MutabaqahResidual",
-    "make_wadh_claim_not_admitted_residual",
-    "make_mawdu_lah_whole_unavailable_residual",
-    "make_polysemy_possible_residual",
-    "make_homonymy_possible_residual",
-    "make_partial_usage_detected_residual",
-    "make_external_meaning_injection_residual",
-    "make_hukm_injection_residual",
-    "make_tadammun_created_residual",
-    "make_iltizam_created_residual",
-    "make_haqiqah_majaz_classified_residual",
-    "make_wadh_trace_lost_residual",
-    "make_binding_trace_lost_residual",
-
-    # Candidate
-    "MutabaqahCandidate",
-
-    # Result
-    "MutabaqahResult",
-    "MutabaqahFailure",
-
+    # Binding types
+    "DalMadlulBindingType",
+    # Core candidate
+    "DalMadlulBindingCandidate",
+    "DalMadlulBindingResult",
     # Gate
-    "MutabaqahGate",
+    "DalMadlulBindingGate",
+    "DalMadlulBindingFailure",
+    # Residual taxonomy
+    "DalMadlulBindingFailureKind",
+    "DalMadlulBindingResidual",
+    "make_missing_dal_candidate_residual",
+    "make_missing_madlul_candidate_residual",
+    "make_dal_madlul_type_mismatch_residual",
+    "make_binding_trace_not_preserved_residual",
+    "make_binding_residuals_not_preserved_residual",
+    "make_dalalah_creation_attempted_residual",
+    "make_wadh_attempted_in_binding_residual",
+    "make_meaning_creation_in_binding_residual",
+    "make_hukm_issuance_in_binding_residual",
+    "make_rank_inflation_in_binding_residual",
+    "make_semantic_interpretation_attempted_residual",
+    "make_mutabaqah_attempted_too_early_residual",
+    "make_governed_failure_not_returned_residual",
 ]
