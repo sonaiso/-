@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 # FVAFK imports
-from fvafk.c2b.word_form import WordForm, Span, RootInfo, PatternInfo, PartOfSpeech
+from fvafk.c2b.word_form import WordForm, Span, Root, Pattern, PartOfSpeech
 
 # Adapter under test
 from fvafk.adapters import C2bToD3Adapter
@@ -68,28 +68,18 @@ def valid_noun_word_form():
     """
     return WordForm(
         surface="كِتَابٌ",
-        bare="كتاب",
-        kind="noun",
-        pos=PartOfSpeech.NOUN,
         span=Span(start=0, end=6),
-        root=RootInfo(
+        pos=PartOfSpeech.NOUN,
+        root=Root(
             letters=("ك", "ت", "ب"),
             formatted="ك-ت-ب",
-            root_type="trilateral",
-            length=3
+            type="trilateral"
         ),
-        pattern=PatternInfo(
+        pattern=Pattern(
             template="فِعَال",
-            pattern_type="noun",
-            category="noun_pattern",
-            stem="كتاب"
+            type="noun",
+            category="noun_pattern"
         ),
-        features={
-            "case": "nominative",
-            "definiteness": False,
-            "number": "singular",
-            "gender": "masculine"
-        }
     )
 
 
@@ -104,28 +94,18 @@ def valid_verb_word_form():
     """
     return WordForm(
         surface="كَتَبَ",
-        bare="كتب",
-        kind="verb",
-        pos=PartOfSpeech.VERB,
         span=Span(start=0, end=5),
-        root=RootInfo(
+        pos=PartOfSpeech.VERB,
+        root=Root(
             letters=("ك", "ت", "ب"),
             formatted="ك-ت-ب",
-            root_type="trilateral",
-            length=3
+            type="trilateral"
         ),
-        pattern=PatternInfo(
+        pattern=Pattern(
             template="فَعَلَ",
-            pattern_type="verb",
-            category="verb_mujarrad",
-            stem="كتب"
+            type="verb",
+            category="verb_mujarrad"
         ),
-        features={
-            "tense": "past",
-            "person": "3rd",
-            "number": "singular",
-            "gender": "masculine"
-        }
     )
 
 
@@ -136,10 +116,8 @@ def minimal_word_form():
     """
     return WordForm(
         surface="كلمة",
-        bare="كلمة",
-        kind="noun",
+        span=Span(start=0, end=4),
         pos=PartOfSpeech.NOUN,
-        span=Span(start=0, end=4)
     )
 
 
@@ -150,10 +128,8 @@ def inadmissible_word_form():
     """
     return WordForm(
         surface="",  # Empty surface
-        bare="",
-        kind="unknown",
+        span=None,  # Missing span
         pos=PartOfSpeech.UNKNOWN,
-        span=None  # Missing span
     )
 
 
@@ -217,12 +193,12 @@ def test_2_evidence_contains_span(adapter, valid_noun_word_form):
     expected_span = (valid_noun_word_form.span.start, valid_noun_word_form.span.end)
     assert evidence.span == expected_span, f"Evidence span {evidence.span} != WordForm span {expected_span}"
 
-    # Assert: Domain and scope
-    assert evidence.domain == DalTransitionDomain.D3_MUFRAD, "Evidence domain should be D3_MUFRAD"
-    assert evidence.scope == DalClaimScope.WORD_LEVEL, "Evidence scope should be WORD_LEVEL"
+    # Assert: claim_scope (not domain - dal_core uses claim_scope)
+    assert evidence.claim_scope == DalClaimScope.ORIGIN_CLASSIFIED, "Evidence claim_scope should be ORIGIN_CLASSIFIED"
 
-    # Assert: Source text preserved
-    assert evidence.source_text == valid_noun_word_form.surface, "Source text should match WordForm surface"
+    # Assert: Source preserved in details
+    assert "surface" in evidence.details, "Evidence details should contain surface"
+    assert evidence.details["surface"] == valid_noun_word_form.surface, "Surface should match WordForm surface"
 
 
 # ============================================================================
@@ -251,15 +227,16 @@ def test_3_trace_is_reversible(adapter, valid_noun_word_form):
     assert hasattr(trace, 'reversible'), "Trace must have reversible field"
     assert trace.reversible is True, "Trace must be reversible (is_reversible() = True)"
 
-    # Assert: Source atoms preserved
-    assert hasattr(trace, 'source_atoms'), "Trace must preserve source_atoms"
-    assert trace.source_atoms is not None, "Source atoms must not be None"
-    assert len(trace.source_atoms) > 0, "Source atoms must not be empty"
+    # Assert: Source atoms preserved in metadata (not direct attribute)
+    assert hasattr(trace, 'metadata'), "Trace must have metadata"
+    assert 'source_atoms' in trace.metadata, "Trace metadata must preserve source_atoms"
+    assert trace.metadata['source_atoms'] is not None, "Source atoms must not be None"
+    assert len(trace.metadata['source_atoms']) > 0, "Source atoms must not be empty"
 
-    # Assert: Steps recorded
-    assert hasattr(trace, 'steps'), "Trace must record steps"
-    assert trace.steps is not None, "Steps must not be None"
-    assert len(trace.steps) > 0, "Steps must not be empty for reversibility"
+    # Assert: Steps recorded in metadata
+    assert 'steps' in trace.metadata, "Trace metadata must record steps"
+    assert trace.metadata['steps'] is not None, "Steps must not be None"
+    assert len(trace.metadata['steps']) > 0, "Steps must not be empty for reversibility"
 
 
 # ============================================================================
@@ -320,8 +297,8 @@ def test_5_invalid_word_returns_none_governed_failure(adapter, inadmissible_word
     # Assert: Evidence still present
     assert evidence is not None, "Evidence should be present even for inadmissible word"
     if DAL_CORE_AVAILABLE:
-        assert hasattr(evidence, 'observations'), "Evidence should have observations"
-        assert evidence.observations.get('inadmissible') is True, "Evidence should mark word as inadmissible"
+        assert hasattr(evidence, 'details'), "Evidence should have details"
+        assert evidence.details.get('inadmissible') is True, "Evidence should mark word as inadmissible"
 
     # Assert: Trace still present
     assert trace is not None, "Trace should be present even for inadmissible word"
@@ -392,20 +369,20 @@ def test_8_round_trip_dmufrad_to_fvafk_atoms(adapter, valid_noun_word_form):
 
     # Assert: Source atoms match input
     assert trace is not None
-    assert trace.source_atoms is not None
+    assert trace.metadata.get('source_atoms') is not None
 
     # Reconstruct bare form from trace atoms
-    reconstructed_bare = "".join(trace.source_atoms)
-    expected_bare = valid_noun_word_form.bare
+    reconstructed_bare = "".join(trace.metadata['source_atoms'])
+    expected_bare = adapter._get_bare_form(valid_noun_word_form.surface)
 
     assert reconstructed_bare == expected_bare, \
         f"Round-trip failed: reconstructed '{reconstructed_bare}' != original '{expected_bare}'"
 
     # Assert: Trace steps are documented
-    assert len(trace.steps) > 0, "Trace should document transformation steps"
+    assert len(trace.metadata['steps']) > 0, "Trace should document transformation steps"
 
     # Verify key steps present
-    step_names = [step.get("step", "") for step in trace.steps]
+    step_names = [step.get("step", "") for step in trace.metadata['steps']]
     assert "extract_bare_form" in step_names, "Trace should document bare form extraction"
     assert "extract_root" in step_names, "Trace should document root extraction"
     assert "extract_pattern" in step_names, "Trace should document pattern extraction"

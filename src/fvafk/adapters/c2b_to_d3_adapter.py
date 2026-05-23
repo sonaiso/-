@@ -33,13 +33,15 @@ try:
         DalTraceRef,
         DalTransitionDomain,
         DalClaimScope,
-        LexicalType,
+    )
+    from dal_core.pipeline import (
         atoms_from_text,
         build_d_form,
         prove_lugha,
         infer_type,
         close_mufrad,
     )
+    from syntax_theory.structures import LexicalType
     DAL_CORE_AVAILABLE = True
 except ImportError:
     DAL_CORE_AVAILABLE = False
@@ -47,24 +49,36 @@ except ImportError:
     class DMufrad: pass
     class DalEvidence: pass
     class DalTraceRef: pass
+    class LexicalType: pass
 
 
 @dataclass(frozen=True)
 class C2bToD3Adapter:
     """
     Adapter: FVAFK C2b morphology → dal_core D3 Mufrad.
-    
+
     **Design**: Thin translation layer (< 200 lines).
     Pure function: WordForm → (DMufrad | None, Evidence, Trace)
-    
+
     **Preserves**:
     - Trace reversibility
     - Evidence with span
     - No meaning field (Theorem 5)
     - No direct promotion
     """
-    
+
     strict_mode: bool = False  # If True, raise on inadmissible; if False, return None
+
+    @staticmethod
+    def _get_bare_form(surface: str) -> str:
+        """
+        Extract bare form (unvocalized) from surface form.
+        Removes Arabic diacritics (tashkeel).
+        """
+        import re
+        # Arabic diacritics Unicode ranges
+        diacritics = re.compile(r'[\u064B-\u065F\u0670]')  # Fatha, damma, kasra, sukun, etc.
+        return diacritics.sub('', surface)
     
     def adapt_word_form(
         self,
@@ -112,18 +126,17 @@ class C2bToD3Adapter:
     def _is_admissible(self, wf: WordForm) -> bool:
         """
         Check if WordForm has minimum fields for D3 construction.
-        
+
         **Required**:
         - surface (non-empty)
-        - bare (non-empty)
         - span (for evidence)
-        
+
         **Optional** (missing → heuristics):
         - root
         - pattern
         - pos
         """
-        if not wf.surface or not wf.bare:
+        if not wf.surface:
             return False
         if wf.span is None:
             return False
@@ -132,19 +145,21 @@ class C2bToD3Adapter:
     def _extract_evidence(self, wf: WordForm) -> DalEvidence:
         """
         Extract claim-scoped evidence from FVAFK WordForm.
-        
+
         **DalEvidence Contract** (PR #22):
         - Requires span (source text location)
-        - Claim scope: WORD_LEVEL
-        - Domain: D3 (Mufrad)
+        - Claim scope: ORIGIN_CLASSIFIED (D3 - أصل)
+        - Source: C2B morphological analysis
         """
+        bare_form = self._get_bare_form(wf.surface)
         return DalEvidence(
-            domain=DalTransitionDomain.D3_MUFRAD,
-            scope=DalClaimScope.WORD_LEVEL,
+            source="C2B_morphology",
+            claim_scope=DalClaimScope.ORIGIN_CLASSIFIED,
             span=(wf.span.start, wf.span.end),
-            source_text=wf.surface,
-            observations={
-                "bare_form": wf.bare,
+            confidence=1.0,
+            details={
+                "surface": wf.surface,
+                "bare_form": bare_form,
                 "root_letters": wf.root.letters if wf.root else None,
                 "pattern_template": wf.pattern.template if wf.pattern else None,
                 "pos": wf.pos.value if wf.pos else None,
@@ -154,43 +169,56 @@ class C2bToD3Adapter:
     def _build_inadmissible_evidence(self, wf: WordForm) -> DalEvidence:
         """Build evidence for inadmissible word (missing required fields)"""
         return DalEvidence(
-            domain=DalTransitionDomain.D3_MUFRAD,
-            scope=DalClaimScope.WORD_LEVEL,
+            source="C2B_morphology",
+            claim_scope=DalClaimScope.ORIGIN_CLASSIFIED,
             span=(0, len(wf.surface)) if wf.span is None else (wf.span.start, wf.span.end),
-            source_text=wf.surface or "",
-            observations={"inadmissible": True, "reason": "missing_required_fields"}
+            confidence=0.0,
+            details={"inadmissible": True, "reason": "missing_required_fields", "surface": wf.surface or ""}
         )
     
     def _build_trace(self, wf: WordForm) -> DalTraceRef:
         """
         Build reversible trace from FVAFK atoms.
-        
+
         **DalTrace Contract** (PR #22):
         - Must be reversible: is_reversible() = True
         - Preserves source atoms
         - Records transformation steps
         """
+        from datetime import datetime
+        bare_form = self._get_bare_form(wf.surface)
         # Build trace that can reverse back to FVAFK atoms
         return DalTraceRef(
-            domain=DalTransitionDomain.D3_MUFRAD,
-            operation="fvafk_c2b_to_d3_adapt",
-            source_atoms=list(wf.bare),  # Character-level atoms
-            steps=[
-                {"step": "extract_bare_form", "output": wf.bare},
-                {"step": "extract_root", "output": wf.root.letters if wf.root else None},
-                {"step": "extract_pattern", "output": wf.pattern.template if wf.pattern else None},
-            ],
+            transition_id="c2b_to_d3_mufrad",
+            source_domain=DalTransitionDomain.PRE_MORPH,  # Coming from C2B (pre-morphological)
+            target_domain=DalTransitionDomain.ORIGIN,      # Going to D3 (origin classification)
+            timestamp=datetime.now().isoformat(),
             reversible=True,
+            metadata={
+                "operation": "fvafk_c2b_to_d3_adapt",
+                "source_atoms": list(bare_form),
+                "steps": [
+                    {"step": "extract_bare_form", "output": bare_form},
+                    {"step": "extract_root", "output": wf.root.letters if wf.root else None},
+                    {"step": "extract_pattern", "output": wf.pattern.template if wf.pattern else None},
+                ],
+            }
         )
     
     def _build_inadmissible_trace(self, wf: WordForm) -> DalTraceRef:
         """Build trace for inadmissible word"""
+        from datetime import datetime
         return DalTraceRef(
-            domain=DalTransitionDomain.D3_MUFRAD,
-            operation="fvafk_c2b_to_d3_adapt_failed",
-            source_atoms=list(wf.surface) if wf.surface else [],
-            steps=[{"step": "inadmissible", "reason": "missing_required_fields"}],
+            transition_id="c2b_to_d3_inadmissible",
+            source_domain=DalTransitionDomain.PRE_MORPH,
+            target_domain=DalTransitionDomain.ORIGIN,
+            timestamp=datetime.now().isoformat(),
             reversible=False,  # Cannot reverse from incomplete input
+            metadata={
+                "operation": "fvafk_c2b_to_d3_adapt_failed",
+                "source_atoms": list(wf.surface) if wf.surface else [],
+                "steps": [{"step": "inadmissible", "reason": "missing_required_fields"}],
+            }
         )
     
     def _construct_dmufrad(
@@ -201,38 +229,33 @@ class C2bToD3Adapter:
     ) -> DMufrad:
         """
         Construct DMufrad respecting Theorem 5 (no meaning field).
-        
-        **Uses dal_core pipeline**:
-        1. atoms_from_text(wf.bare)
-        2. build_d_form(atoms)
-        3. prove_lugha(d_form)
-        4. infer_type(d_lugha)
-        5. close_mufrad(d_type)
-        
+
+        **Phase 2 Implementation**: Uses simplified dal_core pipeline.
+        Full lexicon integration deferred to Phase 3.
+
         **Critical**: DMufrad must NOT have fields: meaning, murad, haqiqa_majaz
         """
-        # Step 1: Convert to atoms
-        atoms = atoms_from_text(wf.bare)
-        
-        # Step 2: Build DForm
-        d_form = build_d_form(atoms, source_span=evidence.span)
-        
-        # Step 3: Prove lugha (phonological/graphemic constraints)
-        d_lugha = prove_lugha(d_form)
-        
-        # Step 4: Infer type (noun/verb/particle classification)
-        lexical_type = self._infer_lexical_type(wf)
-        d_type = infer_type(d_lugha, lexical_type)
-        
-        # Step 5: Close mufrad (final D3 unit)
-        dmufrad = close_mufrad(d_type, evidence=evidence, trace=trace)
-        
+        bare_form = self._get_bare_form(wf.surface)
+
+        # Step 1: Build DForm from bare text
+        d_form = build_d_form(bare_form)
+
+        # Step 2: Prove lugha (with empty lexicon for Phase 2)
+        empty_lexicon = {}  # Phase 2: no lexicon lookup yet
+        d_lugha = prove_lugha(d_form, empty_lexicon)
+
+        # Step 3: Infer type
+        d_type = infer_type(d_lugha)
+
+        # Step 4: Close mufrad
+        dmufrad = close_mufrad(d_type)
+
         # Governance check: Ensure no meaning field
         if hasattr(dmufrad, 'meaning') or hasattr(dmufrad, 'murad') or hasattr(dmufrad, 'haqiqa_majaz'):
             raise ValueError(
                 "Theorem 5 violation: DMufrad must NOT contain meaning/murad/haqiqa_majaz fields"
             )
-        
+
         return dmufrad
     
     def _infer_lexical_type(self, wf: WordForm) -> LexicalType:
