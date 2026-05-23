@@ -94,10 +94,8 @@ def valid_verb_word_form():
     """
     return WordForm(
         surface="كَتَبَ",
-        bare="كتب",
-        kind="verb",
-        pos=PartOfSpeech.VERB,
         span=Span(start=0, end=5),
+        pos=PartOfSpeech.VERB,
         root=Root(
             letters=("ك", "ت", "ب"),
             formatted="ك-ت-ب",
@@ -106,15 +104,8 @@ def valid_verb_word_form():
         pattern=Pattern(
             template="فَعَلَ",
             type="verb",
-            category="verb_mujarrad",
-            stem="كتب"
+            category="verb_mujarrad"
         ),
-        features={
-            "tense": "past",
-            "person": "3rd",
-            "number": "singular",
-            "gender": "masculine"
-        }
     )
 
 
@@ -125,10 +116,8 @@ def minimal_word_form():
     """
     return WordForm(
         surface="كلمة",
-        bare="كلمة",
-        kind="noun",
+        span=Span(start=0, end=4),
         pos=PartOfSpeech.NOUN,
-        span=Span(start=0, end=4)
     )
 
 
@@ -139,10 +128,8 @@ def inadmissible_word_form():
     """
     return WordForm(
         surface="",  # Empty surface
-        bare="",
-        kind="unknown",
+        span=None,  # Missing span
         pos=PartOfSpeech.UNKNOWN,
-        span=None  # Missing span
     )
 
 

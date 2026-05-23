@@ -33,13 +33,15 @@ try:
         DalTraceRef,
         DalTransitionDomain,
         DalClaimScope,
-        LexicalType,
+    )
+    from dal_core.pipeline import (
         atoms_from_text,
         build_d_form,
         prove_lugha,
         infer_type,
         close_mufrad,
     )
+    from syntax_theory.structures import LexicalType
     DAL_CORE_AVAILABLE = True
 except ImportError:
     DAL_CORE_AVAILABLE = False
@@ -47,6 +49,7 @@ except ImportError:
     class DMufrad: pass
     class DalEvidence: pass
     class DalTraceRef: pass
+    class LexicalType: pass
 
 
 @dataclass(frozen=True)
@@ -145,16 +148,17 @@ class C2bToD3Adapter:
 
         **DalEvidence Contract** (PR #22):
         - Requires span (source text location)
-        - Claim scope: WORD_LEVEL
-        - Domain: D3 (Mufrad)
+        - Claim scope: ORIGIN_CLASSIFIED (D3 - أصل)
+        - Source: C2B morphological analysis
         """
         bare_form = self._get_bare_form(wf.surface)
         return DalEvidence(
-            domain=DalTransitionDomain.D3_MUFRAD,
-            scope=DalClaimScope.WORD_LEVEL,
+            source="C2B_morphology",
+            claim_scope=DalClaimScope.ORIGIN_CLASSIFIED,
             span=(wf.span.start, wf.span.end),
-            source_text=wf.surface,
-            observations={
+            confidence=1.0,
+            details={
+                "surface": wf.surface,
                 "bare_form": bare_form,
                 "root_letters": wf.root.letters if wf.root else None,
                 "pattern_template": wf.pattern.template if wf.pattern else None,
@@ -165,11 +169,11 @@ class C2bToD3Adapter:
     def _build_inadmissible_evidence(self, wf: WordForm) -> DalEvidence:
         """Build evidence for inadmissible word (missing required fields)"""
         return DalEvidence(
-            domain=DalTransitionDomain.D3_MUFRAD,
-            scope=DalClaimScope.WORD_LEVEL,
+            source="C2B_morphology",
+            claim_scope=DalClaimScope.ORIGIN_CLASSIFIED,
             span=(0, len(wf.surface)) if wf.span is None else (wf.span.start, wf.span.end),
-            source_text=wf.surface or "",
-            observations={"inadmissible": True, "reason": "missing_required_fields"}
+            confidence=0.0,
+            details={"inadmissible": True, "reason": "missing_required_fields", "surface": wf.surface or ""}
         )
     
     def _build_trace(self, wf: WordForm) -> DalTraceRef:
@@ -181,28 +185,40 @@ class C2bToD3Adapter:
         - Preserves source atoms
         - Records transformation steps
         """
+        from datetime import datetime
         bare_form = self._get_bare_form(wf.surface)
         # Build trace that can reverse back to FVAFK atoms
         return DalTraceRef(
-            domain=DalTransitionDomain.D3_MUFRAD,
-            operation="fvafk_c2b_to_d3_adapt",
-            source_atoms=list(bare_form),  # Character-level atoms
-            steps=[
-                {"step": "extract_bare_form", "output": bare_form},
-                {"step": "extract_root", "output": wf.root.letters if wf.root else None},
-                {"step": "extract_pattern", "output": wf.pattern.template if wf.pattern else None},
-            ],
+            transition_id="c2b_to_d3_mufrad",
+            source_domain=DalTransitionDomain.PRE_MORPH,  # Coming from C2B (pre-morphological)
+            target_domain=DalTransitionDomain.ORIGIN,      # Going to D3 (origin classification)
+            timestamp=datetime.now().isoformat(),
             reversible=True,
+            metadata={
+                "operation": "fvafk_c2b_to_d3_adapt",
+                "source_atoms": list(bare_form),
+                "steps": [
+                    {"step": "extract_bare_form", "output": bare_form},
+                    {"step": "extract_root", "output": wf.root.letters if wf.root else None},
+                    {"step": "extract_pattern", "output": wf.pattern.template if wf.pattern else None},
+                ],
+            }
         )
     
     def _build_inadmissible_trace(self, wf: WordForm) -> DalTraceRef:
         """Build trace for inadmissible word"""
+        from datetime import datetime
         return DalTraceRef(
-            domain=DalTransitionDomain.D3_MUFRAD,
-            operation="fvafk_c2b_to_d3_adapt_failed",
-            source_atoms=list(wf.surface) if wf.surface else [],
-            steps=[{"step": "inadmissible", "reason": "missing_required_fields"}],
+            transition_id="c2b_to_d3_inadmissible",
+            source_domain=DalTransitionDomain.PRE_MORPH,
+            target_domain=DalTransitionDomain.ORIGIN,
+            timestamp=datetime.now().isoformat(),
             reversible=False,  # Cannot reverse from incomplete input
+            metadata={
+                "operation": "fvafk_c2b_to_d3_adapt_failed",
+                "source_atoms": list(wf.surface) if wf.surface else [],
+                "steps": [{"step": "inadmissible", "reason": "missing_required_fields"}],
+            }
         )
     
     def _construct_dmufrad(
