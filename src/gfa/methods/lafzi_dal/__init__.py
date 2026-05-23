@@ -78,6 +78,7 @@ from .dal_structures import (
     RoleProjection,
 )
 from .dal_candidate import DalCandidate, DalResult
+from .dal_candidate_builder import DalCandidateBuilder, BuilderResult
 from .dal_gate import DalGate, DalFailure
 from .residual_taxonomy import (
     DalFailureKind,
@@ -122,6 +123,9 @@ __all__ = [
     # Core candidate
     "DalCandidate",
     "DalResult",
+    # Builder
+    "DalCandidateBuilder",
+    "BuilderResult",
     # Gate
     "DalGate",
     "DalFailure",
