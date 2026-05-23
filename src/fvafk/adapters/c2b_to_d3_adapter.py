@@ -230,31 +230,25 @@ class C2bToD3Adapter:
         """
         Construct DMufrad respecting Theorem 5 (no meaning field).
 
-        **Uses dal_core pipeline**:
-        1. atoms_from_text(bare_form)
-        2. build_d_form(atoms)
-        3. prove_lugha(d_form)
-        4. infer_type(d_lugha)
-        5. close_mufrad(d_type)
+        **Phase 2 Implementation**: Uses simplified dal_core pipeline.
+        Full lexicon integration deferred to Phase 3.
 
         **Critical**: DMufrad must NOT have fields: meaning, murad, haqiqa_majaz
         """
-        # Step 1: Convert to atoms
         bare_form = self._get_bare_form(wf.surface)
-        atoms = atoms_from_text(bare_form)
 
-        # Step 2: Build DForm
-        d_form = build_d_form(atoms, source_span=evidence.span)
+        # Step 1: Build DForm from bare text
+        d_form = build_d_form(bare_form)
 
-        # Step 3: Prove lugha (phonological/graphemic constraints)
-        d_lugha = prove_lugha(d_form)
+        # Step 2: Prove lugha (with empty lexicon for Phase 2)
+        empty_lexicon = {}  # Phase 2: no lexicon lookup yet
+        d_lugha = prove_lugha(d_form, empty_lexicon)
 
-        # Step 4: Infer type (noun/verb/particle classification)
-        lexical_type = self._infer_lexical_type(wf)
-        d_type = infer_type(d_lugha, lexical_type)
+        # Step 3: Infer type
+        d_type = infer_type(d_lugha)
 
-        # Step 5: Close mufrad (final D3 unit)
-        dmufrad = close_mufrad(d_type, evidence=evidence, trace=trace)
+        # Step 4: Close mufrad
+        dmufrad = close_mufrad(d_type)
 
         # Governance check: Ensure no meaning field
         if hasattr(dmufrad, 'meaning') or hasattr(dmufrad, 'murad') or hasattr(dmufrad, 'haqiqa_majaz'):
