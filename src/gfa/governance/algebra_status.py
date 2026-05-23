@@ -190,8 +190,9 @@ def get_project_status() -> ProjectStatus:
     # Architecture: includes new layers discovered
     architecture_completeness = 0.40  # 40% - added many new required layers
 
-    # Runtime: very low, only CognitiveCarrier partially implemented
-    runtime_completeness = 0.02  # 2% - almost nothing implemented
+    # Runtime: increased with Memory Geometry implementation
+    # CognitiveCarrier (partial) + Memory Geometry (complete) = ~10%
+    runtime_completeness = 0.10  # 10% - Memory Geometry implemented (PR-G1)
 
     return ProjectStatus(
         general_algebra_constitution=constitution_completeness,
