@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 # FVAFK imports
-from fvafk.c2b.word_form import WordForm, Span, RootInfo, PatternInfo, PartOfSpeech
+from fvafk.c2b.word_form import WordForm, Span, Root, Pattern, PartOfSpeech
 
 # Adapter under test
 from fvafk.adapters import C2bToD3Adapter
@@ -68,28 +68,18 @@ def valid_noun_word_form():
     """
     return WordForm(
         surface="كِتَابٌ",
-        bare="كتاب",
-        kind="noun",
-        pos=PartOfSpeech.NOUN,
         span=Span(start=0, end=6),
-        root=RootInfo(
+        pos=PartOfSpeech.NOUN,
+        root=Root(
             letters=("ك", "ت", "ب"),
             formatted="ك-ت-ب",
-            root_type="trilateral",
-            length=3
+            type="trilateral"
         ),
-        pattern=PatternInfo(
+        pattern=Pattern(
             template="فِعَال",
-            pattern_type="noun",
-            category="noun_pattern",
-            stem="كتاب"
+            type="noun",
+            category="noun_pattern"
         ),
-        features={
-            "case": "nominative",
-            "definiteness": False,
-            "number": "singular",
-            "gender": "masculine"
-        }
     )
 
 
@@ -108,15 +98,14 @@ def valid_verb_word_form():
         kind="verb",
         pos=PartOfSpeech.VERB,
         span=Span(start=0, end=5),
-        root=RootInfo(
+        root=Root(
             letters=("ك", "ت", "ب"),
             formatted="ك-ت-ب",
-            root_type="trilateral",
-            length=3
+            type="trilateral"
         ),
-        pattern=PatternInfo(
+        pattern=Pattern(
             template="فَعَلَ",
-            pattern_type="verb",
+            type="verb",
             category="verb_mujarrad",
             stem="كتب"
         ),
