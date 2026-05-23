@@ -499,6 +499,123 @@ def test_pr_l4_integration():
 
 ---
 
+## 📋 PR-L3 Minimum Contract
+
+### What DalCandidate MUST Contain
+
+```python
+# Required signifier fields (no semantic fields)
+class PureDalCandidate:
+    """Licensed signifier object - NOT a semantic object"""
+
+    # === MUST CONTAIN ===
+    surface_form: str                          # Original form
+    phonic_carriers: Tuple[PhonicCarrier, ...] # From C1
+    haraka_operations: Tuple[HarakaOp, ...]    # From C2a gates
+    syllables: Tuple[SyllableLicense, ...]     # Licensed CV patterns
+    boundaries: WordBoundaryInfo                # Word limits
+    clitics: CliticAnalysis                    # Separated affixes
+    formula_candidates: Tuple[Formula, ...]     # Weight patterns
+    path_type: PathType                        # JAMID/MUSHTAQ/SPECIAL
+    terminal_state: TerminalState              # MABNI/MURAB/MAMNU
+    syntactic_readiness: SyntacticReadiness    # Ready for composition
+    rank: Rank                                 # Evidence-based
+    residuals: FrozenSet[Residual]             # Typed uncertainties
+    trace: Trace                               # From raw to candidate
+
+    # === MUST NOT CONTAIN ===
+    # ❌ external_meaning
+    # ❌ dalalah
+    # ❌ wadh
+    # ❌ hukm
+    # ❌ mutabaqah
+    # ❌ tadammun
+    # ❌ iltizam
+```
+
+### Weakness Definition
+
+**DalCandidate is weak** if it lacks any of:
+
+1. ❌ `phonic_carriers` - no connection to sound/script
+2. ❌ `haraka_operations` - no haraka transformation record
+3. ❌ `syllable_licenses` - no validated syllable structure
+4. ❌ `boundary_status` - word limits unknown
+5. ❌ `clitic_separation` - cannot distinguish core from affixes
+6. ❌ `formula_candidates` - no pattern/weight hypothesis
+7. ❌ `path_type` - unknown if root-based or closed-class
+8. ❌ `pattern_status` - no classification confidence
+9. ❌ `terminal_state` - i'rab status unknown
+10. ❌ `syntactic_readiness` - cannot enter composition
+11. ❌ `rank` - no evidence strength
+12. ❌ `residuals` - uncertainties lost
+13. ❌ `trace` - no reversibility
+14. ✅ Contains `forbidden_outputs` (meaning/dalalah/wadh/hukm)
+
+---
+
+## ✅ PR-L3 Acceptance Criteria
+
+### Must Pass Before Ready
+
+1. **Structure Completeness**
+   - [ ] `DalCandidate` has explicit licensed signifier fields
+   - [ ] All 13 required fields present and typed
+   - [ ] Field access via clean interface (no dict lookups)
+
+2. **Semantic Isolation**
+   - [ ] `DalCandidate` cannot contain meaning/dalalah/wadh/hukm
+   - [ ] Compile-time check: forbidden fields raise TypeError
+   - [ ] Runtime validation: post_init checks enforced
+
+3. **Ambiguity Handling**
+   - [ ] Unvocalized forms produce ambiguity lattice
+   - [ ] Missing haraka lowers rank (not false certainty)
+   - [ ] Multiple formula candidates preserved (not collapsed)
+
+4. **Closed-Class Handling**
+   - [ ] Closed-class forms do NOT force RootPath
+   - [ ] Pronouns enter non-root paths
+   - [ ] Demonstratives enter non-root paths
+   - [ ] Relatives enter non-root paths
+   - [ ] Particles enter non-root paths
+
+5. **Evidence & Governance**
+   - [ ] Residuals are typed (not free strings)
+   - [ ] Trace preserved from raw input to DalCandidate
+   - [ ] NoLeap tests pass (no direct atom→meaning)
+   - [ ] Rank based on evidence (not ML confidence alone)
+
+6. **Integration**
+   - [ ] PR-L4 validates DalCandidate.source_layer == "PURE_DAL"
+   - [ ] PR-L4 rejects weak DalCandidate
+   - [ ] FVAFK C1→C2a→C2b feeds DalCandidateBuilder
+   - [ ] Golden dataset: positive/negative/ambiguous/blocked cases
+
+7. **Testing**
+   - [ ] 30+ unit tests covering all fields
+   - [ ] 20+ integration tests with PR-L4
+   - [ ] Property tests: immutability, forbidden fields
+   - [ ] Coverage ≥ 90%
+
+8. **Documentation**
+   - [ ] `docs/PURE_DAL_GEOMETRY.md` complete (100+ pages)
+   - [ ] Examples: كتب، كاتب، مكتوب
+   - [ ] Distinction from PR-L4 clearly documented
+   - [ ] Contract for downstream consumption
+
+9. **Governance Rules**
+   - [ ] Explicit statement: **No PR-L5 before PR-L3 complete**
+   - [ ] PR-L4 must be protected by hardened PR-L3
+   - [ ] Semantic chain blocked until Pure Dāl solid
+
+10. **Performance**
+    - [ ] DalCandidate construction < 10ms
+    - [ ] Memory footprint reasonable for batch processing
+    - [ ] No performance regression in existing tests
+
+---
+
 ## 🏆 الخلاصة
 
 ### ما فهمناه
@@ -535,6 +652,12 @@ Hukm
 
 **إذا كان الأساس (Pure Dāl) ضعيفاً، فكل شيء آخر على رمال متحركة.**
 
+### Critical Architectural Statement
+
+**PR-L4 is valid as a neutral binding layer, but it must be protected by a hardened PR-L3 Pure Dāl contract; otherwise the semantic chain begins from an under-licensed signifier.**
+
+**Governance Rule**: No Wadh before Pure Dāl. No Dalalah before Wadh. No Hukm before Ifadah. No rank inflation across layers.
+
 ---
 
 **الحالة**: فجوة محددة بوضوح
@@ -542,6 +665,8 @@ Hukm
 **التقدير**: 4 أسابيع
 **المالك**: Dal Core team
 **المراجع**: [MASTER_PROJECT_PLAN_2026.md](./MASTER_PROJECT_PLAN_2026.md)
+
+**⚠️ هام**: هذه الوثيقة تحلل وتوثق الفجوة. PR #74 نفسه لا يصلح الفجوة - بل يحددها رسمياً.
 
 ---
 

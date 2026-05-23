@@ -401,18 +401,20 @@ assert candidate.dal_candidate.syllable_licenses is not None
 
 ## 📅 الجدول الزمني المقترح (Proposed Timeline)
 
-### الربع الأول 2026 (Q1 2026) - يناير-مارس
+### الربع الثاني 2026 (Q2 2026) - أبريل-يونيو [الحالي]
 
 **التركيز**: Pure Dāl Geometry + Dal Transition Signature
 
-- **أسبوع 1-4**: PR-L3 (Pure Dāl Geometry Contract Hardening)
+**ملاحظة**: هذا الجدول يعكس الخطة الحالية اعتباراً من مايو 2026.
+
+- **أسبوع 1-4 (مايو)**: PR-L3 (Pure Dāl Geometry Contract Hardening) ⚠️ **أولوية قصوى**
 - **أسبوع 5-7**: PR #23 (Minimal Dal Transition Signature)
 - **أسبوع 8-10**: PR #24 (Rank Algebra) + PR #25 (Residual Algebra)
 - **أسبوع 11-12**: PR #26 (CandidateSet Contract)
 
 **المخرجات**: DalCandidate كامل + Dal Algebra runtime
 
-### الربع الثاني 2026 (Q2 2026) - أبريل-يونيو
+### الربع الثالث 2026 (Q3 2026) - يوليو-سبتمبر
 
 **التركيز**: Dal Candidate Layers + FVAFK Syntax
 
@@ -421,7 +423,7 @@ assert candidate.dal_candidate.syllable_licenses is not None
 
 **المخرجات**: D0-D3 layers + Syntax في CLI
 
-### الربع الثالث 2026 (Q3 2026) - يوليو-سبتمبر
+### الربع الرابع 2026 (Q4 2026) - أكتوبر-ديسمبر
 
 **التركيز**: Dal Completion + Constraints
 
@@ -431,11 +433,13 @@ assert candidate.dal_candidate.syllable_licenses is not None
 
 **المخرجات**: Dal-Murakkab complete + Constraint validation
 
-### الربع الرابع 2026 (Q4 2026) - أكتوبر-ديسمبر
+### Q1 2027 (يناير-مارس)
 
 **التركيز**: Dal-Madlul Boundary + Integration
 
-- **أسبوع 1-8**: PR #40-#42 (Wadh' Contract + Implementation)
+**⚠️ مشروط بإكمال PR-L3**: لا يجوز البدء في PR-L5 (Wadh) قبل تقوية DalCandidate
+
+- **أسبوع 1-8**: PR #40-#42 (Wadh' Contract + Implementation) - بعد PR-L3 فقط
 - **أسبوع 9-12**: PR-L7, PR-L8 (Tadammun + Iltizam Gates)
 - **أسبوع 13-16**: FVAFK Sprint 6 (Integration + corpus eval)
 
