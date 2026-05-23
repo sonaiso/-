@@ -18,7 +18,7 @@ import pytest
 from typing import List
 
 # FVAFK imports
-from fvafk.c2b.word_form import WordForm, Span, RootInfo, PatternInfo, PartOfSpeech
+from fvafk.c2b.word_form import WordForm, Span, Root, Pattern, PartOfSpeech
 
 # Adapter under test
 from fvafk.adapters import FvafkToSyntaxInputAdapter
@@ -58,15 +58,14 @@ def nominal_sentence_tokens():
             kind="noun",
             pos=PartOfSpeech.NOUN,
             span=Span(start=0, end=8),
-            root=RootInfo(
+            root=Root(
                 letters=("ك", "ت", "ب"),
                 formatted="ك-ت-ب",
-                root_type="trilateral",
-                length=3
+                type="trilateral",
             ),
-            pattern=PatternInfo(
+            pattern=Pattern(
                 template="فِعَال",
-                pattern_type="noun",
+                type="noun",
                 category="noun_pattern",
                 stem="كتاب"
             ),
@@ -83,15 +82,14 @@ def nominal_sentence_tokens():
             kind="noun",
             pos=PartOfSpeech.NOUN,
             span=Span(start=9, end=15),
-            root=RootInfo(
+            root=Root(
                 letters=("ج", "د", "د"),
                 formatted="ج-د-د",
-                root_type="trilateral",
-                length=3
+                type="trilateral",
             ),
-            pattern=PatternInfo(
+            pattern=Pattern(
                 template="فَعِيل",
-                pattern_type="adjective",
+                type="adjective",
                 category="adjective_pattern",
                 stem="جديد"
             ),
@@ -122,15 +120,14 @@ def verbal_sentence_tokens():
             kind="verb",
             pos=PartOfSpeech.VERB,
             span=Span(start=0, end=5),
-            root=RootInfo(
+            root=Root(
                 letters=("ك", "ت", "ب"),
                 formatted="ك-ت-ب",
-                root_type="trilateral",
-                length=3
+                type="trilateral",
             ),
-            pattern=PatternInfo(
+            pattern=Pattern(
                 template="فَعَلَ",
-                pattern_type="verb",
+                type="verb",
                 category="verb_mujarrad",
                 stem="كتب"
             ),
@@ -148,11 +145,10 @@ def verbal_sentence_tokens():
             kind="noun",
             pos=PartOfSpeech.NOUN,
             span=Span(start=6, end=15),
-            root=RootInfo(
+            root=Root(
                 letters=("ط", "ل", "ب"),
                 formatted="ط-ل-ب",
-                root_type="trilateral",
-                length=3
+                type="trilateral",
             ),
             features={"case": "nominative", "definiteness": True}
         ),
@@ -162,11 +158,10 @@ def verbal_sentence_tokens():
             kind="noun",
             pos=PartOfSpeech.NOUN,
             span=Span(start=16, end=23),
-            root=RootInfo(
+            root=Root(
                 letters=("د", "ر", "س"),
                 formatted="د-ر-س",
-                root_type="trilateral",
-                length=3
+                type="trilateral",
             ),
             features={"case": "accusative", "definiteness": True}
         ),
