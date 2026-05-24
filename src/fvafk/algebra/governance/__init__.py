@@ -23,6 +23,12 @@ Critical Principle:
 This prevents the project from being hypocritical — enforcing constitutional
 laws it does not follow.
 
+G6 Compliance:
+
+    InspectionReport is a domain value.
+    Result[InspectionReport] is the constitutional judgment container.
+    No parallel InspectionResult class is allowed.
+
 Public Surface
 --------------
 
@@ -31,9 +37,15 @@ Core types:
 - :class:`InspectionArtifact` — what is being inspected
 - :class:`InspectionFinding` — claim + evidence + counter_evidence
 - :class:`InspectionResidual` — what was not resolved
-- :class:`InspectionResult` — status + findings + rank + residuals + replay
+- :class:`InspectionReport` — status + findings + replay (domain report)
+
+Lifting functions:
+
+- :func:`make_inspection_result` — wrap InspectionReport in Result[...]
+- :func:`inspection_result_to_legacy_dict` — convert to legacy format
 
 NO bare boolean.
+NO parallel InspectionResult.
 """
 
 from __future__ import annotations
@@ -42,14 +54,18 @@ from .inspection import (
     InspectionArtifact,
     InspectionFinding,
     InspectionResidual,
-    InspectionResult,
+    InspectionReport,
     InspectionResidualKind,
+    make_inspection_result,
+    inspection_result_to_legacy_dict,
 )
 
 __all__ = [
     "InspectionArtifact",
     "InspectionFinding",
     "InspectionResidual",
-    "InspectionResult",
+    "InspectionReport",
     "InspectionResidualKind",
+    "make_inspection_result",
+    "inspection_result_to_legacy_dict",
 ]

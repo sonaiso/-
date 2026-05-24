@@ -234,9 +234,33 @@ def make_inspection_result(
     """
     from ..core import Result, Evidence, Residual, Trace
 
+    # Collect evidence from findings
+    constitutional_evidence = []
+    for finding in report.findings:
+        for ev in finding.evidence:
+            constitutional_evidence.append(
+                Evidence(
+                    kind="inspection_finding",
+                    source=finding.claim,
+                    detail=ev,
+                    weight=1.0,
+                )
+            )
+
+    # If PASS but no evidence from findings, create default evidence
+    if report.status == "PASS" and not constitutional_evidence:
+        constitutional_evidence.append(
+            Evidence(
+                kind="inspection_status",
+                source="inspection_report",
+                detail=f"Status: {report.status} with no blocking findings",
+                weight=1.0,
+            )
+        )
+
     # Derive rank from report status and findings
     if report.status == "PASS":
-        rank = Rank.CERTIFIED
+        rank = Rank.CERTIFIED if constitutional_evidence else Rank.CANDIDATE
     elif report.status == "FAIL":
         rank = Rank.REFUTED
     else:  # NEEDS_REVIEW
@@ -250,19 +274,6 @@ def make_inspection_result(
         )
         for r in residuals
     )
-
-    # Collect evidence from findings
-    constitutional_evidence = []
-    for finding in report.findings:
-        for ev in finding.evidence:
-            constitutional_evidence.append(
-                Evidence(
-                    kind="inspection_finding",
-                    source=finding.claim,
-                    detail=ev,
-                    weight=1.0,
-                )
-            )
 
     # Build trace from replay
     trace = Trace(
