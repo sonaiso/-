@@ -236,7 +236,27 @@ class NameRealitySubGate:
                 ),
             )
 
-        # Check domain requirement
+        # CRITICAL: Specific failures must precede general failures.
+        # Constitutional Law: Specificity Ordering
+        #
+        # Check technical without domain FIRST (specific)
+        if existence_type == RealityType.TECHNICAL and not domain:
+            residuals.append(make_name_technical_without_domain_residual(name))
+            return NameRealitySubGateResult(
+                status="BLOCKED",
+                candidate=None,
+                rank="BLOCKED",
+                residuals=tuple(residuals),
+                failure=NameRealitySubGateFailure(
+                    kind=NameRealityFailureKind.TECHNICAL_WITHOUT_DOMAIN,
+                    message=f"Technical name '{name}' requires domain",
+                    blocker_residuals=tuple(residuals),
+                    evidence_gap="domain_for_technical",
+                ),
+            )
+
+        # Check domain requirement for other types (general)
+        # This catches MENTAL, VERBAL, NORMATIVE after specific TECHNICAL check
         if existence_type.requires_domain() and not domain:
             residuals.append(
                 make_name_missing_domain_residual(name, existence_type.name)
@@ -251,22 +271,6 @@ class NameRealitySubGate:
                     message=f"Name '{name}' with type '{existence_type}' requires domain",
                     blocker_residuals=tuple(residuals),
                     evidence_gap="domain",
-                ),
-            )
-
-        # Check technical without domain
-        if existence_type == RealityType.TECHNICAL and not domain:
-            residuals.append(make_name_technical_without_domain_residual(name))
-            return NameRealitySubGateResult(
-                status="BLOCKED",
-                candidate=None,
-                rank="BLOCKED",
-                residuals=tuple(residuals),
-                failure=NameRealitySubGateFailure(
-                    kind=NameRealityFailureKind.TECHNICAL_WITHOUT_DOMAIN,
-                    message=f"Technical name '{name}' requires domain",
-                    blocker_residuals=tuple(residuals),
-                    evidence_gap="domain_for_technical",
                 ),
             )
 
