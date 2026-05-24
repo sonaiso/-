@@ -167,6 +167,22 @@ class ArchitecturalAdmissionChecker:
         residuals = []
         replay = ["inspect_pr()", "build_artifact(pr_body)"]
 
+        # Exemption check (must run before new-construct detection)
+        if self._is_exempt_change(pr_body):
+            exempt_finding = InspectionFinding(
+                claim="Exemption criteria met: change does not introduce a new architectural construct",
+                evidence=("Exemption marker found in PR body",),
+                rank=Rank.CERTIFIED,
+                trace=("check_exemption()",),
+            )
+            return InspectionResult(
+                status="PASS",
+                findings=(exempt_finding,),
+                rank=Rank.CERTIFIED,
+                residuals=(),
+                replay=("inspect_pr()", "build_artifact(pr_body)", "check_exemption()"),
+            )
+
         # Finding 1: Check for new construct claim
         new_construct_finding = self._extract_new_construct_finding(pr_body)
         findings.append(new_construct_finding)
@@ -417,7 +433,7 @@ class ArchitecturalAdmissionChecker:
                 )
 
         # Check existing constructs count (CRITICAL: Must be at least 2)
-        existing_count = check_content.count('construct:')
+        existing_count = len(re.findall(r'^\s*-\s*construct:\s*', check_content, re.MULTILINE))
         if existing_count < 2:
             findings.append(
                 InspectionFinding(
@@ -433,6 +449,27 @@ class ArchitecturalAdmissionChecker:
                     trace=("check_existing_constructs_count()",),
                 )
             )
+
+        # Check for reduction attempts if not a case (new_layer/new_gate/general_rule require them)
+        if re.search(r'\b(?:new_layer|new_gate|general_rule)\b', check_content):
+            if 'reduction_attempts' not in check_content:
+                findings.append(
+                    InspectionFinding(
+                        claim="Reduction attempts required for non-case constructs",
+                        evidence=(),
+                        rank=Rank.REFUTED,
+                        residuals=(
+                            InspectionResidual(
+                                kind=InspectionResidualKind.CLAIM_WITHOUT_EVIDENCE,
+                                description=(
+                                    "Reduction attempts are required for new_layer, new_gate, "
+                                    "or general_rule constructs"
+                                ),
+                            ),
+                        ),
+                        trace=("check_reduction_attempts()",),
+                    )
+                )
 
         # Check anti-patterns
         anti_pattern_findings, anti_pattern_residuals = self._check_anti_patterns_governed(check_content)
