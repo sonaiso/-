@@ -6,6 +6,19 @@ proper MinimalSufficiencyCheck and comply with the constitution.
 
 Authority: MINIMAL_SUFFICIENCY_CONSTITUTION.md
 Schema: ARCHITECTURAL_ADMISSION_SCHEMA.md
+
+CONSTITUTIONAL GOVERNANCE (PR-INS1):
+
+    This checker uses governed inspection algebra internally.
+
+    Old way (bare boolean):
+        regex → pass/fail  # ❌ Violates "لا مخرج عارٍ"
+
+    New way (governed):
+        artifact → evidence → counter_evidence → finding → rank → residuals → trace
+
+    The public API remains backward-compatible (ValidationResult),
+    but internally all decisions flow through InspectionResult.
 """
 
 import re
@@ -14,6 +27,22 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+
+# Import inspection algebra (PR-INS1)
+# Use try/except for environments where fvafk.algebra may not be in path
+try:
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+    from fvafk.algebra import (
+        InspectionArtifact,
+        InspectionFinding,
+        InspectionResidual,
+        InspectionResult,
+        InspectionResidualKind,
+        Rank,
+    )
+    INSPECTION_ALGEBRA_AVAILABLE = True
+except ImportError:
+    INSPECTION_ALGEBRA_AVAILABLE = False
 
 
 class ConstructType(Enum):
@@ -96,6 +125,393 @@ class ArchitecturalAdmissionChecker:
     def check_pr_description(self, pr_body: str) -> ValidationResult:
         """
         Check PR description for MinimalSufficiencyCheck.
+
+        This is the public API method that returns ValidationResult for
+        backward compatibility. Internally uses governed inspection algebra.
+
+        Args:
+            pr_body: Full PR description/body text
+
+        Returns:
+            ValidationResult with pass/fail and details
+        """
+        if INSPECTION_ALGEBRA_AVAILABLE:
+            # Use governed inspection algebra
+            inspection_result = self._check_pr_governed(pr_body)
+            return self._inspection_to_validation(inspection_result)
+        else:
+            # Fallback to legacy implementation
+            return self._check_pr_legacy(pr_body)
+
+    def _check_pr_governed(self, pr_body: str) -> 'InspectionResult':
+        """
+        Governed inspection using InspectionAlgebra.
+
+        Follows constitutional law:
+            artifact → evidence → counter_evidence → finding → rank → residuals → trace
+
+        Args:
+            pr_body: PR description text
+
+        Returns:
+            InspectionResult (NO bare boolean)
+        """
+        # Build artifact
+        artifact = InspectionArtifact(
+            kind="pr_body",
+            content_ref="PR description",
+            trace="read_pr_description()",
+        )
+
+        findings = []
+        residuals = []
+        replay = ["inspect_pr()", "build_artifact(pr_body)"]
+
+        # Finding 1: Check for new construct claim
+        new_construct_finding = self._extract_new_construct_finding(pr_body)
+        findings.append(new_construct_finding)
+        replay.append("extract_new_construct_claim()")
+
+        if new_construct_finding.is_blocked() or new_construct_finding.rank is Rank.UNRESOLVED:
+            # No new construct → exemption criteria met
+            return InspectionResult(
+                status="PASS",
+                findings=tuple(findings),
+                rank=Rank.CERTIFIED,
+                residuals=tuple(residuals),
+                replay=tuple(replay),
+            )
+
+        # New construct detected - check for MinimalSufficiencyCheck
+        replay.append("new_construct_detected")
+
+        sufficiency_check_finding = self._extract_sufficiency_check_finding(pr_body)
+        findings.append(sufficiency_check_finding)
+        replay.append("extract_sufficiency_check()")
+
+        if sufficiency_check_finding.rank is Rank.REFUTED:
+            # Missing sufficiency check
+            return InspectionResult(
+                status="FAIL",
+                findings=tuple(findings),
+                rank=Rank.REFUTED,
+                residuals=tuple(residuals),
+                replay=tuple(replay),
+            )
+
+        # Validate sufficiency check content
+        content_findings, content_residuals = self._validate_check_content_governed(pr_body)
+        findings.extend(content_findings)
+        residuals.extend(content_residuals)
+        replay.append("validate_check_content()")
+
+        # Determine status from findings
+        has_refuted = any(f.rank is Rank.REFUTED for f in findings)
+        has_blocked = any(f.is_blocked() for f in findings)
+
+        if has_refuted or has_blocked:
+            status = "FAIL"
+            rank = Rank.REFUTED if has_refuted else Rank.CANDIDATE
+        elif residuals:
+            status = "NEEDS_REVIEW"
+            rank = Rank.LICENSED
+        else:
+            status = "PASS"
+            rank = Rank.CERTIFIED
+
+        return InspectionResult(
+            status=status,
+            findings=tuple(findings),
+            rank=rank,
+            residuals=tuple(residuals),
+            replay=tuple(replay),
+        )
+
+    def _extract_new_construct_finding(self, text: str) -> 'InspectionFinding':
+        """
+        Extract finding about new construct claim.
+
+        Uses counter-evidence to detect negation:
+        - "No new layers or gates" → counter-evidence blocks claim
+        - Explicit checkbox → strong evidence
+
+        Returns:
+            InspectionFinding with evidence and counter-evidence
+        """
+        claim = "New architectural construct added"
+        evidence = []
+        counter_evidence = []
+
+        # Strong evidence: Explicit checkbox
+        if re.search(r'\[x\]\s+\*\*New Architectural Construct\*\*', text, re.IGNORECASE):
+            evidence.append("Explicit checkbox: [x] **New Architectural Construct** checked")
+
+        # Weak evidence: YAML field
+        if re.search(r'new_construct:\s*["\']?\w+', text):
+            evidence.append("YAML field: new_construct present")
+
+        # Weak evidence: construct_type field
+        if re.search(r'construct_type:', text):
+            evidence.append("YAML field: construct_type present")
+
+        # Weak evidence: Regex patterns (BUT check for negation first!)
+        pattern_matches = []
+        if re.search(r'new.*(?:layer|gate|rule|domain)', text, re.IGNORECASE):
+            pattern_matches.append(re.search(r'new.*(?:layer|gate|rule|domain)', text, re.IGNORECASE).group())
+
+        # CRITICAL: Check for negation markers (counter-evidence)
+        negation_context = self._extract_negation_context(text, pattern_matches)
+        if negation_context:
+            counter_evidence.extend(negation_context)
+        elif pattern_matches:
+            # No negation → weak evidence
+            evidence.append(f"Regex pattern match: '{pattern_matches[0]}'")
+
+        # Determine rank
+        if counter_evidence:
+            # Blocked by negation
+            rank = Rank.CANDIDATE
+        elif not evidence:
+            # No evidence
+            rank = Rank.UNRESOLVED
+        elif any("Explicit checkbox" in e for e in evidence):
+            # Strong evidence
+            rank = Rank.LICENSED
+        else:
+            # Weak evidence only
+            rank = Rank.CANDIDATE
+
+        return InspectionFinding(
+            claim=claim,
+            evidence=tuple(evidence),
+            counter_evidence=tuple(counter_evidence),
+            rank=rank,
+            trace=("_detect_new_construct(text)",),
+        )
+
+    def _extract_negation_context(self, text: str, pattern_matches: List[str]) -> List[str]:
+        """
+        Extract negation markers that create counter-evidence.
+
+        Negation patterns:
+        - "No new layers"
+        - "not adding new gates"
+        - "without new domain"
+
+        Args:
+            text: Full text
+            pattern_matches: Matches from regex patterns
+
+        Returns:
+            List of counter-evidence strings
+        """
+        counter_evidence = []
+
+        # Check for negation markers near pattern matches
+        negation_patterns = [
+            r'\bno\b\s+new\s+(?:layers?|gates?|rules?|domains?)',
+            r'\bnot\b.*new\s+(?:layers?|gates?|rules?|domains?)',
+            r'\bwithout\b.*new\s+(?:layers?|gates?|rules?|domains?)',
+            r'no\s+new\s+(?:layers?|gates?|rules?|domains?)\s+(?:or|and)',
+        ]
+
+        for pattern in negation_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                counter_evidence.append(f"Negation marker: '{match.group()}'")
+
+        return counter_evidence
+
+    def _extract_sufficiency_check_finding(self, text: str) -> 'InspectionFinding':
+        """Extract finding about MinimalSufficiencyCheck presence."""
+        claim = "MinimalSufficiencyCheck section present"
+        evidence = []
+
+        patterns = [
+            (r'MinimalSufficiencyCheck:', "Header 'MinimalSufficiencyCheck:'"),
+            (r'```yaml\s*MinimalSufficiencyCheck:', "YAML code block with MinimalSufficiencyCheck"),
+        ]
+
+        for pattern, desc in patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                evidence.append(desc)
+
+        if evidence:
+            rank = Rank.LICENSED
+        else:
+            rank = Rank.REFUTED
+
+        return InspectionFinding(
+            claim=claim,
+            evidence=tuple(evidence),
+            rank=rank,
+            trace=("_has_minimal_sufficiency_check(text)",),
+        )
+
+    def _validate_check_content_governed(self, text: str) -> Tuple[List['InspectionFinding'], List['InspectionResidual']]:
+        """
+        Validate MinimalSufficiencyCheck content using governed inspection.
+
+        Returns:
+            Tuple of (findings, residuals)
+        """
+        findings = []
+        residuals = []
+
+        # Extract YAML block
+        yaml_match = re.search(
+            r'```yaml\s*MinimalSufficiencyCheck:(.*?)```',
+            text,
+            re.DOTALL | re.IGNORECASE
+        )
+
+        if not yaml_match:
+            findings.append(
+                InspectionFinding(
+                    claim="MinimalSufficiencyCheck in proper YAML format",
+                    evidence=(),
+                    rank=Rank.REFUTED,
+                    trace=("_validate_check_content()",),
+                )
+            )
+            return findings, residuals
+
+        check_content = yaml_match.group(1)
+
+        # Check required fields
+        required_fields = [
+            ('new_construct', 'New construct name'),
+            ('construct_type', 'Construct type'),
+            ('why_needed', 'Why needed justification'),
+            ('existing_constructs_checked', 'Existing constructs checked'),
+            ('smallest_possible_form', 'Smallest possible form'),
+            ('does_it_prevent_forbidden_leap', 'Forbidden leap prevention'),
+            ('explosion_risk', 'Explosion risk assessment'),
+            ('decision', 'Decision and rationale'),
+        ]
+
+        for field, description in required_fields:
+            if field in check_content:
+                findings.append(
+                    InspectionFinding(
+                        claim=f"Required field '{description}' present",
+                        evidence=(f"Field '{field}' found in YAML",),
+                        rank=Rank.LICENSED,
+                        trace=("check_required_field()",),
+                    )
+                )
+            else:
+                findings.append(
+                    InspectionFinding(
+                        claim=f"Required field '{description}' present",
+                        evidence=(),
+                        rank=Rank.REFUTED,
+                        residuals=(
+                            InspectionResidual(
+                                kind=InspectionResidualKind.CLAIM_WITHOUT_EVIDENCE,
+                                description=f"Missing required field: {description} ({field})",
+                            ),
+                        ),
+                        trace=("check_required_field()",),
+                    )
+                )
+
+        # Check existing constructs count (CRITICAL: Must be at least 2)
+        existing_count = check_content.count('construct:')
+        if existing_count < 2:
+            findings.append(
+                InspectionFinding(
+                    claim="At least 2 existing constructs checked",
+                    evidence=(f"Found {existing_count} construct(s)",),
+                    rank=Rank.REFUTED,
+                    residuals=(
+                        InspectionResidual(
+                            kind=InspectionResidualKind.INSUFFICIENT_SPECIFICITY,
+                            description=f"At least 2 existing constructs must be checked, found: {existing_count}",
+                        ),
+                    ),
+                    trace=("check_existing_constructs_count()",),
+                )
+            )
+
+        # Check anti-patterns
+        anti_pattern_findings, anti_pattern_residuals = self._check_anti_patterns_governed(check_content)
+        findings.extend(anti_pattern_findings)
+        residuals.extend(anti_pattern_residuals)
+
+        return findings, residuals
+
+    def _check_anti_patterns_governed(self, content: str) -> Tuple[List['InspectionFinding'], List['InspectionResidual']]:
+        """Check for anti-patterns using governed inspection."""
+        findings = []
+        residuals = []
+        content_lower = content.lower()
+
+        # Anti-pattern 1: "Useful but not necessary"
+        if 'useful' in content_lower and 'necessary' not in content_lower:
+            residuals.append(
+                InspectionResidual(
+                    kind=InspectionResidualKind.WEAK_EVIDENCE,
+                    description=(
+                        "Answer focuses on 'useful' rather than 'necessary' - "
+                        "constitutional requirement is necessity, not utility"
+                    ),
+                )
+            )
+
+        # Anti-pattern 2: Vague insufficient reasons
+        if 'doesn\'t work' in content_lower or 'doesn\'t handle' in content_lower:
+            if 'trace' not in content_lower and 'rank' not in content_lower and 'residual' not in content_lower:
+                residuals.append(
+                    InspectionResidual(
+                        kind=InspectionResidualKind.WEAK_EVIDENCE,
+                        description=(
+                            "Insufficient reasons are vague - must specify what is lost "
+                            "(trace/rank/residuals/noleap)"
+                        ),
+                    )
+                )
+
+        # Anti-pattern 3: High risk without mitigation
+        if re.search(r'level:\s*high', content_lower):
+            if 'mitigation' not in content_lower:
+                findings.append(
+                    InspectionFinding(
+                        claim="High explosion risk requires mitigation",
+                        evidence=("Risk level: high found",),
+                        counter_evidence=("No mitigation strategy found",),
+                        rank=Rank.REFUTED,
+                        trace=("check_high_risk_mitigation()",),
+                    )
+                )
+
+        return findings, residuals
+
+    def _inspection_to_validation(self, inspection: 'InspectionResult') -> ValidationResult:
+        """
+        Convert InspectionResult to ValidationResult for backward compatibility.
+
+        This bridge allows gradual migration while preserving public API.
+
+        Args:
+            inspection: InspectionResult from governed inspection
+
+        Returns:
+            ValidationResult (legacy format)
+        """
+        legacy = inspection.to_legacy_validation_result()
+        return ValidationResult(
+            passed=legacy["passed"],
+            errors=legacy["errors"],
+            warnings=legacy["warnings"],
+            info=legacy["info"],
+        )
+
+    def _check_pr_legacy(self, pr_body: str) -> ValidationResult:
+        """
+        Legacy implementation (fallback when inspection algebra unavailable).
+
+        This is the old bare-boolean implementation.
 
         Args:
             pr_body: Full PR description/body text
