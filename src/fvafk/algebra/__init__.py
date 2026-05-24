@@ -29,6 +29,8 @@ Analyzers and learners:
 
 - :class:`ArabicAlgebraDecisionTree`, :class:`AnalysisReport`
 - :class:`CodeChange`, :class:`CodeLearningTrace`
+- :class:`ProblemTrace`, :class:`PatchProposal`, :class:`CodeLearningDecision`
+- :class:`GovernedCodeLearningLoop`
 - :class:`KnowledgeStore`
 """
 
@@ -41,6 +43,12 @@ from .arabic_layers import (
     is_bridge_allowed,
 )
 from .code_learning import CodeChange, CodeLearningTrace
+from .code_learning_loop import (
+    CodeLearningDecision,
+    GovernedCodeLearningLoop,
+    PatchProposal,
+    ProblemTrace,
+)
 from .core import (
     Carrier,
     Evidence,
@@ -86,6 +94,11 @@ __all__ = [
     # code_learning
     "CodeChange",
     "CodeLearningTrace",
+    # code_learning_loop
+    "ProblemTrace",
+    "PatchProposal",
+    "CodeLearningDecision",
+    "GovernedCodeLearningLoop",
     # learning
     "KnowledgeStore",
 ]
