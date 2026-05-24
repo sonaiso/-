@@ -170,32 +170,26 @@ class InspectionFinding:
 
 
 @dataclass(frozen=True)
-class InspectionResult:
-    """The governed output of an inspection operation.
+class InspectionReport:
+    """Domain report structure for inspection operations.
 
-    NO bare boolean. Every inspection returns:
-    - status: PASS | FAIL | NEEDS_REVIEW
-    - findings: Individual claims with evidence/counter-evidence
-    - rank: Overall epistemic status
-    - residuals: What was not resolved across all findings
-    - replay: Full audit trail
+    This is a DOMAIN VALUE, not a constitutional judgment container.
+    It holds inspection-specific information (status, findings, replay)
+    but does NOT carry constitutional judgment fields (rank, residuals, evidence).
 
-    Status semantics:
+    Constitutional judgment is carried by Result[InspectionReport] from fvafk.algebra.
+
+    Status semantics (domain-level only):
     - PASS: All findings CERTIFIED or no blocking findings
     - FAIL: At least one finding REFUTED or BLOCKED
     - NEEDS_REVIEW: Mixed findings or residuals present
 
-    Constitutional Laws:
-    1. Status is derived from findings + rank, not arbitrary
-    2. FAIL requires explicit refutation or blocking
-    3. PASS requires high confidence (CERTIFIED findings or empty)
-    4. NEEDS_REVIEW is the default for ambiguous cases
+    Note: This is NOT InspectionResult. InspectionResult was a parallel kernel
+    which violated ARCH0. This is the domain report carried inside Result[...].
     """
 
     status: Literal["PASS", "FAIL", "NEEDS_REVIEW"]
     findings: Tuple[InspectionFinding, ...] = ()
-    rank: Rank = Rank.UNRESOLVED
-    residuals: Tuple[InspectionResidual, ...] = ()
     replay: Tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -206,7 +200,7 @@ class InspectionResult:
             has_blocked = any(f.is_blocked() for f in self.findings)
             if not (has_refuted or has_blocked):
                 raise ValueError(
-                    "InspectionResult with status=FAIL requires at least one "
+                    "InspectionReport with status=FAIL requires at least one "
                     "REFUTED or blocked finding"
                 )
 
@@ -214,54 +208,164 @@ class InspectionResult:
             # PASS forbids REFUTED findings
             if any(f.rank is Rank.REFUTED for f in self.findings):
                 raise ValueError(
-                    "InspectionResult with status=PASS cannot contain REFUTED findings"
+                    "InspectionReport with status=PASS cannot contain REFUTED findings"
                 )
 
-    def to_legacy_validation_result(self) -> dict:
-        """Convert to legacy ValidationResult format for backward compatibility.
 
-        This allows gradual migration from bare boolean checker to governed
-        inspection algebra without breaking existing tools.
+def make_inspection_result(
+    report: InspectionReport,
+    residuals: Tuple[InspectionResidual, ...] = (),
+) -> "Result[InspectionReport]":
+    """Lift InspectionReport into Result[InspectionReport].
 
-        Returns:
-            Dict with keys: passed (bool), errors (list), warnings (list), info (list)
-        """
-        passed = self.status == "PASS"
+    This is the canonical way to produce a constitutional inspection output:
+    1. Domain report (InspectionReport) with status/findings/replay
+    2. Wrapped in Result[...] with constitutional fields (rank/evidence/residuals/trace)
 
-        errors = []
-        warnings = []
-        info = []
+    Args:
+        report: The domain inspection report
+        residuals: Domain-level inspection residuals to be lifted to fvafk.algebra.Residual
 
-        for finding in self.findings:
-            if finding.rank is Rank.REFUTED:
-                errors.append(f"{finding.claim}: REFUTED")
-            elif finding.is_blocked():
-                errors.append(
-                    f"{finding.claim}: blocked by counter-evidence: "
-                    f"{', '.join(finding.counter_evidence)}"
+    Returns:
+        Result[InspectionReport] with constitutional judgment
+
+    Critical Law: This is the ONLY way inspection outputs should be produced.
+    NO parallel InspectionResult class is allowed (G6 violation).
+    """
+    from ..core import Result, Evidence, Residual, Trace
+
+    # Collect evidence from findings
+    constitutional_evidence = []
+    for finding in report.findings:
+        for ev in finding.evidence:
+            constitutional_evidence.append(
+                Evidence(
+                    kind="inspection_finding",
+                    source=finding.claim,
+                    detail=ev,
+                    weight=1.0,
                 )
-            elif finding.residuals:
-                warnings.append(
-                    f"{finding.claim}: has {len(finding.residuals)} residual(s)"
+            )
+
+    # If PASS but no evidence from findings, create default evidence
+    if report.status == "PASS" and not constitutional_evidence:
+        constitutional_evidence.append(
+            Evidence(
+                kind="inspection_status",
+                source="inspection_report",
+                detail=f"Status: {report.status} with no blocking findings",
+                weight=1.0,
+            )
+        )
+
+    # Derive rank from report status and findings
+    if report.status == "PASS":
+        rank = Rank.CERTIFIED if constitutional_evidence else Rank.CANDIDATE
+    elif report.status == "FAIL":
+        rank = Rank.REFUTED
+    else:  # NEEDS_REVIEW
+        rank = Rank.LICENSED
+
+    # Lift domain residuals to constitutional residuals
+    constitutional_residuals = tuple(
+        Residual(
+            kind=f"inspection.{r.kind.value}",
+            description=r.description,
+        )
+        for r in residuals
+    )
+
+    # Build trace from replay
+    trace = Trace(
+        operation="inspection",
+        source_span=(0, 0),
+        parents=(),
+        metadata={"replay": report.replay},
+    )
+
+    # Collect failures from REFUTED findings
+    failures = []
+    for finding in report.findings:
+        if finding.rank is Rank.REFUTED:
+            from ..core import Failure
+            failures.append(
+                Failure(
+                    kind="inspection_refuted_finding",
+                    description=finding.claim,
+                    fatal=True,
                 )
-            elif finding.rank is Rank.CERTIFIED:
-                info.append(f"{finding.claim}: CERTIFIED")
+            )
 
-        for residual in self.residuals:
-            warnings.append(f"{residual.kind.value}: {residual.description}")
+    return Result(
+        value=report,
+        rank=rank,
+        evidence=tuple(constitutional_evidence),
+        residuals=constitutional_residuals,
+        failures=tuple(failures),
+        trace=trace,
+    )
 
-        return {
-            "passed": passed,
-            "errors": errors,
-            "warnings": warnings,
-            "info": info,
-        }
+
+def inspection_result_to_legacy_dict(result: "Result[InspectionReport]") -> dict:
+    """Convert Result[InspectionReport] to legacy ValidationResult format.
+
+    This allows gradual migration from bare boolean checker to governed
+    inspection algebra without breaking existing tools.
+
+    Args:
+        result: Result[InspectionReport] from governed inspection
+
+    Returns:
+        Dict with keys: passed (bool), errors (list), warnings (list), info (list)
+    """
+    report = result.value
+    passed = report.status == "PASS"
+
+    errors = []
+    warnings = []
+    info = []
+
+    # Extract from findings
+    for finding in report.findings:
+        if finding.rank is Rank.REFUTED:
+            errors.append(f"{finding.claim}: REFUTED")
+        elif finding.is_blocked():
+            errors.append(
+                f"{finding.claim}: blocked by counter-evidence: "
+                f"{', '.join(finding.counter_evidence)}"
+            )
+        elif finding.residuals:
+            warnings.append(
+                f"{finding.claim}: has {len(finding.residuals)} residual(s)"
+            )
+        elif finding.rank is Rank.CERTIFIED:
+            info.append(f"{finding.claim}: CERTIFIED")
+
+    # Extract from constitutional residuals
+    for residual in result.residuals:
+        warnings.append(f"{residual.kind}: {residual.description}")
+
+    # Extract from constitutional failures
+    for failure in result.failures:
+        if failure.fatal:
+            errors.append(f"FATAL: {failure.description}")
+        else:
+            warnings.append(f"{failure.kind}: {failure.description}")
+
+    return {
+        "passed": passed,
+        "errors": errors,
+        "warnings": warnings,
+        "info": info,
+    }
 
 
 __all__ = [
     "InspectionArtifact",
     "InspectionFinding",
     "InspectionResidual",
-    "InspectionResult",
+    "InspectionReport",  # Domain report (not InspectionResult)
     "InspectionResidualKind",
+    "make_inspection_result",  # Canonical lift to Result[InspectionReport]
+    "inspection_result_to_legacy_dict",  # Legacy bridge
 ]

@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import List, Tuple
 from enum import Enum
 
-# Import inspection algebra (PR-INS1)
+# Import inspection algebra (PR-INS1 + G6)
 # Use try/except for environments where fvafk.algebra may not be in path
 try:
     sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -36,9 +36,11 @@ try:
         InspectionArtifact,
         InspectionFinding,
         InspectionResidual,
-        InspectionResult,
+        InspectionReport,
         InspectionResidualKind,
         Rank,
+        make_inspection_result,
+        inspection_result_to_legacy_dict,
     )
     INSPECTION_ALGEBRA_AVAILABLE = True
 except ImportError:
@@ -136,25 +138,26 @@ class ArchitecturalAdmissionChecker:
             ValidationResult with pass/fail and details
         """
         if INSPECTION_ALGEBRA_AVAILABLE:
-            # Use governed inspection algebra
+            # Use governed inspection algebra (G6: Result[InspectionReport])
             inspection_result = self._check_pr_governed(pr_body)
-            return self._inspection_to_validation(inspection_result)
+            return self._result_to_validation(inspection_result)
         else:
             # Fallback to legacy implementation
             return self._check_pr_legacy(pr_body)
 
-    def _check_pr_governed(self, pr_body: str) -> 'InspectionResult':
+    def _check_pr_governed(self, pr_body: str) -> 'Result[InspectionReport]':
         """
-        Governed inspection using InspectionAlgebra.
+        Governed inspection using Result[InspectionReport].
 
-        Follows constitutional law:
+        Follows constitutional law (G6):
             artifact → evidence → counter_evidence → finding → rank → residuals → trace
+            All wrapped in Result[InspectionReport], NOT InspectionResult.
 
         Args:
             pr_body: PR description text
 
         Returns:
-            InspectionResult (NO bare boolean)
+            Result[InspectionReport] (constitutional judgment container)
         """
         # Build artifact
         artifact = InspectionArtifact(
@@ -175,13 +178,12 @@ class ArchitecturalAdmissionChecker:
                 rank=Rank.CERTIFIED,
                 trace=("check_exemption()",),
             )
-            return InspectionResult(
+            report = InspectionReport(
                 status="PASS",
                 findings=(exempt_finding,),
-                rank=Rank.CERTIFIED,
-                residuals=(),
                 replay=("inspect_pr()", "build_artifact(pr_body)", "check_exemption()"),
             )
+            return make_inspection_result(report)
 
         # Finding 1: Check for new construct claim
         new_construct_finding = self._extract_new_construct_finding(pr_body)
@@ -190,13 +192,12 @@ class ArchitecturalAdmissionChecker:
 
         if new_construct_finding.is_blocked() or new_construct_finding.rank is Rank.UNRESOLVED:
             # No new construct → exemption criteria met
-            return InspectionResult(
+            report = InspectionReport(
                 status="PASS",
                 findings=tuple(findings),
-                rank=Rank.CERTIFIED,
-                residuals=tuple(residuals),
                 replay=tuple(replay),
             )
+            return make_inspection_result(report, residuals=tuple(residuals))
 
         # New construct detected - check for MinimalSufficiencyCheck
         replay.append("new_construct_detected")
@@ -207,13 +208,12 @@ class ArchitecturalAdmissionChecker:
 
         if sufficiency_check_finding.rank is Rank.REFUTED:
             # Missing sufficiency check
-            return InspectionResult(
+            report = InspectionReport(
                 status="FAIL",
                 findings=tuple(findings),
-                rank=Rank.REFUTED,
-                residuals=tuple(residuals),
                 replay=tuple(replay),
             )
+            return make_inspection_result(report, residuals=tuple(residuals))
 
         # Validate sufficiency check content
         content_findings, content_residuals = self._validate_check_content_governed(pr_body)
@@ -227,20 +227,36 @@ class ArchitecturalAdmissionChecker:
 
         if has_refuted or has_blocked:
             status = "FAIL"
-            rank = Rank.REFUTED if has_refuted else Rank.CANDIDATE
         elif residuals:
             status = "NEEDS_REVIEW"
-            rank = Rank.LICENSED
         else:
             status = "PASS"
-            rank = Rank.CERTIFIED
 
-        return InspectionResult(
+        report = InspectionReport(
             status=status,
             findings=tuple(findings),
-            rank=rank,
-            residuals=tuple(residuals),
             replay=tuple(replay),
+        )
+        return make_inspection_result(report, residuals=tuple(residuals))
+
+    def _result_to_validation(self, result: 'Result[InspectionReport]') -> ValidationResult:
+        """
+        Convert Result[InspectionReport] to ValidationResult for backward compatibility.
+
+        This bridge allows gradual migration while preserving public API.
+
+        Args:
+            result: Result[InspectionReport] from governed inspection
+
+        Returns:
+            ValidationResult (legacy format)
+        """
+        legacy = inspection_result_to_legacy_dict(result)
+        return ValidationResult(
+            passed=legacy["passed"],
+            errors=legacy["errors"],
+            warnings=legacy["warnings"],
+            info=legacy["info"],
         )
 
     def _extract_new_construct_finding(self, text: str) -> 'InspectionFinding':
@@ -523,26 +539,6 @@ class ArchitecturalAdmissionChecker:
                 )
 
         return findings, residuals
-
-    def _inspection_to_validation(self, inspection: 'InspectionResult') -> ValidationResult:
-        """
-        Convert InspectionResult to ValidationResult for backward compatibility.
-
-        This bridge allows gradual migration while preserving public API.
-
-        Args:
-            inspection: InspectionResult from governed inspection
-
-        Returns:
-            ValidationResult (legacy format)
-        """
-        legacy = inspection.to_legacy_validation_result()
-        return ValidationResult(
-            passed=legacy["passed"],
-            errors=legacy["errors"],
-            warnings=legacy["warnings"],
-            info=legacy["info"],
-        )
 
     def _check_pr_legacy(self, pr_body: str) -> ValidationResult:
         """

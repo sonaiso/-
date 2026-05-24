@@ -1,6 +1,6 @@
 """Tests for governed inspection algebra.
 
-Authority: PR-INS1
+Authority: PR-INS1 + G6
 
 Test Categories:
 
@@ -12,6 +12,7 @@ Test Categories:
 6. Residual tracking (explicit reason for non-CERTIFIED)
 7. Replay preservation (full audit trail)
 8. Legacy compatibility (conversion to ValidationResult)
+9. G6 Compliance: Result[InspectionReport] pattern (NO InspectionResult)
 
 Critical Laws Being Tested:
 
@@ -20,6 +21,7 @@ Critical Laws Being Tested:
 - No CERTIFIED with residuals
 - No CERTIFIED with counter-evidence
 - Status derived from findings, not arbitrary
+- G6: InspectionReport is domain value; Result is constitutional container
 """
 
 import pytest
@@ -28,9 +30,12 @@ from fvafk.algebra import (
     InspectionArtifact,
     InspectionFinding,
     InspectionResidual,
-    InspectionResult,
+    InspectionReport,
     InspectionResidualKind,
     Rank,
+    Result,
+    make_inspection_result,
+    inspection_result_to_legacy_dict,
 )
 
 
@@ -187,8 +192,8 @@ class TestInspectionResidual:
             )
 
 
-class TestInspectionResult:
-    """Test InspectionResult governed output."""
+class TestInspectionReport:
+    """Test InspectionReport domain structure (G6)."""
 
     def test_pass_with_certified_findings(self):
         """PASS status with CERTIFIED findings."""
@@ -199,13 +204,12 @@ class TestInspectionResult:
                 rank=Rank.CERTIFIED,
             ),
         )
-        result = InspectionResult(
+        report = InspectionReport(
             status="PASS",
             findings=findings,
-            rank=Rank.CERTIFIED,
         )
-        assert result.status == "PASS"
-        assert result.findings[0].is_certified()
+        assert report.status == "PASS"
+        assert report.findings[0].is_certified()
 
     def test_fail_with_refuted_finding(self):
         """FAIL status requires REFUTED finding."""
@@ -216,12 +220,11 @@ class TestInspectionResult:
                 rank=Rank.REFUTED,  # Contradicted
             ),
         )
-        result = InspectionResult(
+        report = InspectionReport(
             status="FAIL",
             findings=findings,
-            rank=Rank.REFUTED,
         )
-        assert result.status == "FAIL"
+        assert report.status == "FAIL"
 
     def test_fail_with_blocked_finding(self):
         """FAIL status with counter-evidence blocked finding."""
@@ -233,12 +236,11 @@ class TestInspectionResult:
                 rank=Rank.CANDIDATE,
             ),
         )
-        result = InspectionResult(
+        report = InspectionReport(
             status="FAIL",
             findings=findings,
-            rank=Rank.CANDIDATE,
         )
-        assert result.status == "FAIL"
+        assert report.status == "FAIL"
         assert findings[0].is_blocked()
 
     def test_fail_without_refuted_or_blocked_raises(self):
@@ -251,7 +253,7 @@ class TestInspectionResult:
             ),
         )
         with pytest.raises(ValueError, match="FAIL requires at least one REFUTED or blocked"):
-            InspectionResult(
+            InspectionReport(
                 status="FAIL",
                 findings=findings,
             )
@@ -266,7 +268,7 @@ class TestInspectionResult:
             ),
         )
         with pytest.raises(ValueError, match="PASS cannot contain REFUTED"):
-            InspectionResult(
+            InspectionReport(
                 status="PASS",
                 findings=findings,
             )
@@ -286,71 +288,11 @@ class TestInspectionResult:
                 ),
             ),
         )
-        result = InspectionResult(
+        report = InspectionReport(
             status="NEEDS_REVIEW",
             findings=findings,
-            rank=Rank.LICENSED,
-            residuals=(findings[0].residuals[0],),
         )
-        assert result.status == "NEEDS_REVIEW"
-
-    def test_to_legacy_validation_result_pass(self):
-        """Convert PASS to legacy format."""
-        findings = (
-            InspectionFinding(
-                claim="Clean check",
-                evidence=("All good",),
-                rank=Rank.CERTIFIED,
-            ),
-        )
-        result = InspectionResult(
-            status="PASS",
-            findings=findings,
-            rank=Rank.CERTIFIED,
-        )
-
-        legacy = result.to_legacy_validation_result()
-        assert legacy["passed"] is True
-        assert "Clean check: CERTIFIED" in legacy["info"]
-        assert not legacy["errors"]
-
-    def test_to_legacy_validation_result_fail(self):
-        """Convert FAIL to legacy format."""
-        findings = (
-            InspectionFinding(
-                claim="Bad construct",
-                evidence=("Evidence",),
-                rank=Rank.REFUTED,
-            ),
-        )
-        result = InspectionResult(
-            status="FAIL",
-            findings=findings,
-            rank=Rank.REFUTED,
-        )
-
-        legacy = result.to_legacy_validation_result()
-        assert legacy["passed"] is False
-        assert any("REFUTED" in e for e in legacy["errors"])
-
-    def test_to_legacy_validation_result_with_blocked(self):
-        """Convert blocked finding to legacy errors."""
-        findings = (
-            InspectionFinding(
-                claim="New gate",
-                evidence=("Match",),
-                counter_evidence=("No new gates",),
-                rank=Rank.CANDIDATE,
-            ),
-        )
-        result = InspectionResult(
-            status="FAIL",
-            findings=findings,
-        )
-
-        legacy = result.to_legacy_validation_result()
-        assert legacy["passed"] is False
-        assert any("blocked by counter-evidence" in e for e in legacy["errors"])
+        assert report.status == "NEEDS_REVIEW"
 
 
 class TestNegationDetection:
@@ -391,19 +333,198 @@ class TestNegationDetection:
         )
 
         # Both findings present = contradiction = NEEDS_REVIEW
-        result = InspectionResult(
+        report = InspectionReport(
             status="NEEDS_REVIEW",
             findings=(finding1, finding2),
-            rank=Rank.LICENSED,
-            residuals=(
-                InspectionResidual(
-                    kind=InspectionResidualKind.WEAK_EVIDENCE,
-                    description="Contradiction: checkbox checked but body denies"
-                ),
+        )
+
+        assert report.status == "NEEDS_REVIEW"
+
+
+class TestG6Compliance:
+    """Test G6: Result[InspectionReport] pattern enforcement."""
+
+    def test_make_inspection_result_wraps_report(self):
+        """make_inspection_result() wraps InspectionReport in Result."""
+        findings = (
+            InspectionFinding(
+                claim="Test verified",
+                evidence=("Test passes",),
+                rank=Rank.CERTIFIED,
+            ),
+        )
+        report = InspectionReport(
+            status="PASS",
+            findings=findings,
+            replay=("inspect()", "verify()"),
+        )
+
+        result = make_inspection_result(report)
+
+        # G6: result must be Result[InspectionReport]
+        assert isinstance(result, Result)
+        assert isinstance(result.value, InspectionReport)
+        assert result.value is report
+        assert result.rank is Rank.CERTIFIED
+
+    def test_make_inspection_result_lifts_residuals(self):
+        """Domain residuals lifted to constitutional Residual."""
+        findings = (
+            InspectionFinding(
+                claim="Weak evidence",
+                evidence=("Regex match",),
+                rank=Rank.LICENSED,
+            ),
+        )
+        report = InspectionReport(
+            status="NEEDS_REVIEW",
+            findings=findings,
+        )
+        domain_residuals = (
+            InspectionResidual(
+                kind=InspectionResidualKind.WEAK_EVIDENCE,
+                description="Only regex, no source verification",
             ),
         )
 
-        assert result.status == "NEEDS_REVIEW"
+        result = make_inspection_result(report, residuals=domain_residuals)
+
+        assert isinstance(result, Result)
+        assert len(result.residuals) == 1
+        assert result.residuals[0].kind == "inspection.weak_evidence"
+        assert result.rank is Rank.LICENSED
+
+    def test_make_inspection_result_derives_rank_from_status(self):
+        """Rank derived from report status."""
+        # PASS → CERTIFIED
+        report_pass = InspectionReport(
+            status="PASS",
+            findings=(
+                InspectionFinding(claim="OK", evidence=("E",), rank=Rank.CERTIFIED),
+            ),
+        )
+        result_pass = make_inspection_result(report_pass)
+        assert result_pass.rank is Rank.CERTIFIED
+
+        # FAIL → REFUTED
+        report_fail = InspectionReport(
+            status="FAIL",
+            findings=(
+                InspectionFinding(claim="Bad", evidence=("E",), rank=Rank.REFUTED),
+            ),
+        )
+        result_fail = make_inspection_result(report_fail)
+        assert result_fail.rank is Rank.REFUTED
+
+        # NEEDS_REVIEW → LICENSED
+        report_review = InspectionReport(
+            status="NEEDS_REVIEW",
+            findings=(
+                InspectionFinding(claim="Maybe", evidence=("E",), rank=Rank.LICENSED),
+            ),
+        )
+        result_review = make_inspection_result(report_review)
+        assert result_review.rank is Rank.LICENSED
+
+    def test_inspection_result_to_legacy_dict_converts_correctly(self):
+        """Legacy bridge converts Result[InspectionReport] to dict."""
+        findings = (
+            InspectionFinding(
+                claim="Clean check",
+                evidence=("All good",),
+                rank=Rank.CERTIFIED,
+            ),
+        )
+        report = InspectionReport(
+            status="PASS",
+            findings=findings,
+        )
+        result = make_inspection_result(report)
+
+        legacy = inspection_result_to_legacy_dict(result)
+
+        assert legacy["passed"] is True
+        assert "Clean check: CERTIFIED" in legacy["info"]
+        assert not legacy["errors"]
+
+    def test_legacy_bridge_extracts_failures(self):
+        """Legacy bridge extracts failures from Result."""
+        findings = (
+            InspectionFinding(
+                claim="Bad construct",
+                evidence=("Evidence",),
+                rank=Rank.REFUTED,
+            ),
+        )
+        report = InspectionReport(
+            status="FAIL",
+            findings=findings,
+        )
+        result = make_inspection_result(report)
+
+        legacy = inspection_result_to_legacy_dict(result)
+
+        assert legacy["passed"] is False
+        assert any("FATAL" in e for e in legacy["errors"])
+
+    def test_no_parallel_inspection_result_class(self):
+        """G6: No InspectionResult class exists (only InspectionReport)."""
+        # Verify InspectionReport exists
+        assert InspectionReport is not None
+
+        # Verify make_inspection_result exists
+        assert make_inspection_result is not None
+
+        # Verify old InspectionResult name is NOT exported
+        import fvafk.algebra as alg
+        assert not hasattr(alg, 'InspectionResult')
+
+
+class TestInspectionReportNoBareBooleanAnywhere:
+    """Critical: No bare boolean in inspection algebra (G6 update)."""
+
+    def test_inspection_report_has_no_bool_field(self):
+        """InspectionReport must not have bare 'passed' boolean field."""
+        report = InspectionReport(
+            status="PASS",
+            findings=(),
+        )
+
+        # Should have status (str), not passed (bool)
+        assert hasattr(report, "status")
+        assert not hasattr(report, "passed")
+        assert report.status in ("PASS", "FAIL", "NEEDS_REVIEW")
+
+    def test_finding_has_no_bool_field(self):
+        """InspectionFinding must not have bare boolean fields."""
+        finding = InspectionFinding(
+            claim="Test",
+            evidence=("E",),
+            rank=Rank.LICENSED,
+        )
+
+        # Should have rank (Rank enum), not passed/valid (bool)
+        assert hasattr(finding, "rank")
+        assert not hasattr(finding, "passed")
+        assert not hasattr(finding, "valid")
+
+    def test_legacy_conversion_is_explicit(self):
+        """Boolean only appears in explicit legacy conversion."""
+        report = InspectionReport(
+            status="PASS",
+            findings=(),
+        )
+        result = make_inspection_result(report)
+
+        # inspection_result_to_legacy_dict() is the ONLY way to get boolean
+        legacy = inspection_result_to_legacy_dict(result)
+        assert "passed" in legacy  # Now allowed, because explicit conversion
+        assert isinstance(legacy["passed"], bool)
+
+        # But result itself has no boolean
+        assert not hasattr(result, "passed")
+        # Report itself has no boolean
+        assert not hasattr(report, "passed")
 
 
 class TestClaimEvidenceBinding:
@@ -529,47 +650,57 @@ class TestReplayPreservation:
         assert result.replay[0] == "inspect_pr(pr_number=80)"
 
 
-class TestNoBareBooleanAnywhere:
-    """Critical: No bare boolean in inspection algebra."""
+class TestReplayPreservation:
+    """Test full trace preservation for audit."""
 
-    def test_inspection_result_has_no_bool_field(self):
-        """InspectionResult must not have bare 'passed' boolean field."""
-        result = InspectionResult(
-            status="PASS",
-            findings=(),
-            rank=Rank.UNRESOLVED,
-        )
-
-        # Should have status (str), not passed (bool)
-        assert hasattr(result, "status")
-        assert not hasattr(result, "passed")
-        assert result.status in ("PASS", "FAIL", "NEEDS_REVIEW")
-
-    def test_finding_has_no_bool_field(self):
-        """InspectionFinding must not have bare boolean fields."""
+    def test_finding_with_trace(self):
+        """Finding preserves full trace chain."""
         finding = InspectionFinding(
-            claim="Test",
-            evidence=("E",),
-            rank=Rank.LICENSED,
+            claim="Construct verified",
+            evidence=("Evidence 1", "Evidence 2"),
+            rank=Rank.CERTIFIED,
+            trace=(
+                "read_pr_body(pr=80)",
+                "extract_checkbox_section()",
+                "verify_against_changed_files()",
+            ),
         )
 
-        # Should have rank (Rank enum), not passed/valid (bool)
-        assert hasattr(finding, "rank")
-        assert not hasattr(finding, "passed")
-        assert not hasattr(finding, "valid")
+        assert len(finding.trace) == 3
+        assert finding.trace[0] == "read_pr_body(pr=80)"
 
-    def test_legacy_conversion_is_explicit(self):
-        """Boolean only appears in explicit legacy conversion."""
-        result = InspectionResult(
+    def test_report_with_replay(self):
+        """Report preserves replay chain."""
+        report = InspectionReport(
+            status="PASS",
+            findings=(
+                InspectionFinding(
+                    claim="Verified",
+                    evidence=("E",),
+                    rank=Rank.CERTIFIED,
+                ),
+            ),
+            replay=(
+                "inspect_pr(pr_number=80)",
+                "build_artifacts()",
+                "extract_findings()",
+                "apply_rank_policy()",
+            ),
+        )
+
+        assert len(report.replay) == 4
+        assert report.replay[0] == "inspect_pr(pr_number=80)"
+
+    def test_result_preserves_trace_in_metadata(self):
+        """Result[InspectionReport] preserves replay in trace metadata (G6)."""
+        report = InspectionReport(
             status="PASS",
             findings=(),
-            rank=Rank.UNRESOLVED,
+            replay=("inspect()", "verify()",),
         )
+        result = make_inspection_result(report)
 
-        # to_legacy_validation_result() is the ONLY way to get boolean
-        legacy = result.to_legacy_validation_result()
-        assert "passed" in legacy  # Now allowed, because explicit conversion
-        assert isinstance(legacy["passed"], bool)
+        assert result.trace.operation == "inspection"
+        assert "replay" in result.trace.metadata
+        assert result.trace.metadata["replay"] == ("inspect()", "verify()")
 
-        # But result itself has no boolean
-        assert not hasattr(result, "passed")
