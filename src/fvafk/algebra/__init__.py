@@ -36,8 +36,9 @@ Analyzers and learners:
 Governance and inspection:
 
 - :class:`InspectionArtifact`, :class:`InspectionFinding`
-- :class:`InspectionResidual`, :class:`InspectionResult`
+- :class:`InspectionResidual`, :class:`InspectionReport`
 - :class:`InspectionResidualKind`
+- :func:`make_inspection_result`, :func:`inspection_result_to_legacy_dict`
 """
 
 from __future__ import annotations
@@ -72,8 +73,10 @@ from .governance import (
     InspectionArtifact,
     InspectionFinding,
     InspectionResidual,
-    InspectionResult,
+    InspectionReport,
     InspectionResidualKind,
+    make_inspection_result,
+    inspection_result_to_legacy_dict,
 )
 from .learning import KnowledgeStore
 from .policies import Policy, apply_policy, default_policy
@@ -118,6 +121,8 @@ __all__ = [
     "InspectionArtifact",
     "InspectionFinding",
     "InspectionResidual",
-    "InspectionResult",
+    "InspectionReport",
     "InspectionResidualKind",
+    "make_inspection_result",
+    "inspection_result_to_legacy_dict",
 ]
