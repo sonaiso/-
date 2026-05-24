@@ -48,12 +48,33 @@ from .comparability import ComparabilityState
 from .primitive_bindability import PrimitiveBindability
 
 
+# ============================================================================
+# MIGRATION NOTICE: This Rank definition is DEPRECATED and awaiting migration.
+#
+# CONSTITUTIONAL AUTHORITY: docs/ALGEBRA_KERNEL_CONSTITUTION.md Article 2
+# TARGET: Migrate to fvafk.algebra.Rank (src/fvafk/algebra/core.py:36)
+# TIMELINE: Remove after adapter layer implementation
+# ISSUE: To be tracked in future PR
+#
+# CRITICAL LAW: Do NOT extend this enum. Use fvafk.algebra.Rank for new code.
+#
+# This parallel Rank exists temporarily for proto_prior compatibility.
+# The canonical epistemic rank system is fvafk.algebra.Rank with values:
+#   UNRESOLVED, CANDIDATE, LICENSED, CERTIFIED, REFUTED
+#
+# Migration path:
+#   1. Create adapter mapping proto_prior.Rank → fvafk.algebra.Rank
+#   2. Update FirstPriorUnit to accept fvafk.algebra.Rank
+#   3. Remove this definition
+# ============================================================================
 class Rank(Enum):
     """
     Epistemic rank of a unit or result.
 
     Critical law: FirstPriorUnit typically starts at CANDIDATE or OBSERVED.
     It CANNOT be CERTIFIED based on hypothetical/textual existence alone.
+
+    DEPRECATED: This is a legacy adapter. See migration notice above.
     """
     CANDIDATE = auto()      # Candidate/proposed
     OBSERVED = auto()       # Directly observed

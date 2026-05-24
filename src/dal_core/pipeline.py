@@ -11,7 +11,31 @@ from typing import Any, Dict, List, Optional
 import unicodedata
 
 
+# ============================================================================
+# MIGRATION NOTICE: This Rank definition is DEPRECATED and awaiting migration.
+#
+# CONSTITUTIONAL AUTHORITY: docs/ALGEBRA_KERNEL_CONSTITUTION.md Article 2
+# TARGET: Migrate to fvafk.algebra.Rank (src/fvafk/algebra/core.py:36)
+# TIMELINE: Remove after dal_core pipeline refactoring
+# ISSUE: To be tracked in future PR
+#
+# CRITICAL LAW: Do NOT extend this enum. Use fvafk.algebra.Rank for new code.
+#
+# This parallel Rank exists temporarily for dal_core pipeline compatibility.
+# The canonical epistemic rank system is fvafk.algebra.Rank with values:
+#   UNRESOLVED, CANDIDATE, LICENSED, CERTIFIED, REFUTED
+#
+# Migration path:
+#   1. Map dal_core ranks to fvafk.algebra.Rank:
+#      ZERO → UNRESOLVED
+#      FORM → CANDIDATE
+#      QIYAS/AHAD/TAWATUR → LICENSED (with evidence differentiation)
+#      CERT → CERTIFIED
+#   2. Update pipeline to use fvafk.algebra.Rank
+#   3. Remove this definition
+# ============================================================================
 class Rank(Enum):
+    """DEPRECATED: Legacy dal_core rank. See migration notice above."""
     ZERO = 0
     FORM = 1
     QIYAS = 2
