@@ -1,7 +1,20 @@
 """
 Central Rank Enum - Unified Epistemic Ranking System
 
-This module provides the canonical Rank enum used throughout the GFA project.
+PR-ARCH0 adapter / migration-gap note
+-------------------------------------
+This module is a **documented migration-gap adapter** (gap **G1** in
+``docs/KERNEL_MIGRATION_GAPS.md``). Per
+``docs/ARCHITECTURE_AUTHORITY_MAP.md`` and
+``docs/ALGEBRA_KERNEL_CONSTITUTION.md`` the constitutional ``Rank`` lives in
+:class:`fvafk.algebra.Rank`. The ``Rank`` enum defined below is a legacy
+GFA-local enum kept for backwards compatibility until a lift adapter is in
+place. It MUST NOT be treated as a parallel kernel source of truth, MUST
+NOT be extended with new semantics, and MUST be migrated to the kernel
+``Rank`` in a follow-up PR (post-ARCH0, pre-GOV1).
+
+This module provides the canonical (legacy) Rank enum used throughout the
+GFA project pending migration.
 
 Critical Laws:
 1. Rank must be typed enum, NOT string

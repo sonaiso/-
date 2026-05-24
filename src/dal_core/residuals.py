@@ -2,6 +2,15 @@
 Residuals System (البقايا)
 
 Residuals track issues, warnings, and blockers throughout the pipeline.
+
+PR-ARCH0 adapter note
+---------------------
+This module is a documented adapter surface (migration-gap G3). Per
+``docs/ARCHITECTURE_AUTHORITY_MAP.md`` and ``docs/KERNEL_MIGRATION_GAPS.md``
+the constitutional ``Residual`` lives in :mod:`fvafk.algebra`; the
+``Residual`` defined here is a dal_core domain structure pending a lift
+adapter into the kernel and MUST NOT be treated as a parallel kernel
+source of truth.
 """
 
 from dataclasses import dataclass
