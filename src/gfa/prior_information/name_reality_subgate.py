@@ -38,6 +38,7 @@ from .reality_type import RealityType
 from .prior_information_candidate import PriorInformationCandidate
 from .residuals import (
     PriorInformationResidual,
+    PriorInformationResidualKind,
     make_name_only_residual,
     make_name_missing_referent_residual,
     make_name_missing_domain_residual,
@@ -216,8 +217,8 @@ class NameRealitySubGate:
         if existence_type == RealityType.UNSPECIFIED:
             residuals.append(
                 PriorInformationResidual(
-                    kind=PriorInformationResidualKind.PRIOR_MISSING_DOMAIN,
-                    severity="blocker",
+                    kind=PriorInformationResidualKind.R_PRIOR_MISSING_DOMAIN,
+                    severity="BLOCKER",
                     message=f"Name '{name}' has UNSPECIFIED existence type - must be determined",
                     trace=None,
                 )
