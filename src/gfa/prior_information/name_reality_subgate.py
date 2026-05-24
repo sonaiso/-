@@ -207,9 +207,33 @@ class NameRealitySubGate:
                 ),
             )
 
-        # Default existence type if not provided
+        # Default existence type if not provided - SAFETY: UNSPECIFIED not EXTERNAL
+        # Critical Law: Never assume EXTERNAL existence without explicit specification
         if existence_type is None:
-            existence_type = RealityType.EXTERNAL  # Default assumption
+            existence_type = RealityType.UNSPECIFIED  # Safe default
+
+        # Check UNSPECIFIED - must be determined before admission
+        if existence_type == RealityType.UNSPECIFIED:
+            residuals.append(
+                PriorInformationResidual(
+                    kind=PriorInformationResidualKind.PRIOR_MISSING_DOMAIN,
+                    severity="blocker",
+                    message=f"Name '{name}' has UNSPECIFIED existence type - must be determined",
+                    trace=None,
+                )
+            )
+            return NameRealitySubGateResult(
+                status="BLOCKED",
+                candidate=None,
+                rank="BLOCKED",
+                residuals=tuple(residuals),
+                failure=NameRealitySubGateFailure(
+                    kind=NameRealityFailureKind.NAME_WITHOUT_DOMAIN,
+                    message=f"Name '{name}' has UNSPECIFIED existence type",
+                    blocker_residuals=tuple(residuals),
+                    evidence_gap="existence_type",
+                ),
+            )
 
         # Check domain requirement
         if existence_type.requires_domain() and not domain:

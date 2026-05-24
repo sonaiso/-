@@ -17,7 +17,10 @@ class RealityType(Enum):
     """
     نوع الوجود - Existence Type
 
-    Seven types of existence, determined within domains:
+    Eight types of existence, determined within domains:
+
+    UNSPECIFIED: Unspecified/unknown existence type (default safety state)
+        Must be determined before admission - prevents dangerous defaults
 
     EXTERNAL: External/physical existence (الوجود الخارجي)
         Example: الماء (water), النار (fire) - if sensory evidence exists
@@ -40,8 +43,12 @@ class RealityType(Enum):
 
     NORMATIVE: Normative/value existence (الوجود المعياري)
         Example: العدالة (justice), الحرية (freedom)
+
+    Critical Safety Law:
+        Default to UNSPECIFIED (not EXTERNAL) to prevent accidental ontological claims
     """
 
+    UNSPECIFIED = auto()    # غير محدد - Safety default
     EXTERNAL = auto()       # الوجود الخارجي
     EFFECTUAL = auto()      # الوجود الأثري
     MENTAL = auto()         # الوجود الذهني
@@ -56,6 +63,7 @@ class RealityType(Enum):
             RealityType.MENTAL,
             RealityType.TECHNICAL,
             RealityType.NORMATIVE,
+            RealityType.UNSPECIFIED,  # UNSPECIFIED also requires domain
         }
 
     def allows_external_leap(self) -> bool:
@@ -70,8 +78,13 @@ class RealityType(Enum):
             RealityType.MENTAL,
         }
 
+    def is_specified(self) -> bool:
+        """Check if existence type has been specified."""
+        return self != RealityType.UNSPECIFIED
+
     def __str__(self) -> str:
         names_ar = {
+            RealityType.UNSPECIFIED: "غير محدد",
             RealityType.EXTERNAL: "خارجي",
             RealityType.EFFECTUAL: "أثري",
             RealityType.MENTAL: "ذهني",
