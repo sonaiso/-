@@ -1,24 +1,48 @@
 """
-Trace V1 (Plan-aligned, lightweight):
+C1 Pre-Kernel Trace Surface (Plan-aligned, lightweight).
 
-- Keep `FormCodecV2` reversible and "raw"
-- Put *all* modifications in gates over `FormStream`
-- Record each gate application as a `TraceStep`
+This module provides an **operational** trace surface used by C1 gates and
+``FormStream`` replay. It is intentionally separate from — and subordinate to —
+the constitutional algebra kernel defined in :mod:`fvafk.algebra`.
 
-This does not attempt formal proof; it is designed to be formalizable later.
+Two kinds of trace exist in the project, and they MUST NOT be conflated:
+
+* **Operational C1 trace** (this module — :class:`C1Trace`):
+  records gate-by-gate transformations over a :class:`FormStream`, with
+  before/after hashes for deterministic replay at the C1 boundary.
+
+* **Constitutional algebra trace** (:class:`fvafk.algebra.Trace`):
+  immutable provenance record attached to :class:`Result` /
+  :class:`Evidence` in the general algebra. It is the *only* trace that
+  carries constitutional weight (rank, evidence, residuals, replay).
+
+Design rules (see ``docs/ALGEBRA_KERNEL_CONSTITUTION.md``):
+
+1. :class:`C1Trace` is NOT a constitutional trace; it is a pre-kernel
+   operational surface kept for C1 compatibility.
+2. The name :data:`Trace` is exposed here only as a **backward-compatible
+   alias** for :class:`C1Trace`. New code should prefer :class:`C1Trace`.
+3. Crossing into the algebra kernel happens through the explicit
+   :func:`to_algebra_trace` adapter; this module never re-imports
+   ``fvafk.algebra`` at module scope, so C1 remains usable standalone.
+4. No ``Rank``, ``Result``, ``Evidence``, ``Residual`` or ``Failure``
+   types may be (re-)defined in this file — those live in
+   :mod:`fvafk.algebra` only.
+
+Pre-kernel adapter status: this module is a documented adapter surface.
+It MUST NOT grow into a parallel kernel. See
+``tests/test_algebra_kernel_uniqueness.py`` for the enforced guards.
 """
-
-# TEMPORARY ADAPTER NOTE:
-# This pre-kernel trace surface remains for C1 compatibility. The constitutional
-# kernel is documented in docs/ALGEBRA_KERNEL_CONSTITUTION.md and this module
-# should migrate toward fvafk.algebra.Trace or a documented adapter.
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Iterable, List, Optional, Protocol, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Protocol, Sequence, Tuple
 
 from .form_codec_v2 import FormCodecV2, FormStream, GraphemeToken, stable_hash
+
+if TYPE_CHECKING:  # pragma: no cover - typing only, keeps C1 standalone at runtime
+    from fvafk.algebra import Trace as AlgebraTrace
 
 
 class GateFn(Protocol):
@@ -69,7 +93,14 @@ def diff_tokens(a: FormStream, b: FormStream) -> List[TokenDiff]:
 
 
 @dataclass(frozen=True)
-class TraceStep:
+class C1TraceStep:
+    """Operational record of a single gate application within C1.
+
+    This is **not** a constitutional algebra step; it carries no rank or
+    evidence. It is consumed only by :func:`replay` to reproduce a
+    :class:`FormStream` transformation deterministically.
+    """
+
     gate_id: str
     rule_id: Optional[str]
     before_hash: str
@@ -78,20 +109,32 @@ class TraceStep:
 
 
 @dataclass(frozen=True)
-class Trace:
-    """
-    A lightweight trace capturing a chain of gate applications.
+class C1Trace:
+    """A lightweight operational trace over C1 ``FormStream`` gates.
 
-    Important: Trace does not by itself reproduce the final form.
-    Replay requires the same deterministic gates (provided via a registry).
+    Important: a :class:`C1Trace` does not by itself reproduce the final
+    form — replay requires the same deterministic gates (provided via a
+    registry). To lift a :class:`C1Trace` into the constitutional kernel
+    use :func:`to_algebra_trace`.
+
+    This class is intentionally separate from :class:`fvafk.algebra.Trace`:
+    the algebra trace is the only constitutional provenance record.
     """
 
     inventory_id: str
     original_hash: str
-    steps: Tuple[TraceStep, ...] = field(default_factory=tuple)
+    steps: Tuple[C1TraceStep, ...] = field(default_factory=tuple)
 
-    def append(self, step: TraceStep) -> "Trace":
-        return Trace(self.inventory_id, self.original_hash, self.steps + (step,))
+    def append(self, step: C1TraceStep) -> "C1Trace":
+        return C1Trace(self.inventory_id, self.original_hash, self.steps + (step,))
+
+
+# Backward-compatible aliases. New code should use C1Trace / C1TraceStep.
+# These aliases exist ONLY for legacy C1 callers and MUST NOT be treated as
+# constitutional. See docs/ALGEBRA_KERNEL_CONSTITUTION.md and
+# tests/test_algebra_kernel_uniqueness.py.
+TraceStep = C1TraceStep
+Trace = C1Trace
 
 
 def hash_stream(stream: FormStream) -> str:
@@ -103,16 +146,16 @@ def hash_stream(stream: FormStream) -> str:
 
 def apply_gate_with_trace(
     stream: FormStream,
-    trace: Trace,
+    trace: C1Trace,
     *,
     gate_id: str,
     gate: GateFn,
     rule_id: Optional[str] = None,
-) -> Tuple[FormStream, Trace]:
+) -> Tuple[FormStream, C1Trace]:
     before_hash = hash_stream(stream)
     out = gate(stream, rule_id=rule_id)
     after_hash = hash_stream(out)
-    step = TraceStep(
+    step = C1TraceStep(
         gate_id=gate_id,
         rule_id=rule_id,
         before_hash=before_hash,
@@ -124,7 +167,7 @@ def apply_gate_with_trace(
 
 def replay(
     original: FormStream,
-    trace: Trace,
+    trace: C1Trace,
     *,
     registry: Dict[str, GateFn],
 ) -> FormStream:
@@ -148,10 +191,52 @@ def replay(
     return current
 
 
-def new_trace(stream: FormStream) -> Trace:
-    return Trace(inventory_id=stream.inventory_id, original_hash=hash_stream(stream))
+def new_trace(stream: FormStream) -> C1Trace:
+    return C1Trace(inventory_id=stream.inventory_id, original_hash=hash_stream(stream))
 
 
-def encode_with_trace(codec: FormCodecV2, text: str) -> Tuple[FormStream, Trace]:
+def encode_with_trace(codec: FormCodecV2, text: str) -> Tuple[FormStream, C1Trace]:
     fs = codec.encode(text)
     return fs, new_trace(fs)
+
+
+# ---------------------------------------------------------------------------
+# Adapter to the constitutional algebra kernel
+# ---------------------------------------------------------------------------
+
+
+def to_algebra_trace(trace: C1Trace) -> "AlgebraTrace":
+    """Adapt a pre-kernel :class:`C1Trace` into a constitutional
+    :class:`fvafk.algebra.Trace`.
+
+    This is the **only** sanctioned crossing from the C1 operational trace
+    surface into the algebra kernel. The adapter:
+
+    * preserves ``inventory_id`` and ``original_hash`` in the algebra
+      trace's metadata,
+    * records gate ids and step before/after hashes in metadata so the
+      C1 chain remains auditable from inside the kernel,
+    * does NOT promote rank, evidence, or residuals — those must be
+      attached separately via the algebra :class:`Result` API.
+
+    The import is performed lazily so this module stays usable without
+    pulling in ``fvafk.algebra`` (Phase-0 standalone constraint).
+    """
+    # Lazy import: keeps C1 standalone at module load time.
+    from fvafk.algebra import Trace as AlgebraTrace
+
+    metadata = {
+        "source": "fvafk.c1.trace_v1",
+        "inventory_id": trace.inventory_id,
+        "original_hash": trace.original_hash,
+        "gate_ids": tuple(step.gate_id for step in trace.steps),
+        "step_hashes": tuple(
+            (step.before_hash, step.after_hash) for step in trace.steps
+        ),
+    }
+    return AlgebraTrace(
+        operation="c1.trace_v1.replay",
+        source_span=(0, 0),
+        parents=(),
+        metadata=metadata,
+    )
