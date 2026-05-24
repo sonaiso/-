@@ -10,9 +10,9 @@ Schema: ARCHITECTURAL_ADMISSION_SCHEMA.md
 
 import re
 import sys
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
+from pathlib import Path
+from typing import List
 from enum import Enum
 
 
@@ -107,6 +107,17 @@ class ArchitecturalAdmissionChecker:
         self.warnings = []
         self.info = []
 
+        if self._is_exempt_change(pr_body):
+            self.info.append(
+                "Exemption criteria met: change does not introduce a new architectural construct"
+            )
+            return ValidationResult(
+                passed=True,
+                errors=self.errors,
+                warnings=self.warnings,
+                info=self.info
+            )
+
         # Check if PR involves new construct
         has_new_construct = self._detect_new_construct(pr_body)
 
@@ -147,8 +158,47 @@ class ArchitecturalAdmissionChecker:
             info=self.info
         )
 
+    def _is_exempt_change(self, text: str) -> bool:
+        """Check for explicit exemption cases that do not add new constructs."""
+        text_lower = text.lower()
+        exemption_markers = [
+            "bug fix",
+            "documentation update",
+            "docs only",
+            "documentation only",
+            "refactoring",
+        ]
+        no_new_construct_markers = [
+            "no new architectural construct",
+            "no new architectural constructs",
+            "no new construct",
+            "no new constructs",
+            "without new constructs",
+            "without a new construct",
+            "no new layers or gates added",
+            "no new layer or gate added",
+            "does not add a new construct",
+        ]
+        return (
+            any(marker in text_lower for marker in exemption_markers)
+            and any(marker in text_lower for marker in no_new_construct_markers)
+        ) or (
+            any(marker in text_lower for marker in ("bug fix", "documentation update", "documentation only"))
+            and "new architectural construct" not in text_lower
+        )
+
     def _detect_new_construct(self, text: str) -> bool:
         """Detect if PR introduces new architectural construct."""
+        text_lower = text.lower()
+        explicit_no_new_patterns = [
+            r"\bno new (?:architectural )?constructs?\b",
+            r"\bwithout new constructs?\b",
+            r"\bno new (?:layers?|gates?|rules?|domains?)\b",
+            r"\bdoes not add (?:a )?new (?:construct|layer|gate|rule|domain)\b",
+        ]
+        if any(re.search(pattern, text_lower) for pattern in explicit_no_new_patterns):
+            return False
+
         # Check for checkbox indicating new construct
         new_construct_patterns = [
             r'\[x\]\s+\*\*New Architectural Construct\*\*',
@@ -158,7 +208,6 @@ class ArchitecturalAdmissionChecker:
             r'new.*(?:layer|gate|rule|domain)',
         ]
 
-        text_lower = text.lower()
         for pattern in new_construct_patterns:
             if re.search(pattern, text, re.IGNORECASE):
                 return True
@@ -218,10 +267,12 @@ class ArchitecturalAdmissionChecker:
                 self.errors.append(f"Missing required field: {description} ({field})")
 
         # Check existing constructs count
-        existing_count = check_content.count('construct:')
+        existing_count = len(
+            re.findall(r'^\s*-\s*construct:\s*', check_content, re.MULTILINE)
+        )
         if existing_count < 2:
             self.errors.append(
-                f"At least 2 existing constructs must be checked, found: {existing_count}"
+                f"at least 2 existing constructs must be checked, found: {existing_count}"
             )
 
         # Check for reduction attempts if not a case

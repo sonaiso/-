@@ -8,6 +8,11 @@ Trace V1 (Plan-aligned, lightweight):
 This does not attempt formal proof; it is designed to be formalizable later.
 """
 
+# TEMPORARY ADAPTER NOTE:
+# This pre-kernel trace surface remains for C1 compatibility. The constitutional
+# kernel is documented in docs/ALGEBRA_KERNEL_CONSTITUTION.md and this module
+# should migrate toward fvafk.algebra.Trace or a documented adapter.
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -150,4 +155,3 @@ def new_trace(stream: FormStream) -> Trace:
 def encode_with_trace(codec: FormCodecV2, text: str) -> Tuple[FormStream, Trace]:
     fs = codec.encode(text)
     return fs, new_trace(fs)
-

@@ -165,6 +165,10 @@ class ResidualType(Enum):
     OPERATOR_CANDIDATE_TRACE_MISSING = "أثر المرشح العاملي مفقود"
 
 
+# TEMPORARY ADAPTER NOTE:
+# This DAL residual model remains for compatibility only. The constitutional
+# kernel is documented in docs/ALGEBRA_KERNEL_CONSTITUTION.md and this surface
+# should migrate to fvafk.algebra.Residual via a documented adapter plan.
 @dataclass
 class Residual:
     """
