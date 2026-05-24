@@ -27,6 +27,11 @@ This is the minimal sufficient unit - nothing less will work,
 nothing more is needed at this foundational level.
 """
 
+# TEMPORARY ADAPTER NOTE:
+# This module predates the constitutional kernel declared in
+# docs/ALGEBRA_KERNEL_CONSTITUTION.md. Its local Rank/Residual names are legacy
+# adapter surfaces and must migrate to fvafk.algebra equivalents.
+
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any, Optional, Set, FrozenSet

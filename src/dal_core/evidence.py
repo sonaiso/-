@@ -4,6 +4,10 @@ Evidence System (نظام الدليل)
 Tracks the evidence and justification for every decision in the pipeline.
 """
 
+# TEMPORARY ADAPTER NOTE:
+# This module currently keeps a local Evidence type for DAL compatibility.
+# Per docs/ALGEBRA_KERNEL_CONSTITUTION.md it must migrate to fvafk.algebra.
+
 from dataclasses import dataclass, field
 from typing import Optional, Any
 

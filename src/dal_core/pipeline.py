@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+# TEMPORARY ADAPTER NOTE:
+# This pipeline module still exposes local Rank/Evidence/Residual names for
+# legacy DAL callers. See docs/ALGEBRA_KERNEL_CONSTITUTION.md; these are
+# temporary adapter surfaces and should migrate to fvafk.algebra.
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
