@@ -32,6 +32,12 @@ Analyzers and learners:
 - :class:`ProblemTrace`, :class:`PatchProposal`, :class:`CodeLearningDecision`
 - :class:`GovernedCodeLearningLoop`
 - :class:`KnowledgeStore`
+
+Governance and inspection:
+
+- :class:`InspectionArtifact`, :class:`InspectionFinding`
+- :class:`InspectionResidual`, :class:`InspectionResult`
+- :class:`InspectionResidualKind`
 """
 
 from __future__ import annotations
@@ -62,6 +68,13 @@ from .core import (
 )
 from .cpb import CPB, validate_cpb
 from .decision_tree import AnalysisReport, ArabicAlgebraDecisionTree
+from .governance import (
+    InspectionArtifact,
+    InspectionFinding,
+    InspectionResidual,
+    InspectionResult,
+    InspectionResidualKind,
+)
 from .learning import KnowledgeStore
 from .policies import Policy, apply_policy, default_policy
 
@@ -101,4 +114,10 @@ __all__ = [
     "GovernedCodeLearningLoop",
     # learning
     "KnowledgeStore",
+    # governance
+    "InspectionArtifact",
+    "InspectionFinding",
+    "InspectionResidual",
+    "InspectionResult",
+    "InspectionResidualKind",
 ]
