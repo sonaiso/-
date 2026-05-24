@@ -8,6 +8,7 @@ Core Principle:
     "No completion claim without executable proof."
 
 Architecture:
+    - Rank: Unified epistemic rank enum (ZERO, BLOCKED, CANDIDATE, ZANNI, LICENSED, CERTIFIED)
     - AlgebraStatus: Classification of algebra implementation status
     - ComponentStatus: Tracking of specific component implementation
     - StatusValidator: Runtime validation against false claims
@@ -28,7 +29,13 @@ Example:
     <AlgebraStatus.PROVISIONAL_SPECIALIZED>
     >>> status.cpb_proven
     False
+
+    >>> from gfa.governance import Rank
+    >>> result.rank = Rank.CANDIDATE  # ✅ Correct
+    >>> result.rank = "CANDIDATE"     # ❌ FORBIDDEN
 """
+
+from .rank import Rank, rank_from_string, rank_to_string
 
 from .algebra_status import (
     AlgebraStatus,
@@ -52,6 +59,11 @@ from .residual_taxonomy import (
 )
 
 __all__ = [
+    # Rank system
+    "Rank",
+    "rank_from_string",
+    "rank_to_string",
+
     # Status classification
     "AlgebraStatus",
     "ComponentStatus",

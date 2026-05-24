@@ -29,7 +29,15 @@ Analyzers and learners:
 
 - :class:`ArabicAlgebraDecisionTree`, :class:`AnalysisReport`
 - :class:`CodeChange`, :class:`CodeLearningTrace`
+- :class:`ProblemTrace`, :class:`PatchProposal`, :class:`CodeLearningDecision`
+- :class:`GovernedCodeLearningLoop`
 - :class:`KnowledgeStore`
+
+Governance and inspection:
+
+- :class:`InspectionArtifact`, :class:`InspectionFinding`
+- :class:`InspectionResidual`, :class:`InspectionResult`
+- :class:`InspectionResidualKind`
 """
 
 from __future__ import annotations
@@ -41,6 +49,12 @@ from .arabic_layers import (
     is_bridge_allowed,
 )
 from .code_learning import CodeChange, CodeLearningTrace
+from .code_learning_loop import (
+    CodeLearningDecision,
+    GovernedCodeLearningLoop,
+    PatchProposal,
+    ProblemTrace,
+)
 from .core import (
     Carrier,
     Evidence,
@@ -54,6 +68,13 @@ from .core import (
 )
 from .cpb import CPB, validate_cpb
 from .decision_tree import AnalysisReport, ArabicAlgebraDecisionTree
+from .governance import (
+    InspectionArtifact,
+    InspectionFinding,
+    InspectionResidual,
+    InspectionResult,
+    InspectionResidualKind,
+)
 from .learning import KnowledgeStore
 from .policies import Policy, apply_policy, default_policy
 
@@ -86,6 +107,17 @@ __all__ = [
     # code_learning
     "CodeChange",
     "CodeLearningTrace",
+    # code_learning_loop
+    "ProblemTrace",
+    "PatchProposal",
+    "CodeLearningDecision",
+    "GovernedCodeLearningLoop",
     # learning
     "KnowledgeStore",
+    # governance
+    "InspectionArtifact",
+    "InspectionFinding",
+    "InspectionResidual",
+    "InspectionResult",
+    "InspectionResidualKind",
 ]

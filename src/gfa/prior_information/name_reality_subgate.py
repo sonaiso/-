@@ -38,6 +38,7 @@ from .reality_type import RealityType
 from .prior_information_candidate import PriorInformationCandidate
 from .residuals import (
     PriorInformationResidual,
+    PriorInformationResidualKind,
     make_name_only_residual,
     make_name_missing_referent_residual,
     make_name_missing_domain_residual,
@@ -207,11 +208,55 @@ class NameRealitySubGate:
                 ),
             )
 
-        # Default existence type if not provided
+        # Default existence type if not provided - SAFETY: UNSPECIFIED not EXTERNAL
+        # Critical Law: Never assume EXTERNAL existence without explicit specification
         if existence_type is None:
-            existence_type = RealityType.EXTERNAL  # Default assumption
+            existence_type = RealityType.UNSPECIFIED  # Safe default
 
-        # Check domain requirement
+        # Check UNSPECIFIED - must be determined before admission
+        if existence_type == RealityType.UNSPECIFIED:
+            residuals.append(
+                PriorInformationResidual(
+                    kind=PriorInformationResidualKind.R_PRIOR_MISSING_DOMAIN,
+                    severity="BLOCKER",
+                    message=f"Name '{name}' has UNSPECIFIED existence type - must be determined",
+                    trace=None,
+                )
+            )
+            return NameRealitySubGateResult(
+                status="BLOCKED",
+                candidate=None,
+                rank="BLOCKED",
+                residuals=tuple(residuals),
+                failure=NameRealitySubGateFailure(
+                    kind=NameRealityFailureKind.NAME_WITHOUT_DOMAIN,
+                    message=f"Name '{name}' has UNSPECIFIED existence type",
+                    blocker_residuals=tuple(residuals),
+                    evidence_gap="existence_type",
+                ),
+            )
+
+        # CRITICAL: Specific failures must precede general failures.
+        # Constitutional Law: Specificity Ordering
+        #
+        # Check technical without domain FIRST (specific)
+        if existence_type == RealityType.TECHNICAL and not domain:
+            residuals.append(make_name_technical_without_domain_residual(name))
+            return NameRealitySubGateResult(
+                status="BLOCKED",
+                candidate=None,
+                rank="BLOCKED",
+                residuals=tuple(residuals),
+                failure=NameRealitySubGateFailure(
+                    kind=NameRealityFailureKind.TECHNICAL_WITHOUT_DOMAIN,
+                    message=f"Technical name '{name}' requires domain",
+                    blocker_residuals=tuple(residuals),
+                    evidence_gap="domain_for_technical",
+                ),
+            )
+
+        # Check domain requirement for other types (general)
+        # This catches MENTAL, VERBAL, NORMATIVE after specific TECHNICAL check
         if existence_type.requires_domain() and not domain:
             residuals.append(
                 make_name_missing_domain_residual(name, existence_type.name)
@@ -226,22 +271,6 @@ class NameRealitySubGate:
                     message=f"Name '{name}' with type '{existence_type}' requires domain",
                     blocker_residuals=tuple(residuals),
                     evidence_gap="domain",
-                ),
-            )
-
-        # Check technical without domain
-        if existence_type == RealityType.TECHNICAL and not domain:
-            residuals.append(make_name_technical_without_domain_residual(name))
-            return NameRealitySubGateResult(
-                status="BLOCKED",
-                candidate=None,
-                rank="BLOCKED",
-                residuals=tuple(residuals),
-                failure=NameRealitySubGateFailure(
-                    kind=NameRealityFailureKind.TECHNICAL_WITHOUT_DOMAIN,
-                    message=f"Technical name '{name}' requires domain",
-                    blocker_residuals=tuple(residuals),
-                    evidence_gap="domain_for_technical",
                 ),
             )
 
