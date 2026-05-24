@@ -12,7 +12,13 @@ that module is permitted to expose a *backward-compatible alias* called
 4. Lose its documented adapter path (:func:`to_algebra_trace`).
 
 Allowed exceptions for the AST-level "no parallel kernel" check are listed
-in :data:`ALLOWED_REDEFINING_PATHS`.
+in :data:`ALLOWED_REDEFINING_PATHS`. Every entry in that whitelist is
+additionally required to declare itself as an adapter and to reference
+``docs/KERNEL_MIGRATION_GAPS.md`` — see
+``test_allowed_redefining_paths_are_documented_adapters``.
+
+This module enforces **PR-ARCH0: Architecture Unification and Kernel
+Authority Map** (see ``docs/ARCHITECTURE_AUTHORITY_MAP.md``).
 """
 
 from __future__ import annotations
@@ -22,17 +28,38 @@ import pathlib
 
 
 ALLOWED_REDEFINING_PATHS = {
+    # dal_core domain structures with documented adapter notes.
     "dal_core/evidence.py",
     "dal_core/pipeline.py",
     "dal_core/residuals.py",
+    # gfa domain backwards-compatibility surface.
     "gfa/proto_prior/first_prior_unit.py",
+    # gfa.governance.rank: explicit migration-gap adapter (G1 in
+    # docs/KERNEL_MIGRATION_GAPS.md). Re-exports a parallel ``Rank`` enum
+    # pending migration to fvafk.algebra.Rank.
+    "gfa/governance/rank.py",
 }
+
+# Adapter marker tokens. Any file in ALLOWED_REDEFINING_PATHS must contain
+# both an explicit "adapter"/"migration" marker AND a reference to the
+# kernel migration gaps document, otherwise the whitelist would be a
+# silent parallel kernel.
+_ADAPTER_TOKENS = ("adapter", "migration-gap", "migration gap")
+_MIGRATION_DOC_TOKENS = (
+    "KERNEL_MIGRATION_GAPS",
+    "ARCHITECTURE_AUTHORITY_MAP",
+    "ALGEBRA_KERNEL_CONSTITUTION",
+)
 
 FORBIDDEN_NAMES = {"Rank", "Result", "Evidence", "Residual", "Failure", "Trace"}
 
 
+def _src_root() -> pathlib.Path:
+    return pathlib.Path(__file__).resolve().parent.parent / "src"
+
+
 def test_no_parallel_kernel_definitions():
-    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    root = _src_root()
     offenders = []
 
     for py in root.rglob("*.py"):
@@ -52,6 +79,69 @@ def test_no_parallel_kernel_definitions():
                 offenders.append(f"{rel}: redefines {node.name}")
 
     assert not offenders, "Parallel kernel definitions found:\n" + "\n".join(offenders)
+
+
+def test_allowed_redefining_paths_are_documented_adapters():
+    """Every whitelisted path must explicitly declare itself an adapter.
+
+    Enforces PR-ARCH0: the ``ALLOWED_REDEFINING_PATHS`` whitelist is not a
+    parallel kernel. Each listed file must contain an adapter/migration
+    marker AND a reference to the migration-gaps / authority-map / kernel
+    constitution document, so that any future reader can see *why* the file
+    is allowed to use a kernel name.
+    """
+    root = _src_root()
+    offenders: list[str] = []
+
+    for rel in sorted(ALLOWED_REDEFINING_PATHS):
+        path = root / rel
+        if not path.exists():
+            offenders.append(f"{rel}: listed in ALLOWED_REDEFINING_PATHS but file is missing")
+            continue
+        source = path.read_text(encoding="utf-8")
+        lowered = source.lower()
+        has_adapter = any(token in lowered for token in _ADAPTER_TOKENS)
+        has_doc_ref = any(token in source for token in _MIGRATION_DOC_TOKENS)
+        if not has_adapter:
+            offenders.append(
+                f"{rel}: missing adapter/migration marker "
+                f"(expected one of {_ADAPTER_TOKENS!r})"
+            )
+        if not has_doc_ref:
+            offenders.append(
+                f"{rel}: missing reference to a kernel authority doc "
+                f"(expected one of {_MIGRATION_DOC_TOKENS!r})"
+            )
+
+    assert not offenders, (
+        "Whitelisted parallel-kernel paths must be documented as adapters:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_architecture_authority_map_exists():
+    """PR-ARCH0 authority map must be present alongside the test."""
+    docs = _src_root().parent / "docs"
+    authority_map = docs / "ARCHITECTURE_AUTHORITY_MAP.md"
+    migration_gaps = docs / "KERNEL_MIGRATION_GAPS.md"
+
+    assert authority_map.exists(), (
+        "docs/ARCHITECTURE_AUTHORITY_MAP.md is missing — PR-ARCH0 declares it "
+        "as the constitutional authority map for the repository."
+    )
+    assert migration_gaps.exists(), (
+        "docs/KERNEL_MIGRATION_GAPS.md is missing — PR-ARCH0 requires it as "
+        "the working list of legacy/adapter surfaces."
+    )
+
+    authority_text = authority_map.read_text(encoding="utf-8")
+    assert "constitutional kernel" in authority_text.lower(), (
+        "ARCHITECTURE_AUTHORITY_MAP.md must declare fvafk.algebra as the "
+        "constitutional kernel."
+    )
+    assert "fvafk.algebra" in authority_text, (
+        "ARCHITECTURE_AUTHORITY_MAP.md must name fvafk.algebra explicitly."
+    )
 
 
 # ---------------------------------------------------------------------------

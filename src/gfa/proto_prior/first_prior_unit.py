@@ -1,6 +1,16 @@
 """
 FirstPriorUnit - The Minimal Sufficient Unit for All Prior Geometry
 
+PR-ARCH0 adapter note
+---------------------
+This module is a documented adapter / domain backwards-compatibility surface
+(migration-gap G5). Per ``docs/ARCHITECTURE_AUTHORITY_MAP.md`` and
+``docs/KERNEL_MIGRATION_GAPS.md``, the constitutional kernel names
+(``Rank``, ``Result``, ``Evidence``, ``Residual``, ``Failure``, ``Trace``)
+live in :mod:`fvafk.algebra`. Any kernel-shaped name used inside this
+module is a domain-local structure pending migration, and MUST NOT be
+treated as a parallel kernel source of truth.
+
 This is the foundational unit from which all knowledge systems emerge:
 - Physics
 - Mathematics
