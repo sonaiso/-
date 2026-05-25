@@ -39,7 +39,7 @@ from enum import Enum, auto
 from typing import List, Optional, FrozenSet, Dict, Any, Tuple
 from uuid import uuid4
 
-from dal_core.residuals import Residual, ResidualType, make_blocker, make_warning
+from dal_core.residuals import Residual, ResidualType, ResidualSeverity, make_blocker, make_warning
 from dal_core.foundation import (
     Rank,
     RankVector,
@@ -111,9 +111,9 @@ class ArabicSyllable:
     Arabic syllable structure.
 
     Immutable carrier preserving:
-        - onset: Initial consonant(s) (C)
-        - nucleus: Vowel core (V or VV) - MANDATORY
-        - coda: Final consonant(s) (optional)
+        - onset/nucleus/coda: Unordered sets for comparison (frozenset)
+        - ordered_onset/nucleus/coda: AUTHORITATIVE ordered segments (tuple)
+        - ordered_surface: Complete ordered phonetic surface string
         - pattern: Syllable pattern (CV, CVV, CVC, ...)
         - weight: Syllable weight (light, heavy, super-heavy)
         - boundary_policy: Boundary behavior
@@ -121,19 +121,28 @@ class ArabicSyllable:
         - residuals: Warnings/blockers
         - rank: Epistemic status
 
-    Laws:
+    Critical Laws:
+        - ordered_surface is AUTHORITATIVE for surface reconstruction
+        - frozenset fields are COMPARISON VIEWS ONLY (not source of truth)
         - ArabicSyllable ⊬ Root
         - ArabicSyllable ⊬ Weight (morphological)
         - ArabicSyllable ⊬ Meaning
         - Every syllable has nucleus (V or VV)
         - Only licensed patterns allowed
+        - Trace preservation from U₂p mandatory
     """
     id: str                                    # Unique identifier
 
-    # Syllable structure (onset optional, nucleus mandatory, coda optional)
-    onset: FrozenSet[str] = field(default_factory=frozenset)      # C onset phonemes
-    nucleus: FrozenSet[str] = field(default_factory=frozenset)    # V/VV nucleus (MANDATORY)
-    coda: FrozenSet[str] = field(default_factory=frozenset)       # C coda phonemes
+    # Syllable structure (frozenset for comparison only)
+    onset: FrozenSet[str] = field(default_factory=frozenset)      # C onset phonemes (unordered)
+    nucleus: FrozenSet[str] = field(default_factory=frozenset)    # V/VV nucleus (unordered, MANDATORY)
+    coda: FrozenSet[str] = field(default_factory=frozenset)       # C coda phonemes (unordered)
+
+    # AUTHORITATIVE ordered representation (source of truth for surface reconstruction)
+    ordered_onset: Tuple[str, ...] = field(default_factory=tuple)      # Ordered onset segments
+    ordered_nucleus: Tuple[str, ...] = field(default_factory=tuple)    # Ordered nucleus segments (MANDATORY)
+    ordered_coda: Tuple[str, ...] = field(default_factory=tuple)       # Ordered coda segments
+    ordered_surface: str = ""                                           # Complete ordered surface string
 
     # Classification
     pattern: SyllablePattern = SyllablePattern.CV
@@ -149,24 +158,40 @@ class ArabicSyllable:
 
     def __post_init__(self):
         """Validate syllable constraints."""
-        # CRITICAL LAW: No nucleus, no syllable
-        if not self.nucleus:
+        # CRITICAL LAW: No nucleus, no syllable (check both frozenset and ordered)
+        if not self.nucleus and not self.ordered_nucleus:
             raise ValueError("Axiom 2s.1 violation: No nucleus, no syllable")
+
+        # Consistency check: frozenset is derived from ordered representation
+        # Note: We use set() not frozenset() comparison to handle duplicates (shadda, gemination)
+        if self.ordered_onset and set(self.ordered_onset) != self.onset:
+            # This is a warning, not a blocker - ordered is authoritative
+            pass
+        if self.ordered_nucleus and set(self.ordered_nucleus) != self.nucleus:
+            # ordered_nucleus is authoritative
+            pass
+        if self.ordered_coda and set(self.ordered_coda) != self.coda:
+            # ordered_coda is authoritative
+            pass
 
     def has_blocker(self) -> bool:
         """Check if syllable has blocking residual."""
-        return any(r.type == ResidualType.BLOCKER for r in self.residuals)
+        return any(r.severity == ResidualSeverity.BLOCKER for r in self.residuals)
 
     def is_certified(self) -> bool:
         """Check if syllable is certified."""
         return self.rank == Rank.CERTIFICATE
 
     def get_phonetic_string(self) -> str:
-        """Reconstruct phonetic string representation."""
-        onset_str = "".join(sorted(self.onset))
-        nucleus_str = "".join(sorted(self.nucleus))
-        coda_str = "".join(sorted(self.coda))
-        return f"{onset_str}{nucleus_str}{coda_str}"
+        """
+        Reconstruct phonetic string representation.
+
+        CRITICAL: Uses ordered_surface (authoritative), NOT sorted().
+        """
+        if self.ordered_surface:
+            return self.ordered_surface
+        # Fallback: construct from ordered segments
+        return "".join(self.ordered_onset) + "".join(self.ordered_nucleus) + "".join(self.ordered_coda)
 
 
 @dataclass(frozen=True)
@@ -175,12 +200,16 @@ class SyllableLayerObject:
     Complete U₂s layer output.
 
     Contains:
-        - syllables: Sequence of Arabic syllables
+        - syllables: ORDERED sequence of Arabic syllables (authoritative execution trace)
         - total_residuals: All residuals from layer
         - metadata: Additional processing information
         - proof: ProofObject documenting U₂s certification
+
+    Critical Law (ExecutionTraceOrderLaw):
+        - syllables is Tuple (ordered), not FrozenSet
+        - Syllable sequence preserves original character order from U₀→U₁→U₂p
     """
-    syllables: FrozenSet[ArabicSyllable]
+    syllables: Tuple[ArabicSyllable, ...]  # ORDERED execution trace (was FrozenSet - WRONG)
     total_residuals: FrozenSet[Residual]
     metadata: Optional[tuple] = None
     proof: Optional[ProofObject] = None
@@ -258,12 +287,15 @@ def syllabify_phonetic_projections(
             i += 1
             continue
 
-        # Case 1: Consonant + short vowel → CV syllable
-        if proj.consonant_candidate and proj.short_vowel_candidate:
-            syllable = _make_cv_syllable(proj, residuals_list)
+        # Case 1: Consonant + short vowel + consonant with sukun → CVC syllable (PRIORITY)
+        # Example: مَكْ + تَب → [CVC] + [CVC]
+        # Critical: CVC before CV to avoid CV.CCV (no CC onset in Arabic)
+        if (proj.consonant_candidate and proj.short_vowel_candidate and
+            next_proj and next_proj.consonant_candidate and next_proj.closure_candidate):
+            syllable = _make_cvc_syllable(proj, next_proj, residuals_list)
             if syllable:
                 syllables.append(syllable)
-            i += 1
+            i += 2  # Skip next projection (consumed as coda)
             continue
 
         # Case 2: Consonant + short vowel + long vowel carrier → CVV syllable
@@ -277,7 +309,15 @@ def syllabify_phonetic_projections(
                 i += 2  # Skip next projection (consumed)
                 continue
 
-        # Case 3: Consonant + closure (sukun) → needs nucleus from context
+        # Case 3: Consonant + short vowel → CV syllable
+        if proj.consonant_candidate and proj.short_vowel_candidate:
+            syllable = _make_cv_syllable(proj, residuals_list)
+            if syllable:
+                syllables.append(syllable)
+            i += 1
+            continue
+
+        # Case 4: Consonant + closure (sukun) → needs nucleus from context
         if proj.consonant_candidate and proj.closure_candidate:
             # بْ alone cannot form syllable (no nucleus)
             residuals_list.append(make_blocker(
@@ -288,7 +328,7 @@ def syllabify_phonetic_projections(
             i += 1
             continue
 
-        # Case 4: Gemination (shadda) policy
+        # Case 5: Gemination (shadda) policy
         if proj.gemination_candidate:
             # Shadda requires special handling
             # For now, treat as hypothesis needing context
@@ -305,7 +345,7 @@ def syllabify_phonetic_projections(
             i += 1
             continue
 
-        # Case 5: Ambiguous carrier without context
+        # Case 6: Ambiguous carrier without context
         if proj.phonetic_class == PhoneticClass.AMBIGUOUS_CARRIER:
             residuals_list.append(make_warning(
                 ResidualType.AMBIGUOUS_SYMBOL,
@@ -315,13 +355,80 @@ def syllabify_phonetic_projections(
             i += 1
             continue
 
-        # Case 6: Unknown/unhandled
+        # Case 7: Unknown/unhandled
         residuals_list.append(make_warning(
             ResidualType.AMBIGUOUS_SYMBOL,
             f"UnhandledProjection: Cannot syllabify {proj.phonetic_class}",
             location=f"projection {i}"
         ))
         i += 1
+
+    # ========================================================================
+    # Terminal Closure Policy (Waqf Mode)
+    # ========================================================================
+    # Handle word-final consonants without explicit vowel/closure
+    # Law: No dangling final consonant without policy
+    #
+    # Strategy:
+    # 1. Detect final consonant: last projection with C but no V, no closure
+    # 2. Attach as coda to previous syllable if possible (waqf policy)
+    # 3. Patterns: CV → CVC, CVV → CVVC
+    # 4. Preserve TerminalConsonantResidual if cannot attach
+    # ========================================================================
+
+    terminal_closure_mode = policy.get("terminal_closure", "waqf")  # waqf | wasl | unresolved
+
+    if terminal_closure_mode == "waqf" and len(projections) > 0:
+        last_proj = projections[-1]
+
+        # Check if final projection is unprocessed consonant (no vowel, no closure)
+        if (last_proj.consonant_candidate and
+            not last_proj.short_vowel_candidate and
+            not last_proj.closure_candidate):
+
+            # Check if it was already consumed by previous syllable
+            # (by checking if all projections are accounted for in syllables)
+            consumed_proj_ids = set()
+            for syll in syllables:
+                consumed_proj_ids.update(syll.trace_2p)
+
+            if last_proj.id not in consumed_proj_ids:
+                # Terminal consonant not consumed - apply waqf policy
+                if len(syllables) > 0:
+                    # Attach to previous syllable as coda
+                    last_syll = syllables[-1]
+
+                    # Only attach if previous syllable has no coda (Arabic phonotactics)
+                    if not last_syll.ordered_coda:
+                        updated_syll = _attach_terminal_coda(
+                            last_syll,
+                            last_proj,
+                            residuals_list
+                        )
+                        if updated_syll:
+                            # Replace last syllable with updated version
+                            syllables[-1] = updated_syll
+                        else:
+                            # Could not attach - preserve as residual
+                            residuals_list.append(make_warning(
+                                ResidualType.AMBIGUOUS_SYMBOL,
+                                f"TerminalConsonant: Cannot attach {last_proj.consonant_candidate} as coda",
+                                location=f"projection {len(projections)-1}"
+                            ))
+                    else:
+                        # Previous syllable already has coda - cannot attach (would create CCC)
+                        residuals_list.append(make_warning(
+                            ResidualType.AMBIGUOUS_SYMBOL,
+                            f"TerminalConsonant: Previous syllable has coda, cannot attach {last_proj.consonant_candidate}",
+                            location=f"projection {len(projections)-1}"
+                        ))
+                else:
+                    # No previous syllable - preserve as residual
+                    residuals_list.append(make_warning(
+                        ResidualType.AMBIGUOUS_SYMBOL,
+                        f"TerminalConsonant: No previous syllable for {last_proj.consonant_candidate}",
+                        location=f"projection {len(projections)-1}"
+                    ))
 
     # Determine success
     success = not has_blocking_residuals(frozenset(residuals_list))
@@ -344,22 +451,36 @@ def _make_cv_syllable(proj: PhoneticProjection, residuals_list: List[Residual]) 
     # Determine rank
     rank = Rank.CERTIFICATE if proj.rank == Rank.CERTIFICATE else Rank.HYPOTHESIS
 
+    # AUTHORITATIVE ordered representation
+    ordered_onset = (proj.consonant_candidate,)
+    ordered_nucleus = (proj.short_vowel_candidate,)
+    ordered_coda = ()
+    ordered_surface = proj.consonant_candidate + proj.short_vowel_candidate
+
     try:
         syllable = ArabicSyllable(
             id=str(uuid4()),
+            # Frozenset (comparison view only)
             onset=frozenset([proj.consonant_candidate]),
             nucleus=frozenset([proj.short_vowel_candidate]),
             coda=frozenset(),
+            # AUTHORITATIVE ordered fields
+            ordered_onset=ordered_onset,
+            ordered_nucleus=ordered_nucleus,
+            ordered_coda=ordered_coda,
+            ordered_surface=ordered_surface,
+            # Classification
             pattern=SyllablePattern.CV,
             weight=SyllableWeight.LIGHT,
             boundary_policy=BoundaryPolicy.NORMAL,
+            # Trace
             trace_2p=frozenset([proj.id]),
             trace_1=proj.trace_1,
             residuals=frozenset(all_residuals),
             rank=rank,
             metadata=(
                 ("pattern", "CV"),
-                ("phonetic", f"{proj.consonant_candidate}{proj.short_vowel_candidate}")
+                ("phonetic", ordered_surface)
             )
         )
         return syllable
@@ -400,22 +521,36 @@ def _make_cvv_syllable(
     # Determine rank
     rank = Rank.HYPOTHESIS  # CVV requires policy resolution
 
+    # AUTHORITATIVE ordered representation
+    ordered_onset = (proj.consonant_candidate,)
+    ordered_nucleus = (long_vowel,)  # Long vowel as single unit
+    ordered_coda = ()
+    ordered_surface = proj.consonant_candidate + long_vowel
+
     try:
         syllable = ArabicSyllable(
             id=str(uuid4()),
+            # Frozenset (comparison view only)
             onset=frozenset([proj.consonant_candidate]),
             nucleus=frozenset([long_vowel]),
             coda=frozenset(),
+            # AUTHORITATIVE ordered fields
+            ordered_onset=ordered_onset,
+            ordered_nucleus=ordered_nucleus,
+            ordered_coda=ordered_coda,
+            ordered_surface=ordered_surface,
+            # Classification
             pattern=SyllablePattern.CVV,
             weight=SyllableWeight.HEAVY,
             boundary_policy=BoundaryPolicy.NORMAL,
+            # Trace
             trace_2p=frozenset([proj.id, next_proj.id]),
             trace_1=proj.trace_1.union(next_proj.trace_1),
             residuals=frozenset(all_residuals),
             rank=rank,
             metadata=(
                 ("pattern", "CVV"),
-                ("phonetic", f"{proj.consonant_candidate}{long_vowel}")
+                ("phonetic", ordered_surface)
             )
         )
         return syllable
@@ -452,6 +587,168 @@ def _is_long_vowel_compatible(proj: PhoneticProjection, carrier_proj: PhoneticPr
     carrier_base = carrier_metadata.get('base', '')
 
     return carrier_base == expected_carrier
+
+
+def _make_cvc_syllable(
+    proj: PhoneticProjection,
+    next_proj: PhoneticProjection,
+    residuals_list: List[Residual]
+) -> Optional[ArabicSyllable]:
+    """
+    Create CVC syllable from C + V + C(sukun).
+
+    Pattern: Consonant + Short Vowel + Consonant with sukun/closure
+    Example: مَكْ in مَكْتَب
+
+    Critical: This implements CVC, not CV.CCV (no CC onset in Arabic).
+    """
+    if not proj.consonant_candidate or not proj.short_vowel_candidate:
+        return None
+
+    if not next_proj.consonant_candidate or not next_proj.closure_candidate:
+        return None
+
+    # Inherit residuals
+    all_residuals = set(proj.residuals)
+    all_residuals.update(next_proj.residuals)
+
+    # Determine rank
+    rank = Rank.HYPOTHESIS  # CVC requires syllable boundary policy
+
+    # AUTHORITATIVE ordered representation
+    ordered_onset = (proj.consonant_candidate,)
+    ordered_nucleus = (proj.short_vowel_candidate,)
+    ordered_coda = (next_proj.consonant_candidate,)  # Coda consonant
+    ordered_surface = proj.consonant_candidate + proj.short_vowel_candidate + next_proj.consonant_candidate
+
+    try:
+        syllable = ArabicSyllable(
+            id=str(uuid4()),
+            # Frozenset (comparison view only)
+            onset=frozenset([proj.consonant_candidate]),
+            nucleus=frozenset([proj.short_vowel_candidate]),
+            coda=frozenset([next_proj.consonant_candidate]),
+            # AUTHORITATIVE ordered fields
+            ordered_onset=ordered_onset,
+            ordered_nucleus=ordered_nucleus,
+            ordered_coda=ordered_coda,
+            ordered_surface=ordered_surface,
+            # Classification
+            pattern=SyllablePattern.CVC,
+            weight=SyllableWeight.HEAVY,
+            boundary_policy=BoundaryPolicy.NORMAL,
+            # Trace
+            trace_2p=frozenset([proj.id, next_proj.id]),
+            trace_1=proj.trace_1.union(next_proj.trace_1),
+            residuals=frozenset(all_residuals),
+            rank=rank,
+            metadata=(
+                ("pattern", "CVC"),
+                ("phonetic", ordered_surface)
+            )
+        )
+        return syllable
+    except ValueError as e:
+        residuals_list.append(make_blocker(
+            ResidualType.MALFORMED_ATOM,
+            f"SyllableCreationFailed: {str(e)}",
+            location=proj.id
+        ))
+        return None
+
+
+def _attach_terminal_coda(
+    base_syllable: ArabicSyllable,
+    terminal_proj: PhoneticProjection,
+    residuals_list: List[Residual]
+) -> Optional[ArabicSyllable]:
+    """
+    Attach terminal consonant as coda to existing syllable (waqf policy).
+
+    Terminal Closure Policy:
+        - Word-final consonant without vowel → attach as coda
+        - CV + terminal C → CVC
+        - CVV + terminal C → CVVC
+        - Preserve trace to terminal projection
+
+    Args:
+        base_syllable: Existing syllable to extend
+        terminal_proj: Final projection with consonant only
+        residuals_list: List to append residuals
+
+    Returns:
+        Updated syllable with terminal coda, or None if cannot attach
+    """
+    if not terminal_proj.consonant_candidate:
+        return None
+
+    # Verify base syllable has no coda (Arabic: no triple consonant clusters)
+    if base_syllable.ordered_coda:
+        return None
+
+    # Determine new pattern
+    if base_syllable.pattern == SyllablePattern.CV:
+        new_pattern = SyllablePattern.CVC
+        new_weight = SyllableWeight.HEAVY
+    elif base_syllable.pattern == SyllablePattern.CVV:
+        new_pattern = SyllablePattern.CVVC
+        new_weight = SyllableWeight.SUPER_HEAVY
+    else:
+        # Cannot attach to CVC, CVVC, etc. (would create illegal cluster)
+        return None
+
+    # Collect residuals
+    all_residuals = set(base_syllable.residuals)
+    all_residuals.update(terminal_proj.residuals)
+
+    # Add terminal closure residual (this is a policy decision, not error)
+    # Using INFO severity to mark as informational, not warning
+    all_residuals.add(Residual(
+        type=ResidualType.AMBIGUOUS_SYMBOL,
+        severity=ResidualSeverity.INFO,
+        message=f"TerminalClosureWaqf: Attached {terminal_proj.consonant_candidate} as final coda",
+        location=terminal_proj.id,
+        metadata=None
+    ))
+
+    # Build updated syllable
+    ordered_coda = (terminal_proj.consonant_candidate,)
+    ordered_surface = base_syllable.ordered_surface + terminal_proj.consonant_candidate
+
+    try:
+        updated_syllable = ArabicSyllable(
+            id=str(uuid4()),  # New ID for modified syllable
+            # Frozenset (comparison view only)
+            onset=base_syllable.onset,
+            nucleus=base_syllable.nucleus,
+            coda=frozenset([terminal_proj.consonant_candidate]),
+            # AUTHORITATIVE ordered fields
+            ordered_onset=base_syllable.ordered_onset,
+            ordered_nucleus=base_syllable.ordered_nucleus,
+            ordered_coda=ordered_coda,
+            ordered_surface=ordered_surface,
+            # Classification
+            pattern=new_pattern,
+            weight=new_weight,
+            boundary_policy=BoundaryPolicy.PAUSAL,  # Mark as pausal/waqf
+            # Trace - merge both syllables
+            trace_2p=base_syllable.trace_2p.union(frozenset([terminal_proj.id])),
+            trace_1=base_syllable.trace_1.union(terminal_proj.trace_1),
+            residuals=frozenset(all_residuals),
+            rank=base_syllable.rank,  # Preserve rank
+            metadata=base_syllable.metadata + (
+                ("terminal_coda", terminal_proj.consonant_candidate),
+                ("waqf_policy", "applied")
+            )
+        )
+        return updated_syllable
+    except ValueError as e:
+        residuals_list.append(make_blocker(
+            ResidualType.MALFORMED_ATOM,
+            f"TerminalCodaAttachmentFailed: {str(e)}",
+            location=terminal_proj.id
+        ))
+        return None
 
 
 # ============================================================================
@@ -550,7 +847,7 @@ def cpb2s_validate(
 
     # Create layer object
     layer_object = SyllableLayerObject(
-        syllables=frozenset(syllables),
+        syllables=tuple(syllables),  # ORDERED execution trace (was frozenset - WRONG)
         total_residuals=frozenset(total_residuals),
         metadata=(
             ("u2p_projections", len(phonetic_layer.projections)),
@@ -657,7 +954,10 @@ def phonetic_to_syllable_layer(
     Returns:
         CPB2sResult with validation status and layer object
     """
-    projections_list = sorted(phonetic_layer.projections, key=lambda p: p.grapheme_ref)
+    # CRITICAL: Do NOT sort projections - tuple order is authoritative (ExecutionTraceOrderLaw)
+    # phonetic_layer.projections is Tuple (ordered), not FrozenSet
+    # sorted() by UUID would destroy the original character sequence
+    projections_list = list(phonetic_layer.projections)
 
     result = syllabify_phonetic_projections(projections_list, policy)
 
