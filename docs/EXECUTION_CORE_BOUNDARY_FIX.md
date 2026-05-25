@@ -1,4 +1,4 @@
-# Execution Core Boundary Fix
+# Execution Core Boundary Fix - Complete Enforcement
 
 ## Problem Statement
 
@@ -18,16 +18,14 @@ U₁₀–U₁₅ = future design layers, not closed execution layers.
 
 ## Root Cause
 
-The `execution_layer_registry.py` module had architectural ambiguity:
+The `execution_layer_registry.py` module had two issues:
 
-1. **Documentation** (module docstring): Stated "Canonical U₀-U₉ Order" indicating execution core is U₀–U₉
-2. **Code implementation**: Included all layers U₀–U₁₅ in `EXECUTION_LAYER_ORDER` and `ALLOWED_TRANSITIONS` as a continuous execution chain
+1. **Documentation ambiguity** (FIXED in first commit): Module docstring stated "Canonical U₀-U₉ Order" but code included U₀–U₁₅ in `EXECUTION_LAYER_ORDER`
+2. **Enforcement gap** (FIXED in second commit): `ALLOWED_TRANSITIONS` merged core+design transitions, so `is_transition_allowed()` treated U₉→U₁₀→U₁₅ as normal execution
 
-This created confusion about which layers are operational (closed execution core) vs. which are architectural placeholders (future design).
+## Solution - Two-Phase Fix
 
-## Solution
-
-### 1. Code Changes (`src/dal_core/execution_layer_registry.py`)
+### Phase 1: Documentation & Structure (Commit 1)
 
 **Added explicit separation**:
 
@@ -121,33 +119,103 @@ Design Layers (U₁₀-U₁₅): Future design, not closed execution layers
 - Added warning: "These layers are architectural placeholders, NOT operational execution layers"
 - Marked all U₁₀-U₁₅ as "(planned)" status
 
-### 3. Test Updates
-
-**`tests/dal_core/test_execution_layer_registry.py`**:
+**Test updates**:
 - Fixed case sensitivity issue in test assertions
-- All 23 tests passing
+- 23 tests passing after Phase 1
 
-## Impact
+### Phase 2: Strict Enforcement (Commit 2)
 
-### Immediate Benefits
+**Problem identified**: Phase 1 fixed documentation but left enforcement gap:
+```python
+# Phase 1 still had this:
+ALLOWED_TRANSITIONS = {**CORE_ALLOWED_TRANSITIONS, **DESIGN_ALLOWED_TRANSITIONS}
 
-1. **Clear architectural boundaries**: Code now explicitly distinguishes execution core from design layers
-2. **Better documentation**: Developers can clearly see which layers are operational vs. planned
-3. **API clarity**: New helper functions (`is_core_layer`, `is_design_layer`) enable programmatic distinction
-4. **Backward compatible**: `ALLOWED_TRANSITIONS` still includes all layers for tooling support
+# So is_transition_allowed() still treated U₉→U₁₀ as valid by default!
+```
 
-### Long-term Implications
+**Enforcement added**:
 
-1. **Production code guidance**: Clear signal that U₀-U₉ are production-ready, U₁₀-U₁₅ are not
-2. **Future implementation**: When U₁₀-U₁₅ are implemented, they can be moved from `DESIGN_LAYERS` to `EXECUTION_CORE_LAYERS`
-3. **Architectural clarity**: Prevents confusion about which layers are "closed" (finalized) vs. "open" (subject to change)
+1. **Updated `is_transition_allowed()` to enforce core-only by default**:
+```python
+def is_transition_allowed(from_layer: ExecutionLayer, to_layer: ExecutionLayer,
+                         include_design: bool = False) -> bool:
+    """
+    By default, only execution core transitions (U₀-U₉) are allowed.
+    Design layer transitions (U₁₀-U₁₅) require explicit opt-in.
+
+    Core Law:
+        Design transition is not execution transition.
+        U₉ → U₁₀ is NOT allowed by default.
+    """
+    if include_design:
+        allowed = ALLOWED_TRANSITIONS.get(from_layer, set())
+    else:
+        allowed = CORE_ALLOWED_TRANSITIONS.get(from_layer, set())  # Core-only!
+    return to_layer in allowed
+```
+
+2. **Added strict helper functions**:
+```python
+def is_core_transition_allowed(from_layer, to_layer) -> bool:
+    """Check if transition is in CORE_ALLOWED_TRANSITIONS."""
+    allowed = CORE_ALLOWED_TRANSITIONS.get(from_layer, set())
+    return to_layer in allowed
+
+def is_design_transition_allowed(from_layer, to_layer) -> bool:
+    """Check if transition is in DESIGN_ALLOWED_TRANSITIONS."""
+    allowed = DESIGN_ALLOWED_TRANSITIONS.get(from_layer, set())
+    return to_layer in allowed
+```
+
+3. **Updated `validate_layer_sequence()` for strict validation**:
+```python
+def validate_layer_sequence(sequence: list[ExecutionLayer],
+                           include_design: bool = False) -> tuple[bool, Optional[str]]:
+    """
+    By default, only validates execution core transitions (U₀-U₉).
+    Design layer transitions require explicit opt-in.
+    """
+    # ... uses is_transition_allowed(from_layer, to_layer, include_design=include_design)
+    # Special error message for design transitions without opt-in:
+    if not include_design and is_design_transition_allowed(from_layer, to_layer):
+        return False, f"Design transition: {from_layer.value} → {to_layer.value}. " \
+                     f"Design layers (U₁₀-U₁₅) are not closed execution layers. " \
+                     f"Use include_design=True if intentional."
+```
+
+4. **Added 8 critical tests** (31 total, all passing):
+
+| Test | Purpose |
+|------|---------|
+| `test_u9_to_u10_not_allowed_by_default` | **CRITICAL**: Proves U₉→U₁₀ fails by default |
+| `test_u9_to_u10_allowed_with_include_design_true` | Proves opt-in works |
+| `test_design_transition_allowed_only_with_include_design_true` | Tests multiple design transitions |
+| `test_validate_layer_sequence_stops_at_u9_by_default` | Sequence validation blocks design |
+| `test_execution_core_layers_excludes_u10_to_u15` | Verifies constant separation |
+| `test_design_layers_not_closed_execution_layers` | Verifies helper functions |
+| `test_is_core_transition_allowed_strict` | Tests strict core function |
+| `test_is_design_transition_allowed_strict` | Tests design detection |
+
+## Complete Impact
+
+### Phase 1 Benefits
+1. **Clear documentation**: Developers know U₀-U₉ vs U₁₀-U₁₅ distinction
+2. **Structural separation**: Code constants separated
+3. **Helper functions**: `is_core_layer()`, `is_design_layer()` available
+
+### Phase 2 Benefits (Strict Enforcement)
+1. **Runtime enforcement**: U₉→U₁₀ **fails by default**
+2. **Explicit opt-in**: Design transitions require `include_design=True`
+3. **Clear error messages**: "Design layers are not closed execution layers"
+4. **Test coverage**: 8 tests proving strict boundary
+5. **Constitutional compliance**: "Design transition is not execution transition" enforced
 
 ## Verification
 
 All tests passing:
 ```bash
 $ python -m pytest tests/dal_core/test_execution_layer_registry.py -v
-============================== 23 passed in 0.15s ==============================
+============================== 31 passed in 0.21s ==============================
 ```
 
 Key tests validated:
@@ -155,6 +223,9 @@ Key tests validated:
 - ✅ Transition validation works correctly
 - ✅ Forbidden jumps still blocked
 - ✅ Legacy mapping intact
+- ✅ **U₉→U₁₀ blocked by default** (NEW - Phase 2)
+- ✅ **Design transitions require opt-in** (NEW - Phase 2)
+- ✅ **Sequence validation stops at U₉** (NEW - Phase 2)
 
 ## Architectural Compliance
 
@@ -164,29 +235,53 @@ This fix aligns with the constitutional law:
 
 Design layers (U₁₀-U₁₅) are explicitly marked as "potential" (future design) not "certified" (operational execution core).
 
+**Core Law Enforced**:
+> **Design transition is not execution transition.**
+> U₉ → U₁₀ is a design boundary, not an execution path.
+
 ## Files Changed
 
+### Phase 1 (Documentation & Structure)
 | File | Change | Lines |
 |------|--------|-------|
-| `src/dal_core/execution_layer_registry.py` | Separate core/design, add helpers | +55 |
+| `src/dal_core/execution_layer_registry.py` | Separate core/design constants | +30 |
 | `docs/EXEC_LAYER_REFACTOR_SUMMARY.md` | Add architectural distinction | +43 |
 | `docs/U0_U15_IMPLEMENTATION_SUMMARY.md` | Clarify implementation status | +18 |
 | `tests/dal_core/test_execution_layer_registry.py` | Fix case sensitivity | +3 |
-| `docs/EXECUTION_CORE_BOUNDARY_FIX.md` | This document | +200 |
 
-**Total**: ~319 lines changed/added
+### Phase 2 (Strict Enforcement)
+| File | Change | Lines |
+|------|--------|-------|
+| `src/dal_core/execution_layer_registry.py` | Enforce core-only by default | +53 |
+| `tests/dal_core/test_execution_layer_registry.py` | Add 8 strict boundary tests | +150 |
+| `docs/EXECUTION_CORE_BOUNDARY_FIX.md` | Complete documentation update | +100 |
+
+**Total**: ~397 lines changed/added across 2 commits
 
 ## Conclusion
 
-The fix resolves the discrepancy between documentation and code by:
+The two-phase fix completely resolves the execution core boundary issue:
 
+**Phase 1** (Documentation & Structure):
 1. **Explicitly separating** execution core (U₀-U₉) from design layers (U₁₀-U₁₅) in code
 2. **Clarifying documentation** to indicate operational vs. planned status
 3. **Providing helper functions** for programmatic distinction
-4. **Maintaining backward compatibility** for tooling
 
-**Status**: ✅ Complete, all tests passing
+**Phase 2** (Strict Enforcement):
+1. **Runtime enforcement**: U₉→U₁₀ fails by default
+2. **Explicit opt-in**: Design transitions require `include_design=True`
+3. **Clear error messages**: Inform users about design layer boundary
+4. **Test coverage**: 8 new tests proving strict enforcement
+
+**Status**: ✅ Complete, all 31 tests passing
+
+**Core Law**: **Design transition is not execution transition** - ENFORCED
 
 **PR**: claude/update-execution-core-documentation
 
 **Date**: 2026-05-25
+
+**Commits**:
+- Commit 1 (916d937): Add comprehensive execution core boundary fix documentation
+- Commit 2 (c3d3c00): Enforce strict execution core boundary (U₀-U₉ only by default)
+
