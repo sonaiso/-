@@ -178,18 +178,19 @@ class ResidualType(Enum):
 # This DAL residual model remains for compatibility only. The constitutional
 # kernel is documented in docs/ALGEBRA_KERNEL_CONSTITUTION.md and this surface
 # should migrate to fvafk.algebra.Residual via a documented adapter plan.
-@dataclass
+@dataclass(frozen=True)
 class Residual:
     """
     بقية (Residual)
 
     Represents an issue, warning, or blocker in processing.
+    Frozen for immutability and hashability.
     """
     type: ResidualType
     severity: ResidualSeverity
     message: str
     location: Optional[str] = None
-    metadata: Optional[dict] = None
+    metadata: Optional[tuple] = None  # Changed to tuple for hashability
 
     def is_blocker(self) -> bool:
         """Check if this residual prevents closure"""
@@ -216,12 +217,14 @@ def make_blocker(
     **metadata: Any
 ) -> Residual:
     """Helper to create a blocking residual"""
+    # Convert metadata dict to tuple of items for hashability
+    meta_tuple = tuple(sorted(metadata.items())) if metadata else None
     return Residual(
         type=residual_type,
         severity=ResidualSeverity.BLOCKER,
         message=message,
         location=location,
-        metadata=metadata or None
+        metadata=meta_tuple
     )
 
 
@@ -232,12 +235,14 @@ def make_warning(
     **metadata: Any
 ) -> Residual:
     """Helper to create a warning residual"""
+    # Convert metadata dict to tuple of items for hashability
+    meta_tuple = tuple(sorted(metadata.items())) if metadata else None
     return Residual(
         type=residual_type,
         severity=ResidualSeverity.WARNING,
         message=message,
         location=location,
-        metadata=metadata or None
+        metadata=meta_tuple
     )
 
 
@@ -248,10 +253,12 @@ def make_info(
     **metadata: Any
 ) -> Residual:
     """Helper to create an info residual"""
+    # Convert metadata dict to tuple of items for hashability
+    meta_tuple = tuple(sorted(metadata.items())) if metadata else None
     return Residual(
         type=residual_type,
         severity=ResidualSeverity.INFO,
         message=message,
         location=location,
-        metadata=metadata or None
+        metadata=meta_tuple
     )
