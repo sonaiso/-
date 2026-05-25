@@ -261,7 +261,7 @@ class FunctionalRoleCandidate:
     uid: str
     role: Enum  # One of the role candidate enums above
     sort: RoleSort
-    confidence: float  # [0.0, 1.0]
+    surface_support: float  # [0.0, 1.0] - Surface evidence strength, NOT epistemic certificate
     evidence: Tuple[str, ...]  # Why this role candidate
     source_u4_unit_id: str  # Trace to U₄ lafẓ unit
     residuals: FrozenSet[Residual]
@@ -269,8 +269,8 @@ class FunctionalRoleCandidate:
 
     def __post_init__(self):
         """Validate role candidate."""
-        if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(f"Confidence must be in [0.0, 1.0], got {self.confidence}")
+        if not (0.0 <= self.surface_support <= 1.0):
+            raise ValueError(f"Surface support must be in [0.0, 1.0], got {self.surface_support}")
 
         # No root field allowed
         if hasattr(self, 'root'):
@@ -311,6 +311,24 @@ class FunctionalRoleUnit:
     residuals: FrozenSet[Residual]
     rank: Rank
 
+    def __post_init__(self):
+        """Validate functional role unit."""
+        # No root field allowed
+        if hasattr(self, 'root'):
+            raise ValueError("FunctionalRoleUnit MUST NOT contain 'root' field")
+
+        # No weight field allowed
+        if hasattr(self, 'weight'):
+            raise ValueError("FunctionalRoleUnit MUST NOT contain 'weight' field")
+
+        # No meaning field allowed
+        if hasattr(self, 'meaning'):
+            raise ValueError("FunctionalRoleUnit MUST NOT contain 'meaning' field")
+
+        # No hukm field allowed
+        if hasattr(self, 'hukm'):
+            raise ValueError("FunctionalRoleUnit MUST NOT contain 'hukm' field")
+
 
 @dataclass(frozen=True)
 class FunctionalRoleLayerObject:
@@ -326,6 +344,24 @@ class FunctionalRoleLayerObject:
     residuals: FrozenSet[Residual]
     rank: Rank
     proof: Optional[ProofObject] = None
+
+    def __post_init__(self):
+        """Validate functional role layer object."""
+        # No root field allowed
+        if hasattr(self, 'root'):
+            raise ValueError("FunctionalRoleLayerObject MUST NOT contain 'root' field")
+
+        # No weight field allowed
+        if hasattr(self, 'weight'):
+            raise ValueError("FunctionalRoleLayerObject MUST NOT contain 'weight' field")
+
+        # No meaning field allowed
+        if hasattr(self, 'meaning'):
+            raise ValueError("FunctionalRoleLayerObject MUST NOT contain 'meaning' field")
+
+        # No hukm field allowed
+        if hasattr(self, 'hukm'):
+            raise ValueError("FunctionalRoleLayerObject MUST NOT contain 'hukm' field")
 
 
 @dataclass(frozen=True)
@@ -376,7 +412,7 @@ class CPB5:
     def build_proof(layer_obj: FunctionalRoleLayerObject) -> ProofObject:
         """Build proof object for functional role layer."""
         return make_proof_object(
-            claim="U₅ functional role candidates determined",
+            claim="U₅ functional role candidate paths opened",
             scope="U5_FUNCTIONAL_ROLE",
             evidence=frozenset([
                 f"units_count={len(layer_obj.units)}",
@@ -435,7 +471,7 @@ def _build_closed_class_candidates(
                 uid=str(uuid4()),
                 role=ClosedClassRoleCandidate.HARF_JARR_CANDIDATE,
                 sort=RoleSort.CLOSED_CLASS,
-                confidence=0.8,
+                surface_support=0.8,
                 evidence=("surface_match_preposition", f"surface={surface}"),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -446,7 +482,7 @@ def _build_closed_class_candidates(
                 uid=str(uuid4()),
                 role=ClosedClassRoleCandidate.HARF_JARR_CANDIDATE,
                 sort=RoleSort.CLOSED_CLASS,
-                confidence=0.8,
+                surface_support=0.8,
                 evidence=("surface_match_preposition", f"surface={surface}"),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -457,7 +493,7 @@ def _build_closed_class_candidates(
                 uid=str(uuid4()),
                 role=ClosedClassRoleCandidate.HARF_ATF_CANDIDATE,
                 sort=RoleSort.CLOSED_CLASS,
-                confidence=0.9,
+                surface_support=0.9,
                 evidence=("surface_match_conjunction", f"surface={surface}"),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -469,7 +505,7 @@ def _build_closed_class_candidates(
                 uid=str(uuid4()),
                 role=ClosedClassRoleCandidate.PARTICLE_CANDIDATE,
                 sort=RoleSort.CLOSED_CLASS,
-                confidence=0.5,
+                surface_support=0.5,
                 evidence=("bound_proclitic_type",),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset([make_warning("particle_type_unresolved", "Particle type needs lexicon match")]),
@@ -501,7 +537,7 @@ def _build_pronoun_candidates(
             uid=str(uuid4()),
             role=PronounRoleCandidate.ATTACHED_PRONOUN_CANDIDATE,
             sort=RoleSort.PRONOUN,
-            confidence=0.9,
+            surface_support=0.9,
             evidence=("u4_attached_pronoun_type",),
             source_u4_unit_id=lafz_unit.uid,
             residuals=frozenset(),
@@ -515,7 +551,7 @@ def _build_pronoun_candidates(
                 uid=str(uuid4()),
                 role=PronounRoleCandidate.GENITIVE_PRONOUN_CANDIDATE,
                 sort=RoleSort.PRONOUN,
-                confidence=0.7,
+                surface_support=0.7,
                 evidence=("surface_pattern_3mp_genitive", f"surface={surface}"),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset([make_warning("genitive_vs_possessive", "Needs context to disambiguate")]),
@@ -551,7 +587,7 @@ def _build_verb_candidates(
             uid=str(uuid4()),
             role=VerbRoleCandidate.VERB_SURFACE_CANDIDATE,
             sort=RoleSort.VERB_CANDIDATE,
-            confidence=0.6,
+            surface_support=0.6,
             evidence=("u4_verb_surface_hint_possible",),
             source_u4_unit_id=lafz_unit.uid,
             residuals=frozenset(),
@@ -564,7 +600,7 @@ def _build_verb_candidates(
                 uid=str(uuid4()),
                 role=VerbRoleCandidate.PAST_VERB_SURFACE_CANDIDATE,
                 sort=RoleSort.VERB_CANDIDATE,
-                confidence=0.7,
+                surface_support=0.7,
                 evidence=("u4_past_surface_hint_possible",),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -577,7 +613,7 @@ def _build_verb_candidates(
                 uid=str(uuid4()),
                 role=VerbRoleCandidate.PRESENT_VERB_SURFACE_CANDIDATE,
                 sort=RoleSort.VERB_CANDIDATE,
-                confidence=0.7,
+                surface_support=0.7,
                 evidence=("u4_present_surface_hint_possible", f"has_prefix={verb_potential.has_present_prefix_surface}"),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -590,7 +626,7 @@ def _build_verb_candidates(
                 uid=str(uuid4()),
                 role=VerbRoleCandidate.IMPERATIVE_VERB_SURFACE_CANDIDATE,
                 sort=RoleSort.VERB_CANDIDATE,
-                confidence=0.5,
+                surface_support=0.5,
                 evidence=("u4_imperative_surface_hint_possible",),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset([make_warning("imperative_needs_context", "Imperative requires context")]),
@@ -633,7 +669,7 @@ def _build_noun_candidates(
             uid=str(uuid4()),
             role=NounRoleCandidate.NOUN_SURFACE_CANDIDATE,
             sort=RoleSort.NOUN_CANDIDATE,
-            confidence=0.6,
+            surface_support=0.6,
             evidence=("core_candidate", "verb_unlikely"),
             source_u4_unit_id=lafz_unit.uid,
             residuals=frozenset(),
@@ -647,7 +683,7 @@ def _build_noun_candidates(
                 uid=str(uuid4()),
                 role=NounRoleCandidate.DEFINITE_NOUN_CANDIDATE,
                 sort=RoleSort.NOUN_CANDIDATE,
-                confidence=0.7,
+                surface_support=0.7,
                 evidence=("u4_definite_surface_hint_possible", f"has_al={definiteness_potential.has_al_surface}"),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -659,7 +695,7 @@ def _build_noun_candidates(
                 uid=str(uuid4()),
                 role=NounRoleCandidate.INDEFINITE_NOUN_CANDIDATE,
                 sort=RoleSort.NOUN_CANDIDATE,
-                confidence=0.7,
+                surface_support=0.7,
                 evidence=("u4_indefinite_surface_hint_possible", f"has_tanwin={definiteness_potential.has_tanwin_surface}"),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -673,7 +709,7 @@ def _build_noun_candidates(
                 uid=str(uuid4()),
                 role=NounRoleCandidate.DUAL_NOUN_CANDIDATE,
                 sort=RoleSort.NOUN_CANDIDATE,
-                confidence=0.8,
+                surface_support=0.8,
                 evidence=("u4_dual_surface_hint_possible",),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -685,7 +721,7 @@ def _build_noun_candidates(
                 uid=str(uuid4()),
                 role=NounRoleCandidate.PLURAL_NOUN_CANDIDATE,
                 sort=RoleSort.NOUN_CANDIDATE,
-                confidence=0.8,
+                surface_support=0.8,
                 evidence=("u4_plural_surface_hint_possible",),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -697,7 +733,7 @@ def _build_noun_candidates(
                 uid=str(uuid4()),
                 role=NounRoleCandidate.SINGULAR_NOUN_CANDIDATE,
                 sort=RoleSort.NOUN_CANDIDATE,
-                confidence=0.6,
+                surface_support=0.6,
                 evidence=("u4_singular_surface_hint_possible",),
                 source_u4_unit_id=lafz_unit.uid,
                 residuals=frozenset(),
@@ -777,6 +813,17 @@ def functional_role_5(lafz_layer: TrueLafzLayerObject) -> FunctionalRoleResult:
             f"candidates_count={len(all_candidates)}",
         ]
 
+        # Check for zero candidates and add residual
+        unit_residuals = list(lafz_unit.residuals)
+        if len(all_candidates) == 0:
+            # Add warning when no functional role candidates opened
+            unit_residuals.append(
+                make_warning(
+                    "no_functional_role_candidates_opened",
+                    f"No functional role candidates opened for unit: {lafz_unit.surface}"
+                )
+            )
+
         # Create FunctionalRoleUnit
         role_unit = FunctionalRoleUnit(
             uid=str(uuid4()),
@@ -785,11 +832,11 @@ def functional_role_5(lafz_layer: TrueLafzLayerObject) -> FunctionalRoleResult:
             trace_4=(lafz_layer.uid,),
             role_candidates=tuple(all_candidates),
             evidence=tuple(evidence_items),
-            residuals=lafz_unit.residuals,  # Preserve residuals from U₄
+            residuals=frozenset(unit_residuals),  # Include zero-candidate residual if applicable
             rank=lafz_unit.rank
         )
         role_units.append(role_unit)
-        all_residuals.extend(list(lafz_unit.residuals))
+        all_residuals.extend(unit_residuals)
 
     # Build layer object
     layer_obj = FunctionalRoleLayerObject(

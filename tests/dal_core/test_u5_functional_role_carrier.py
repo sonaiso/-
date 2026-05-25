@@ -348,7 +348,7 @@ def test_u5_golden_case_1_kataba():
 
     print(f"✓ Golden Case 1: كَتَبَ → {len(unit.role_candidates)} candidates")
     for candidate in unit.role_candidates:
-        print(f"  - {candidate.role.value} (confidence={candidate.confidence:.2f})")
+        print(f"  - {candidate.role.value} (surface_support={candidate.surface_support:.2f})")
 
 
 def test_u5_golden_case_2_bi_kitabin():
