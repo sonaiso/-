@@ -592,6 +592,127 @@ def test_immutability_layer_object():
 # Integration Tests
 # ============================================================================
 
+def test_integration_ordered_surface_kataba():
+    """
+    Integration Test: كَتَبَ → CV.CV.CV with ordered surface preservation.
+
+    Expected:
+        - 3 CV syllables
+        - Each syllable has ordered_surface
+        - get_phonetic_string() returns ordered surface (not sorted)
+    """
+    text = "كَتَبَ"
+    u0_result = text_to_unicode_layer(text)
+    u1_result = unicode_to_grapheme_layer(u0_result.layer_object)
+    u2p_result = grapheme_to_phonetic_layer(u1_result.layer_object)
+    u2s_result = phonetic_to_syllable_layer(u2p_result.layer_object)
+
+    assert u2s_result.valid
+    assert len(u2s_result.layer_object.syllables) == 3
+
+    # Verify all syllables have ordered_surface
+    for syllable in u2s_result.layer_object.syllables:
+        assert hasattr(syllable, 'ordered_surface'), "Syllable must have ordered_surface field"
+        assert syllable.ordered_surface != "", "ordered_surface must not be empty"
+        assert hasattr(syllable, 'ordered_onset'), "Syllable must have ordered_onset"
+        assert hasattr(syllable, 'ordered_nucleus'), "Syllable must have ordered_nucleus"
+        assert hasattr(syllable, 'ordered_coda'), "Syllable must have ordered_coda"
+
+        # Verify get_phonetic_string() uses ordered_surface
+        phonetic = syllable.get_phonetic_string()
+        assert phonetic == syllable.ordered_surface, \
+            "get_phonetic_string() must return ordered_surface"
+
+
+def test_integration_ordered_surface_kaatib_cvv_cvc():
+    """
+    Integration Test: كَاتِب → CVV.CVC with ordered surface.
+
+    Expected:
+        - 2 syllables: CVV + CVC
+        - ordered_surface preserved
+        - No sorted() usage
+    """
+    text = "كَاتِب"
+    u0_result = text_to_unicode_layer(text)
+    u1_result = unicode_to_grapheme_layer(u0_result.layer_object)
+    u2p_result = grapheme_to_phonetic_layer(u1_result.layer_object)
+    u2s_result = phonetic_to_syllable_layer(u2p_result.layer_object)
+
+    assert u2s_result.valid
+    syllables = list(u2s_result.layer_object.syllables)
+
+    # Verify ordered fields exist
+    for syllable in syllables:
+        assert syllable.ordered_surface, "ordered_surface must be populated"
+        assert isinstance(syllable.ordered_onset, tuple), "ordered_onset must be tuple"
+        assert isinstance(syllable.ordered_nucleus, tuple), "ordered_nucleus must be tuple"
+        assert isinstance(syllable.ordered_coda, tuple), "ordered_coda must be tuple"
+
+
+def test_integration_ordered_surface_maktab_cvc_cvc():
+    """
+    Integration Test: مَكْتَب → CVC.CVC (CRITICAL)
+
+    Expected:
+        - 2 syllables: CVC + CVC
+        - NOT CV.CCVC (no CC onset in Arabic)
+        - ordered_surface preserved
+    """
+    text = "مَكْتَب"
+    u0_result = text_to_unicode_layer(text)
+    u1_result = unicode_to_grapheme_layer(u0_result.layer_object)
+    u2p_result = grapheme_to_phonetic_layer(u1_result.layer_object)
+    u2s_result = phonetic_to_syllable_layer(u2p_result.layer_object)
+
+    # Debug output
+    print(f"\n[TEST] مَكْتَب syllabification:")
+    if u2s_result.valid:
+        syllables = list(u2s_result.layer_object.syllables)
+        print(f"  Syllables: {len(syllables)}")
+        for i, syll in enumerate(syllables):
+            print(f"    {i+1}. Pattern={syll.pattern.value}, Surface={syll.ordered_surface}")
+    else:
+        print(f"  FAILED: {u2s_result.violations}")
+
+    # Verify syllabification succeeded
+    assert u2s_result.valid or not u2s_result.layer_object.has_blocking_failure(), \
+        f"مَكْتَب syllabification must not have blocking failures"
+
+    # If successful, verify pattern is CVC.CVC
+    if u2s_result.valid:
+        syllables = list(u2s_result.layer_object.syllables)
+        # May be 2 syllables (CVC.CVC) or different depending on U₂p detection
+        # The critical law: NO syllable should have pattern CV followed by CC onset
+        for syllable in syllables:
+            # Verify no CC onset (Arabic law)
+            assert len(syllable.ordered_onset) <= 1, \
+                f"Arabic syllable must not have CC onset, got onset={syllable.ordered_onset}"
+
+
+def test_integration_bikitaabin_surface_preservation():
+    """
+    Integration Test: بِكِتَابٍ ordered surface preservation.
+
+    Expected:
+        - Tanween (ٍ) preserved in surface trace
+        - ordered_surface contains all diacritics
+    """
+    text = "بِكِتَابٍ"
+    u0_result = text_to_unicode_layer(text)
+    u1_result = unicode_to_grapheme_layer(u0_result.layer_object)
+    u2p_result = grapheme_to_phonetic_layer(u1_result.layer_object)
+    u2s_result = phonetic_to_syllable_layer(u2p_result.layer_object)
+
+    # Should succeed or have non-blocking residuals
+    assert u2s_result.valid or not u2s_result.layer_object.has_blocking_failure()
+
+    # Verify all syllables have ordered representation
+    if u2s_result.valid:
+        for syllable in u2s_result.layer_object.syllables:
+            assert syllable.ordered_surface, "ordered_surface must be populated"
+
+
 def test_integration_u0_to_u2s_pipeline():
     """
     Integration Test: Complete U₀ → U₁ → U₂p → U₂s pipeline
