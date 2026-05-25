@@ -9,12 +9,12 @@ import pytest
 from dal_core.u0_unicode_carrier import (
     UnicodeUnit,
     UnicodeClass,
-    Rank,
     classify_unicode_scalar,
     cpb0_validate,
     text_to_unicode_layer,
     make_u0_proof
 )
+from dal_core.foundation import Rank
 
 
 # ============================================================================
@@ -148,7 +148,7 @@ def test_positive_6_proof_object():
     proof = make_u0_proof(text, cpb_result)
 
     assert proof.claim == "Unicode scalars classified and preserved"
-    assert proof.scope == "Unicode layer only (U₀)"
+    assert proof.scope == "U₀ / UnicodeCarrier"
 
     # Check forbidden gates
     assert "root_certificate" in proof.forbidden_next_gates
@@ -156,9 +156,9 @@ def test_positive_6_proof_object():
     assert "meaning_certificate" in proof.forbidden_next_gates
     assert "hukm_certificate" in proof.forbidden_next_gates
 
-    # Check rank vector
+    # Check rank vector (dict form)
     assert proof.rank_vector["unicode_rank"] == Rank.CERTIFICATE
-    assert proof.rank_vector["weight_rank"] == Rank.ZERO
+    assert proof.rank_vector["pattern_weight_rank"] == Rank.ZERO
     assert proof.rank_vector["semantic_rank"] == Rank.ZERO
     assert proof.rank_vector["hukm_rank"] == Rank.ZERO
 
@@ -295,7 +295,7 @@ def test_negative_6_no_layer_jump():
     assert "meaning_certificate" in proof.forbidden_next_gates
 
     # Rank vector should show ZERO for higher layers
-    assert proof.rank_vector["weight_rank"] == Rank.ZERO
+    assert proof.rank_vector["pattern_weight_rank"] == Rank.ZERO
     assert proof.rank_vector["semantic_rank"] == Rank.ZERO
 
 

@@ -31,6 +31,15 @@ from uuid import uuid4
 import unicodedata
 
 from dal_core.residuals import Residual, ResidualType, make_blocker, make_warning
+from dal_core.foundation import (
+    Rank,
+    RankVector,
+    ProofObject,
+    make_proof_object,
+    ResidualSet,
+    merge_residuals,
+    has_blocking_residuals
+)
 
 
 # ============================================================================
@@ -55,20 +64,6 @@ class UnicodeClass(Enum):
     CONTROL = "control"                       # Zero-width, formatting
     INVISIBLE = "invisible"                   # ZWJ, ZWNJ
     UNKNOWN = "unknown"                       # Unclassified
-
-
-class Rank(Enum):
-    """
-    Epistemic rank for Unicode units.
-
-    Progression: ZERO → CANDIDATE → HYPOTHESIS → STRONG_HYPOTHESIS → CERTIFICATE
-    """
-    ZERO = auto()                # No classification
-    CANDIDATE = auto()           # Potential classification
-    HYPOTHESIS = auto()          # Weak evidence
-    STRONG_HYPOTHESIS = auto()   # Strong evidence
-    CERTIFICATE = auto()         # Certified by policy
-    BLOCKED = auto()             # Terminal failure
 
 
 # ============================================================================
@@ -509,66 +504,45 @@ def text_to_unicode_layer(
 
 
 # ============================================================================
-# ProofObject
+# ProofObject (using shared foundation)
 # ============================================================================
-
-@dataclass(frozen=True)
-class U0ProofObject:
-    """
-    ProofObject for U₀ layer.
-
-    Documents:
-        - claim: What this layer certifies
-        - scope: Boundaries of certification
-        - evidence: What was checked
-        - counter_evidence: What failed
-        - trace_graph: Trace to input
-        - competitors: Competing interpretations
-        - residuals: Warnings/blockers
-        - rank_vector: Epistemic ranks
-        - allowed_next_gates: Permitted transitions
-        - forbidden_next_gates: Blocked transitions
-        - limitations: Known limitations
-    """
-    claim: str
-    scope: str
-    input_text: str
-    output: UnicodeLayerObject
-    evidence: FrozenSet[str]
-    counter_evidence: FrozenSet[str]
-    trace_graph: Dict[str, Any]
-    competitors: FrozenSet[str]
-    residuals: FrozenSet[Residual]
-    rank_vector: Dict[str, Rank]
-    allowed_next_gates: FrozenSet[str]
-    forbidden_next_gates: FrozenSet[str]
-    limitations: FrozenSet[str]
-
 
 def make_u0_proof(
     input_text: str,
     cpb_result: CPB0Result
-) -> U0ProofObject:
+) -> ProofObject:
     """
-    Create ProofObject for U₀ layer.
+    Create ProofObject for U₀ layer using shared foundation.
 
     Args:
         input_text: Input string
         cpb_result: CPB₀ validation result
 
     Returns:
-        U0ProofObject documenting certification
+        ProofObject documenting U₀ certification
     """
     if not cpb_result.valid or cpb_result.layer_object is None:
         raise ValueError("Cannot create proof for invalid CPB₀ result")
 
     layer_obj = cpb_result.layer_object
 
-    return U0ProofObject(
+    # Create rank vector (only unicode_rank can be non-ZERO)
+    rank_vector = RankVector(
+        unicode_rank=Rank.CERTIFICATE if layer_obj.count_certified() > 0 else Rank.CANDIDATE,
+        grapheme_rank=Rank.ZERO,
+        phonetic_rank=Rank.ZERO,
+        syllable_rank=Rank.ZERO,
+        functional_role_rank=Rank.ZERO,
+        morpheme_rank=Rank.ZERO,
+        stem_root_rank=Rank.ZERO,
+        pattern_weight_rank=Rank.ZERO,
+        semantic_rank=Rank.ZERO,
+        hukm_rank=Rank.ZERO
+    )
+
+    return make_proof_object(
         claim="Unicode scalars classified and preserved",
-        scope="Unicode layer only (U₀)",
-        input_text=input_text,
-        output=layer_obj,
+        scope="U₀ / UnicodeCarrier",
         evidence=frozenset([
             f"Classified {len(layer_obj.units)} units",
             f"Certified {layer_obj.count_certified()} units",
@@ -584,15 +558,7 @@ def make_u0_proof(
         },
         competitors=frozenset(),  # No competitors at Unicode level
         residuals=layer_obj.total_residuals,
-        rank_vector={
-            "unicode_rank": Rank.CERTIFICATE if layer_obj.count_certified() > 0 else Rank.CANDIDATE,
-            "grapheme_rank": Rank.ZERO,
-            "phonetic_rank": Rank.ZERO,
-            "syllable_rank": Rank.ZERO,
-            "weight_rank": Rank.ZERO,
-            "semantic_rank": Rank.ZERO,
-            "hukm_rank": Rank.ZERO
-        },
+        rank_vector=rank_vector.as_dict(),
         allowed_next_gates=frozenset(["cluster₀₁"]),
         forbidden_next_gates=frozenset([
             "root_certificate",
