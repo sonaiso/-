@@ -142,7 +142,8 @@ class ArabicSyllable:
     ordered_onset: Tuple[str, ...] = field(default_factory=tuple)      # Ordered onset segments
     ordered_nucleus: Tuple[str, ...] = field(default_factory=tuple)    # Ordered nucleus segments (MANDATORY)
     ordered_coda: Tuple[str, ...] = field(default_factory=tuple)       # Ordered coda segments
-    ordered_surface: str = ""                                           # Complete ordered surface string
+    ordered_surface: str = ""                                           # Complete ordered PHONETIC surface string
+    orthographic_surface: str = ""                                      # Complete ordered ARABIC ORTHOGRAPHIC surface string
 
     # Classification
     pattern: SyllablePattern = SyllablePattern.CV
@@ -456,6 +457,7 @@ def _make_cv_syllable(proj: PhoneticProjection, residuals_list: List[Residual]) 
     ordered_nucleus = (proj.short_vowel_candidate,)
     ordered_coda = ()
     ordered_surface = proj.consonant_candidate + proj.short_vowel_candidate
+    orthographic_surface = proj.source_grapheme  # Original Arabic
 
     try:
         syllable = ArabicSyllable(
@@ -469,6 +471,7 @@ def _make_cv_syllable(proj: PhoneticProjection, residuals_list: List[Residual]) 
             ordered_nucleus=ordered_nucleus,
             ordered_coda=ordered_coda,
             ordered_surface=ordered_surface,
+            orthographic_surface=orthographic_surface,
             # Classification
             pattern=SyllablePattern.CV,
             weight=SyllableWeight.LIGHT,
@@ -526,6 +529,7 @@ def _make_cvv_syllable(
     ordered_nucleus = (long_vowel,)  # Long vowel as single unit
     ordered_coda = ()
     ordered_surface = proj.consonant_candidate + long_vowel
+    orthographic_surface = proj.source_grapheme + next_proj.source_grapheme  # Arabic base + carrier
 
     try:
         syllable = ArabicSyllable(
@@ -539,6 +543,7 @@ def _make_cvv_syllable(
             ordered_nucleus=ordered_nucleus,
             ordered_coda=ordered_coda,
             ordered_surface=ordered_surface,
+            orthographic_surface=orthographic_surface,
             # Classification
             pattern=SyllablePattern.CVV,
             weight=SyllableWeight.HEAVY,
@@ -620,6 +625,7 @@ def _make_cvc_syllable(
     ordered_nucleus = (proj.short_vowel_candidate,)
     ordered_coda = (next_proj.consonant_candidate,)  # Coda consonant
     ordered_surface = proj.consonant_candidate + proj.short_vowel_candidate + next_proj.consonant_candidate
+    orthographic_surface = proj.source_grapheme + next_proj.source_grapheme  # Arabic C+V + C
 
     try:
         syllable = ArabicSyllable(
@@ -633,6 +639,7 @@ def _make_cvc_syllable(
             ordered_nucleus=ordered_nucleus,
             ordered_coda=ordered_coda,
             ordered_surface=ordered_surface,
+            orthographic_surface=orthographic_surface,
             # Classification
             pattern=SyllablePattern.CVC,
             weight=SyllableWeight.HEAVY,
@@ -714,6 +721,7 @@ def _attach_terminal_coda(
     # Build updated syllable
     ordered_coda = (terminal_proj.consonant_candidate,)
     ordered_surface = base_syllable.ordered_surface + terminal_proj.consonant_candidate
+    orthographic_surface = base_syllable.orthographic_surface + terminal_proj.source_grapheme  # Arabic + terminal
 
     try:
         updated_syllable = ArabicSyllable(
@@ -727,6 +735,7 @@ def _attach_terminal_coda(
             ordered_nucleus=base_syllable.ordered_nucleus,
             ordered_coda=ordered_coda,
             ordered_surface=ordered_surface,
+            orthographic_surface=orthographic_surface,
             # Classification
             pattern=new_pattern,
             weight=new_weight,

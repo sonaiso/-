@@ -131,6 +131,7 @@ class PhoneticProjection:
     id: str                                    # Unique identifier
     grapheme_ref: str                          # Reference to source grapheme ID
     phonetic_class: PhoneticClass              # Primary classification
+    source_grapheme: str = ""                  # Original Arabic grapheme (base + marks)
 
     # Phonetic candidates
     consonant_candidate: Optional[str] = None  # C: /b/, /k/, etc.
@@ -435,6 +436,7 @@ def project_grapheme_to_phonetic(
         id=str(uuid4()),
         grapheme_ref=cluster.id,
         phonetic_class=phonetic_class,
+        source_grapheme=cluster.get_full_grapheme(),  # Store original Arabic
         consonant_candidate=consonant_candidate,
         short_vowel_candidate=short_vowel_candidate,
         long_vowel_candidate=long_vowel_candidate,
