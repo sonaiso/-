@@ -496,18 +496,19 @@ def boundary_3(syllable_layer: SyllableLayerObject) -> BoundaryResult:
             residuals=frozenset([make_blocker("no_syllables", "Cannot detect boundaries without syllables")])
         )
 
-    # Get surface form from syllables
-    # Handle both old and new syllable structures
+    # Get surface form from syllables using ORTHOGRAPHIC surface (not phonetic)
+    # CRITICAL: Use orthographic_surface for boundary detection (matches PROCLITICS/ENCLITICS)
+    # Phonetic surface (/w//a/) does NOT match Arabic orthographic (وَ, بِ)
     surface_parts = []
     for syll in syllables_list:
-        if hasattr(syll, 'surface'):
-            # Old structure with surface attribute
-            surface_parts.append(syll.surface)
+        if hasattr(syll, 'orthographic_surface') and syll.orthographic_surface:
+            # NEW: Use Arabic orthographic surface for boundary detection
+            surface_parts.append(syll.orthographic_surface)
         elif hasattr(syll, 'get_phonetic_string'):
-            # New structure - use phonetic string
+            # FALLBACK: phonetic (will fail to match Arabic dictionaries)
             surface_parts.append(syll.get_phonetic_string())
         else:
-            # Fallback - reconstruct from onset/nucleus/coda
+            # Fallback - reconstruct from onset/nucleus/coda (phonetic)
             onset_str = "".join(sorted(syll.onset)) if syll.onset else ""
             nucleus_str = "".join(sorted(syll.nucleus)) if syll.nucleus else ""
             coda_str = "".join(sorted(syll.coda)) if syll.coda else ""
