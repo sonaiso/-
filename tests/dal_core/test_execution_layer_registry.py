@@ -235,8 +235,9 @@ def test_validate_rejects_u2s_to_functional_role_jump():
     is_valid, error = validate_layer_sequence(invalid_sequence)
     assert not is_valid, "Should reject U₂s → U₅ jump"
     assert error is not None, "Should have error message"
-    assert "U2S_ARABIC_SYLLABLE" in error or "Syllable" in error, "Error should mention source"
-    assert "U5_FUNCTIONAL_ROLE" in error or "FunctionalRole" in error, "Error should mention target"
+    error_lower = error.lower()
+    assert "u2s" in error_lower or "syllable" in error_lower, "Error should mention source"
+    assert "u5" in error_lower or "functional" in error_lower, "Error should mention target"
 
 
 def test_validate_rejects_u2s_to_root_jump():

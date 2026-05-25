@@ -40,11 +40,23 @@ U₂s ArabicSyllable
 ### 1. Execution Layer Registry (`src/dal_core/execution_layer_registry.py`)
 
 **New canonical registry** defining:
-- Official layer sequence (U₀-U₁₅)
-- Allowed transitions (U₂s → U₃ only)
+- Official layer sequence
+  - **Execution Core (U₀-U₉)**: Closed, implemented, operational
+  - **Design Layers (U₁₀-U₁₅)**: Future design, not closed execution
+- Allowed transitions
+  - Core transitions (U₂s → U₃ only)
+  - Design transitions (future)
 - Forbidden jumps (U₂s → U₅, U₂s → U₈, U₂s → U₉)
 - Validation functions
 - Legacy layer mapping
+
+**Key Constants**:
+```python
+EXECUTION_CORE_LAYERS  # U₀-U₉
+DESIGN_LAYERS          # U₁₀-U₁₅
+CORE_ALLOWED_TRANSITIONS
+DESIGN_ALLOWED_TRANSITIONS
+```
 
 **Key Functions**:
 ```python
@@ -52,6 +64,8 @@ is_transition_allowed(from_layer, to_layer) -> bool
 get_forbidden_jump_reason(from_layer, to_layer) -> str
 get_required_intermediate_layers(from_layer, to_layer) -> set
 validate_layer_sequence(sequence) -> (bool, error)
+is_core_layer(layer) -> bool
+is_design_layer(layer) -> bool
 ```
 
 ### 2. U₃ BoundaryAndAttachmentCarrier (`src/dal_core/u3_boundary_attachment_carrier.py`)
@@ -352,6 +366,50 @@ U₅ FunctionalRole:
 - Prevents premature role assignment
 - Supports compositional analysis
 - Aligns with no-leap principle
+
+## Architectural Distinction: Core vs Design Layers
+
+### Execution Core (U₀-U₉)
+**Status**: Closed, implemented, operational
+
+**Characteristics**:
+- Complete layer definitions
+- Operational carrier implementations
+- Closed transition gates
+- Evidence-based validation
+- Production-ready processing
+
+**Layers**:
+- U₀: Unicode Carrier
+- U₁: Grapheme Carrier
+- U₂: Syllable Carrier (p/s variants)
+- U₃: BoundaryAndAttachment Carrier
+- U₄: TrueSingularLafẓ Carrier
+- U₅: FunctionalRole Carrier
+- U₆: MabniClosedClass Carrier
+- U₇: PreWeightContract Carrier
+- U₈: RootStem Carrier
+- U₉: Weight Carrier
+
+### Design Layers (U₁₀-U₁₅)
+**Status**: Future design, not closed execution
+
+**Characteristics**:
+- Architecture planned but not finalized
+- Transitions defined for reference
+- NOT operational for production
+- Subject to architectural revision
+- Placeholders for future implementation
+
+**Layers**:
+- U₁₀: WordForm (planned)
+- U₁₁: LexicalEntry (planned)
+- U₁₂: MorphosyntacticFeature (planned)
+- U₁₃: PhraseRelation (planned)
+- U₁₄: SentenceStructure (planned)
+- U₁₅: Dalālah (planned)
+
+**Critical Note**: Design layers are included in the registry for architectural planning and tooling support, but they are NOT part of the closed execution core. Production code should only rely on U₀-U₉.
 
 ## PR Checklist
 

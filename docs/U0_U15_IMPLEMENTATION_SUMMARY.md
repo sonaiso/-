@@ -1,36 +1,38 @@
-# U₀-U₁₅ Multi-Layer Carrier Architecture - Implementation Complete
+# U₀-U₁₅ Multi-Layer Carrier Architecture - Implementation Status
 
 ## Executive Summary
 
-Successfully implemented **6 carrier layers** (U₀-U₆ minus pre-existing U₀-U₂) following the approved architectural plan with rigorous mathematical, algebraic, programming, and linguistic best practices.
+Successfully implemented **execution core layers** (U₀-U₉) following the approved architectural plan with rigorous mathematical, algebraic, programming, and linguistic best practices.
 
 ## Implementation Status
 
-### ✅ **Completed Layers (U₀-U₆)**
+### ✅ **Execution Core (U₀-U₉) - Closed, Implemented, Operational**
 
 | Layer | Name | Files | Status |
 |-------|------|-------|--------|
 | U₀ | Unicode Carrier | carriers.py | ✅ Pre-existing |
 | U₁ | Grapheme Carrier | grapheme_phonetic_*.py | ✅ Pre-existing |
 | U₂ | Syllable Carrier | syllables.py | ✅ Pre-existing |
-| U₃ | FunctionalRole Carrier | u3_functional_roles.py, u3_operations.py | ✅ Complete |
-| U₄ | Morpheme Carrier | u4_morpheme_carrier.py, u4_operations.py | ✅ **NEW** |
-| U₅ | StemRoot Carrier | u5_stemroot_carrier.py, u5_operations.py | ✅ **NEW** |
-| U₆ | PatternWeight Carrier | u6_pattern_carrier.py, u6_operations.py | ✅ **NEW** |
+| U₃ | BoundaryAndAttachment | u3_boundary_attachment_carrier.py | ✅ Complete |
+| U₄ | TrueSingularLafẓ | u4_true_singular_lafz_carrier.py | ✅ Complete |
+| U₅ | FunctionalRole | u5_functional_role_carrier.py | ✅ Complete |
+| U₆ | MabniClosedClass | u6_mabni_closed_class.py | ✅ Complete |
+| U₇ | PreWeightContract | u7_pre_weight_contract.py | ✅ Complete |
+| U₈ | RootStem | u8_root_stem.py | ✅ Complete |
+| U₉ | Weight | u9_weight.py | ✅ Complete |
 
-### 📋 **Remaining Layers (U₇-U₁₅) - Design Complete**
+### 📋 **Design Layers (U₁₀-U₁₅) - Future Design, Not Closed**
 
-The architectural pattern is fully established. Remaining layers follow the same rigorous structure:
+⚠️ **Important**: These layers are architectural placeholders, NOT operational execution layers.
 
-- **U₇**: WordForm Carrier - Assembles complete surface word forms
-- **U₈**: LexicalEntry Carrier - Lexicon interface and attestation
-- **U₉**: MorphosyntacticFeature Carrier - Feature bundle (POS, case, gender, number, etc.)
-- **U₁₀**: PhraseRelation Carrier - Syntactic relations (إسناد, إضافة, نعت, etc.)
-- **U₁₁**: SentenceStructure Carrier - Complete sentence frames
-- **U₁₂**: Dalālah Carrier - Semantic relations (مطابقة, تضمن, التزام)
-- **U₁₃**: Ifādah Carrier - Informative completeness
-- **U₁₄**: Hukm Carrier - Judgment layer (نحوي, صرفي, دلالي, etc.)
-- **U₁₅**: Tanzīl Carrier - Application with manat verification
+The architectural pattern is established for future implementation:
+
+- **U₁₀**: WordForm Carrier - Assembles complete surface word forms (planned)
+- **U₁₁**: LexicalEntry Carrier - Lexicon interface and attestation (planned)
+- **U₁₂**: MorphosyntacticFeature Carrier - Feature bundle (planned)
+- **U₁₃**: PhraseRelation Carrier - Syntactic relations (planned)
+- **U₁₄**: SentenceStructure Carrier - Complete sentence frames (planned)
+- **U₁₅**: Dalālah Carrier - Semantic relations (planned)
 
 ## Architectural Compliance
 
