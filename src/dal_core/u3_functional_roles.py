@@ -1,9 +1,34 @@
 """
-U₃ Functional Role Layer (طبقة الأدوار الوظيفية المقطعية)
+⚠️ LEGACY U₃ Functional Role Layer - ARCHITECTURAL REPOSITIONING REQUIRED ⚠️
 
-Domain: U₃ = SyllabicFunctionalRoleCarrier
-Transition: Syllable (U₂) → Functional Role Candidates (U₃)
-Purpose: Assign candidate functional roles to syllables without premature commitment
+DEPRECATED POSITION: This module was originally U₃ but is now recognized as U₅.
+
+Domain: U₅ = FunctionalRoleCarrier (NEW CANONICAL POSITION)
+Former: U₃ = SyllabicFunctionalRoleCarrier (LEGACY POSITION)
+
+ARCHITECTURAL NOTE:
+    After U₂s ArabicSyllableCarrier, the correct execution path is:
+        U₂s → U₃ BoundaryAndAttachment → U₄ TrueSingularLafẓ → U₅ FunctionalRole
+
+    This module was created before BoundaryAndAttachment and TrueSingularLafẓ layers
+    were recognized as necessary intermediate steps. It is now U₅ in the canonical
+    execution layer registry (see: src/dal_core/execution_layer_registry.py).
+
+RATIONALE:
+    Functional role assignment requires:
+        1. Boundary detection (U₃): Separate وَ, بِـ, كِتَاب, ـهِمْ in وَبِكِتَابِهِمْ
+        2. True Lafẓ identification (U₄): Determine standalone vs. compound units
+        3. THEN role assignment (U₅): Assign HARF_JARR, ROOT, PRONOUN roles
+
+    Without U₃ and U₄, role assignment jumps prematurely from syllable to role,
+    violating the no-leap principle: لا دور وظيفي قبل فصل الحدود
+
+MIGRATION PATH:
+    - This file is retained for compatibility
+    - New code should use: from dal_core.u5_functional_role_carrier import *
+    - Canonical layer order: See execution_layer_registry.EXECUTION_LAYER_ORDER
+
+Purpose: Assign candidate functional roles WITHOUT premature commitment
 
 Key Principle:
     Same syllable may have multiple roles in different contexts.
@@ -14,13 +39,14 @@ Critical Laws:
     2. Same syllable sequence may activate different roles (بِ = preposition | root radical)
     3. Closed-class roles require lexicon match
     4. Root roles require pattern evidence
-    5. No meaning, syntax, or semantics at U₃ level
+    5. No meaning, syntax, or semantics at this level
 
-Architecture:
-    U₀ (Unicode) → U₁ (Grapheme) → U₂ (Syllable) → U₃ (FunctionalRole) → D2 (PreMorph)
+Corrected Architecture:
+    U₂s (Syllable) → U₃ (Boundary) → U₄ (TrueLafẓ) → U₅ (FunctionalRole) [THIS MODULE]
 
-PR: U3-LAYER
+PR: U3-LAYER (original), EXEC-LAYER-REFACTOR (architectural correction)
 Created: 2026-05-25
+Updated: 2026-05-25 (architectural repositioning)
 """
 
 from dataclasses import dataclass, field

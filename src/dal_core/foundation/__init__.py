@@ -10,6 +10,9 @@ Exports:
     - ResidualSet: Residual algebra with merge/discharge operations
     - CPBContract: Identity guardian contract interface
     - LayerObject: Base protocol for layer outputs
+    - PotentialPath: Foundational potentiality-certification separation
+    - PotentialPathStatus: Status enum for potential paths
+    - NeutralPotential: Redefined neutral element as preserved potential without certification
 """
 
 from dal_core.foundation.rank import Rank, RankVector
@@ -20,6 +23,28 @@ from dal_core.foundation.residual_set import (
     discharge_residual,
     has_blocking_residuals
 )
+from dal_core.foundation.potential_path import (
+    PotentialPath,
+    PotentialPathStatus,
+    certify_path,
+    validate_no_direct_certificate,
+    DirectCertificationError,
+    make_potential_path,
+    certify_potential_path,
+    block_potential_path,
+)
+from dal_core.foundation.neutral_potential import (
+    NeutralPotential,
+    NeutralSyllablePotential,
+    NeutralWeightPotential,
+    NeutralBoundaryPotential,
+    NeutralPotentialViolation,
+    validate_neutral_potential,
+    validate_cpb_zero_preserves_neutral,
+    make_neutral_syllable_potential,
+    make_neutral_weight_potential,
+    make_neutral_boundary_potential,
+)
 
 __all__ = [
     "Rank",
@@ -29,5 +54,23 @@ __all__ = [
     "ResidualSet",
     "merge_residuals",
     "discharge_residual",
-    "has_blocking_residuals"
+    "has_blocking_residuals",
+    "PotentialPath",
+    "PotentialPathStatus",
+    "certify_path",
+    "validate_no_direct_certificate",
+    "DirectCertificationError",
+    "make_potential_path",
+    "certify_potential_path",
+    "block_potential_path",
+    "NeutralPotential",
+    "NeutralSyllablePotential",
+    "NeutralWeightPotential",
+    "NeutralBoundaryPotential",
+    "NeutralPotentialViolation",
+    "validate_neutral_potential",
+    "validate_cpb_zero_preserves_neutral",
+    "make_neutral_syllable_potential",
+    "make_neutral_weight_potential",
+    "make_neutral_boundary_potential",
 ]
