@@ -123,9 +123,9 @@ TrueLafzUnit(
 FunctionalRoleUnit(
     surface="كَتَبَ",
     role_candidates=[
-        VERB_SURFACE_CANDIDATE (confidence=0.6),
-        PAST_VERB_SURFACE_CANDIDATE (confidence=0.7),
-        SINGULAR_NOUN_CANDIDATE (confidence=0.6)  # Ambiguity
+        VERB_SURFACE_CANDIDATE (surface_support=0.6),
+        PAST_VERB_SURFACE_CANDIDATE (surface_support=0.7),
+        SINGULAR_NOUN_CANDIDATE (surface_support=0.6)  # Ambiguity
     ]
 )
 ```
@@ -159,7 +159,7 @@ TrueLafzUnit(
 FunctionalRoleUnit(
     surface="بِ",
     role_candidates=[
-        HARF_JARR_CANDIDATE (confidence=0.8)
+        HARF_JARR_CANDIDATE (surface_support=0.8)
     ]
 )
 
@@ -167,9 +167,9 @@ FunctionalRoleUnit(
 FunctionalRoleUnit(
     surface="كِتَابٍ",
     role_candidates=[
-        NOUN_SURFACE_CANDIDATE (confidence=0.6),
-        INDEFINITE_NOUN_CANDIDATE (confidence=0.7),
-        SINGULAR_NOUN_CANDIDATE (confidence=0.6)
+        NOUN_SURFACE_CANDIDATE (surface_support=0.6),
+        INDEFINITE_NOUN_CANDIDATE (surface_support=0.7),
+        SINGULAR_NOUN_CANDIDATE (surface_support=0.6)
     ]
 )
 ```
@@ -183,13 +183,13 @@ FunctionalRoleUnit(
 # وَ
 FunctionalRoleUnit(
     surface="وَ",
-    role_candidates=[HARF_ATF_CANDIDATE (0.9)]
+    role_candidates=[HARF_ATF_CANDIDATE (surface_support=0.9)]
 )
 
 # بِ
 FunctionalRoleUnit(
     surface="بِ",
-    role_candidates=[HARF_JARR_CANDIDATE (0.8)]
+    role_candidates=[HARF_JARR_CANDIDATE (surface_support=0.8)]
 )
 
 # كِتَابِ
@@ -202,8 +202,8 @@ FunctionalRoleUnit(
 FunctionalRoleUnit(
     surface="ـهِمْ",
     role_candidates=[
-        ATTACHED_PRONOUN_CANDIDATE (0.9),
-        GENITIVE_PRONOUN_CANDIDATE (0.7)
+        ATTACHED_PRONOUN_CANDIDATE (surface_support=0.9),
+        GENITIVE_PRONOUN_CANDIDATE (surface_support=0.7)
     ]
 )
 ```
@@ -218,7 +218,7 @@ class FunctionalRoleCandidate:
     uid: str
     role: Enum  # Role type (verb, noun, particle, etc.)
     sort: RoleSort  # Category (VERB_CANDIDATE, NOUN_CANDIDATE, etc.)
-    confidence: float  # [0.0, 1.0]
+    surface_support: float  # [0.0, 1.0] - Surface evidence strength, NOT epistemic certificate
     evidence: Tuple[str, ...]  # Why this candidate
     source_u4_unit_id: str  # Trace to U₄
     residuals: FrozenSet[Residual]
@@ -286,7 +286,7 @@ class CPB5:
     def build_proof(layer_obj: FunctionalRoleLayerObject) -> ProofObject:
         """Build proof with guards."""
         return make_proof_object(
-            claim="U₅ functional role candidates determined",
+            claim="U₅ functional role candidate paths opened",
             allowed_next_gates=frozenset({"mabni_closed_class_gate"}),
             forbidden_next_gates=frozenset({
                 "root_certificate",
@@ -349,7 +349,7 @@ if u5_result.success:
     for unit in u5_result.layer_object.units:
         print(f"Surface: {unit.surface}")
         for candidate in unit.role_candidates:
-            print(f"  - {candidate.role.value} ({candidate.confidence:.2f})")
+            print(f"  - {candidate.role.value} (surface_support={candidate.surface_support:.2f})")
 ```
 
 ## Execution Layer Status
