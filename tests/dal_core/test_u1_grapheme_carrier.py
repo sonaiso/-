@@ -25,7 +25,7 @@ from dal_core.u0_unicode_carrier import (
     text_to_unicode_layer
 )
 from dal_core.foundation import Rank
-from dal_core.residuals import ResidualType
+from dal_core.residuals import ResidualType, ResidualSeverity
 
 
 # ============================================================================
@@ -212,8 +212,8 @@ def test_positive_6_proof_object():
     assert "meaning_certificate" in proof.forbidden_next_gates
     assert "hukm_certificate" in proof.forbidden_next_gates
 
-    # Check allowed gates (only project₁₂p)
-    assert "project₁₂p" in proof.allowed_next_gates
+    # Check allowed gates (only project_12p)
+    assert "project_12p" in proof.allowed_next_gates
     assert len(proof.allowed_next_gates) == 1
 
     # Check rank vector
@@ -251,8 +251,8 @@ def test_negative_1_floating_fatha():
     assert not result.success
     assert result.cluster is None
     # Should have UnattachedMark residual
-    residual_types = {r.residual_type for r in result.residuals}
-    assert ResidualType.BLOCKER in residual_types or ResidualType.MALFORMED_ATOM in residual_types
+    residual_types = {r.type for r in result.residuals}
+    assert ResidualSeverity.BLOCKER in {r.severity for r in result.residuals} or ResidualType.MALFORMED_ATOM in residual_types
 
 
 def test_negative_2_duplicate_short_vowels():
@@ -273,7 +273,7 @@ def test_negative_2_duplicate_short_vowels():
     assert not result.success
     assert result.cluster is None
     # Should have MultipleShortVowels residual
-    residual_messages = {str(r.data) for r in result.residuals}
+    residual_messages = {r.message for r in result.residuals}
     assert any("MultipleShortVowels" in msg for msg in residual_messages)
 
 
@@ -312,7 +312,7 @@ def test_negative_4_duplicate_sukun():
     assert not result.success
     assert result.cluster is None
     # Should have DuplicateSukūn residual
-    residual_messages = {str(r.data) for r in result.residuals}
+    residual_messages = {r.message for r in result.residuals}
     assert any("DuplicateSukūn" in msg or "Duplicate" in msg for msg in residual_messages)
 
 
@@ -331,7 +331,7 @@ def test_negative_5_shadda_on_non_letter():
 
     assert not result.success
     # Should have UnattachedShaddah residual
-    residual_messages = {str(r.data) for r in result.residuals}
+    residual_messages = {r.message for r in result.residuals}
     assert any("Shadda" in msg for msg in residual_messages)
 
 

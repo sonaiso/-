@@ -27,7 +27,7 @@ Created: 2026-05-25
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import List, Optional, FrozenSet, Dict, Any
+from typing import List, Optional, FrozenSet, Dict, Any, Tuple
 from uuid import uuid4
 
 from dal_core.residuals import Residual, ResidualType, make_blocker, make_warning
@@ -102,7 +102,7 @@ class GraphemeCluster:
     trace_0: FrozenSet[str]                     # Trace to U₀ unit IDs
     residuals: FrozenSet[Residual]             # Warnings/blockers
     rank: Rank                                 # Epistemic rank
-    metadata: Dict[str, Any] = field(default_factory=dict)  # Additional info
+    metadata: Optional[tuple] = None  # Additional info
 
     def get_full_grapheme(self) -> str:
         """Reconstruct full grapheme string."""
@@ -110,7 +110,7 @@ class GraphemeCluster:
 
     def has_blocker(self) -> bool:
         """Check if cluster has blocking residual."""
-        return any(r.residual_type == ResidualType.BLOCKER for r in self.residuals)
+        return any(r.type == ResidualType.BLOCKER for r in self.residuals)
 
     def is_certified(self) -> bool:
         """Check if cluster is certified (rank = CERTIFICATE)."""
@@ -134,12 +134,12 @@ class GraphemeLayerObject:
     """
     clusters: FrozenSet[GraphemeCluster]
     total_residuals: FrozenSet[Residual]
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Optional[tuple] = None
     proof: Optional[ProofObject] = None
 
     def has_blocking_failure(self) -> bool:
         """Check if layer has blocking residuals."""
-        return any(r.residual_type == ResidualType.BLOCKER for r in self.total_residuals)
+        return any(r.type == ResidualType.BLOCKER for r in self.total_residuals)
 
     def count_certified(self) -> int:
         """Count certified clusters."""
@@ -290,7 +290,7 @@ def cluster_unicode_units(
         )
 
     # Check 3: Multiple sukun forbidden
-    sukun_count = sum(1 for m in marks if m == SUKUN)
+    sukun_count = sum(1 for u in mark_units if u.char == SUKUN)
     if sukun_count > 1:
         residuals_list.append(make_blocker(
             ResidualType.MALFORMED_ATOM,
@@ -370,10 +370,10 @@ def cluster_unicode_units(
         trace_0=trace_0,
         residuals=all_residuals,
         rank=rank,
-        metadata={
-            "base_codepoint": base_unit.codepoint,
-            "mark_count": len(marks)
-        }
+        metadata=(
+            ("base_codepoint", base_unit.codepoint),
+            ("mark_count", len(marks))
+        )
     )
 
     return ClusterResult(
@@ -538,10 +538,10 @@ def cpb1_validate(
     layer_object = GraphemeLayerObject(
         clusters=frozenset(clusters),
         total_residuals=frozenset(total_residuals),
-        metadata={
-            "u0_units": len(unicode_layer.units),
-            "u1_clusters": len(clusters)
-        },
+        metadata=(
+            ("u0_units", len(unicode_layer.units)),
+            ("u1_clusters", len(clusters))
+        ),
         proof=proof
     )
 
