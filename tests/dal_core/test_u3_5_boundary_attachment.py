@@ -50,23 +50,16 @@ from dal_core.u3_functional_roles import RoleSpan, RoleSort
 @pytest.fixture
 def sample_role_span():
     """Create sample role span from U₃."""
-    from dal_core.syllables import Syllable, SyllableStructure
+    from dal_core.syllables import Syllable, SyllableType
 
     # Create a simple syllable
     syllable = Syllable(
-        structure=SyllableStructure.CV,
-        onset_consonant="ك",
-        nucleus_vowel="ِ",
-        coda_consonant="",
-        diacritics="",
-        is_final=False,
-        is_initial=True
+        type=SyllableType.CV
     )
 
     return RoleSpan(
         syllables=[syllable],
         syllable_indices=(0,),
-        candidate_roles=frozenset(),
         position="initial",
         trace_u2=[syllable],
         residuals=[],
