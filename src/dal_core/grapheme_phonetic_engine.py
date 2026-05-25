@@ -16,7 +16,7 @@ from typing import List, Optional, Tuple
 
 from dal_core.grapheme_phonetic_projection import (
     GraphemeCarrierU1,
-    PhoneticClass₁,
+    PhoneticClass1,
     PhoneticProjectionResult,
     GRAPHEME_PHONETIC_HYPOTHESIS_RANK,
     RANK_RESIDUAL,
@@ -41,7 +41,7 @@ from dal_core.evidence import Evidence, make_evidence
 # Main Projection Function
 # ============================================================================
 
-def project_phonetic₁(
+def project_phonetic1(
     grapheme: GraphemeCarrierU1,
     prev_grapheme: Optional[GraphemeCarrierU1] = None,
     next_grapheme: Optional[GraphemeCarrierU1] = None
@@ -104,14 +104,14 @@ def project_phonetic₁(
     return PhoneticProjectionResult(
         grapheme=grapheme,
         success=False,
-        phonetic_class=PhoneticClass₁.RESIDUAL,
+        phonetic_class=PhoneticClass1.RESIDUAL,
         residuals=[make_blocker(
             ResidualType.UNKNOWN_ATOM,
             f"Cannot classify grapheme: {grapheme.get_full_grapheme()}",
             location=f"position {grapheme.position}"
         )],
         evidence=[make_evidence(
-            "project_phonetic₁",
+            "project_phonetic1",
             f"Grapheme {grapheme.get_full_grapheme()} unclassifiable",
             confidence=0.0
         )],
@@ -137,7 +137,7 @@ def project_sequence(graphemes: List[GraphemeCarrierU1]) -> List[PhoneticProject
         prev_g = graphemes[i - 1] if i > 0 else None
         next_g = graphemes[i + 1] if i < len(graphemes) - 1 else None
 
-        result = project_phonetic₁(grapheme, prev_g, next_g)
+        result = project_phonetic1(grapheme, prev_g, next_g)
         results.append(result)
 
     return results
@@ -159,7 +159,7 @@ def preserve_trace_u0_to_u1(
 
     Critical: Trace must NEVER be lost.
     """
-    grapheme.trace₀ = carrier
+    grapheme.trace0 = carrier
     grapheme.source_atom = atom
 
 
@@ -298,7 +298,7 @@ def validate_trace_preserved(result: PhoneticProjectionResult) -> Tuple[bool, Li
     """
     violations = []
 
-    if result.grapheme.trace₀ is None and result.grapheme.source_atom is None:
+    if result.grapheme.trace0 is None and result.grapheme.source_atom is None:
         violations.append("No trace to U₀ (carrier or atom)")
 
     return len(violations) == 0, violations
@@ -388,7 +388,7 @@ def text_to_grapheme_projections(text: str) -> Tuple[List[PhoneticProjectionResu
                 base=base,
                 marks=marks,
                 position=position,
-                trace₀=atom.carrier,
+                trace0=atom.carrier,
                 source_atom=atom,
                 grapheme_class=atom.kind.value,
                 residuals=list(atom.residuals)  # Copy atom residuals
@@ -411,7 +411,7 @@ def text_to_grapheme_projections(text: str) -> Tuple[List[PhoneticProjectionResu
             # Add validation violations as residuals
             for viol in violations:
                 result.residuals.append(make_blocker(
-                    ResidualType.VALIDATION_ERROR,
+                    ResidualType.MALFORMED_STRUCTURE,
                     f"No-jumping validation failed: {viol}",
                     location=f"position {result.grapheme.position}"
                 ))
@@ -432,7 +432,7 @@ def verify_grapheme_phonetic_projection_theorem(
     (Verify Grapheme Phonetic Projection Theorem)
 
     Theorem Statement:
-    ∀G ∈ U₁, phon_project₁(G) ∈ PhoneticCandidate₁⁺ ∪ Residual₁ ∪ Fail₁
+    ∀G ∈ U₁, phon_project1(G) ∈ PhoneticCandidate1⁺ ∪ Residual1 ∪ Fail1
 
     Verification:
     - All graphemes produce either candidates OR residuals

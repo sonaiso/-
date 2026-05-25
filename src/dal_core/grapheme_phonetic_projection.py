@@ -11,7 +11,7 @@ For every licensed grapheme G ∈ U₁, the system produces one or more initial
 phonetic projections or classified residuals, without claiming syllable/root/pattern/meaning.
 
 Mathematical formulation:
-∀G ∈ U₁, phon_project₁(G) ∈ PhoneticCandidate₁⁺ ∪ Residual₁ ∪ Fail₁
+∀G ∈ U₁, phon_project1(G) ∈ PhoneticCandidate1⁺ ∪ Residual1 ∪ Fail1
 
 Critical Laws:
 1. NO syllable formation (belongs in U₂)
@@ -37,7 +37,7 @@ from dal_core.evidence import Evidence, make_evidence
 # Phonetic Classification Categories (10 types)
 # ============================================================================
 
-class PhoneticClass₁(Enum):
+class PhoneticClass1(Enum):
     """
     التصنيف الصوتي الأولي (Initial Phonetic Classification)
 
@@ -171,8 +171,8 @@ class GraphemeCarrierU1:
     Enhanced grapheme cluster with initial phonetic projection.
 
     Structure:
-    G = (base, marks, position, trace₀, grapheme_class,
-         phonetic_projection₁, policies, residuals)
+    G = (base, marks, position, trace0, grapheme_class,
+         phonetic_projection1, policies, residuals)
     """
     # Core grapheme data
     base: str                              # Base character
@@ -180,21 +180,21 @@ class GraphemeCarrierU1:
     position: int = 0                      # Position in sequence
 
     # Trace from lower layer
-    trace₀: Optional[Carrier] = None       # Trace to U₀ Carrier
+    trace0: Optional[Carrier] = None       # Trace to U₀ Carrier
     source_atom: Optional[ArabicAtom] = None  # Source atom if available
 
     # Classification
     grapheme_class: str = ""               # Graphemic classification
 
     # NEW: Phonetic projection
-    phonetic_class: Optional[PhoneticClass₁] = None
-    phonetic_projection₁: Optional[PhoneticCandidate] = None
+    phonetic_class: Optional[PhoneticClass1] = None
+    phonetic_projection1: Optional[PhoneticCandidate] = None
 
     # NEW: Policy declarations
     policies: List[PolicyDeclaration] = field(default_factory=list)
 
     # Trace and residuals
-    trace₁: Optional[GraphemeCarrierU1] = None  # Self-reference for expanded forms
+    trace1: Optional[GraphemeCarrierU1] = None  # Self-reference for expanded forms
     residuals: List[Residual] = field(default_factory=list)
 
     # Rank (maximum: grapheme_phonetic_hypothesis)
@@ -222,7 +222,7 @@ class PhoneticProjectionResult:
     """
     grapheme: GraphemeCarrierU1
     success: bool = False
-    phonetic_class: Optional[PhoneticClass₁] = None
+    phonetic_class: Optional[PhoneticClass1] = None
     candidates: List[PhoneticCandidate] = field(default_factory=list)
     policies: List[PolicyDeclaration] = field(default_factory=list)
     residuals: List[Residual] = field(default_factory=list)

@@ -10,7 +10,7 @@ from typing import Optional, List, Tuple
 
 from dal_core.grapheme_phonetic_projection import (
     GraphemeCarrierU1,
-    PhoneticClass₁,
+    PhoneticClass1,
     PhoneticCandidate,
     PhoneticProjectionResult,
     PolicyDeclaration,
@@ -79,7 +79,7 @@ def classify_clear_consonant(grapheme: GraphemeCarrierU1) -> Optional[PhoneticPr
     result = PhoneticProjectionResult(
         grapheme=grapheme,
         success=True,
-        phonetic_class=PhoneticClass₁.CLEAR_CONSONANT_C,
+        phonetic_class=PhoneticClass1.CLEAR_CONSONANT_C,
         candidates=[candidate],
         evidence=[make_evidence(
             "classify_clear_consonant",
@@ -120,7 +120,7 @@ def classify_short_vowel(grapheme: GraphemeCarrierU1) -> Optional[PhoneticProjec
         return PhoneticProjectionResult(
             grapheme=grapheme,
             success=False,
-            phonetic_class=PhoneticClass₁.RESIDUAL,
+            phonetic_class=PhoneticClass1.RESIDUAL,
             residuals=[residual],
             rank=RANK_RESIDUAL
         )
@@ -146,7 +146,7 @@ def classify_short_vowel(grapheme: GraphemeCarrierU1) -> Optional[PhoneticProjec
     result = PhoneticProjectionResult(
         grapheme=grapheme,
         success=True,
-        phonetic_class=PhoneticClass₁.CLEAR_SHORT_VOWEL_V,
+        phonetic_class=PhoneticClass1.CLEAR_SHORT_VOWEL_V,
         candidates=[candidate],
         evidence=[make_evidence(
             "classify_short_vowel",
@@ -215,7 +215,7 @@ def detect_long_vowel_candidate(
     result = PhoneticProjectionResult(
         grapheme=current,  # Anchored to first grapheme
         success=True,
-        phonetic_class=PhoneticClass₁.CLEAR_LONG_VOWEL_VV,
+        phonetic_class=PhoneticClass1.CLEAR_LONG_VOWEL_VV,
         candidates=[candidate],
         evidence=[make_evidence(
             "detect_long_vowel_candidate",
@@ -226,7 +226,7 @@ def detect_long_vowel_candidate(
 
     # Add residual note about second grapheme
     result.residuals.append(make_warning(
-        ResidualType.DEFERRED_CLASSIFICATION,
+        ResidualType.AMBIGUOUS_SYMBOL,
         f"Next grapheme {next_grapheme.base} consumed by long vowel",
         location=f"position {next_grapheme.position}"
     ))
@@ -271,7 +271,7 @@ def classify_sukun_closure(grapheme: GraphemeCarrierU1) -> Optional[PhoneticProj
     result = PhoneticProjectionResult(
         grapheme=grapheme,
         success=True,
-        phonetic_class=PhoneticClass₁.SUKUN_OR_CLOSURE,
+        phonetic_class=PhoneticClass1.SUKUN_OR_CLOSURE,
         candidates=[candidate],
         evidence=[make_evidence(
             "classify_sukun_closure",
@@ -282,7 +282,7 @@ def classify_sukun_closure(grapheme: GraphemeCarrierU1) -> Optional[PhoneticProj
 
     # Add residual: final resolution needs context
     result.residuals.append(make_warning(
-        ResidualType.DEFERRED_CLASSIFICATION,
+        ResidualType.AMBIGUOUS_SYMBOL,
         "Sukun closure needs syllable context (U₂)",
         location=f"position {grapheme.position}"
     ))
@@ -340,7 +340,7 @@ def apply_shadda_policy(grapheme: GraphemeCarrierU1) -> Optional[PhoneticProject
     result = PhoneticProjectionResult(
         grapheme=grapheme,
         success=True,
-        phonetic_class=PhoneticClass₁.SHADDA_POLICY,
+        phonetic_class=PhoneticClass1.SHADDA_POLICY,
         candidates=[geminate_candidate],
         policies=[policy],
         evidence=[make_evidence(
@@ -352,7 +352,7 @@ def apply_shadda_policy(grapheme: GraphemeCarrierU1) -> Optional[PhoneticProject
 
     # Critical residual: expansion not performed at U₁
     result.residuals.append(make_warning(
-        ResidualType.DEFERRED_CLASSIFICATION,
+        ResidualType.AMBIGUOUS_SYMBOL,
         "Shadda expansion deferred to U₂ phonology layer",
         location=f"position {grapheme.position}"
     ))
@@ -421,7 +421,7 @@ def apply_tanween_policy(grapheme: GraphemeCarrierU1) -> Optional[PhoneticProjec
     result = PhoneticProjectionResult(
         grapheme=grapheme,
         success=True,
-        phonetic_class=PhoneticClass₁.TANWEEN_POLICY,
+        phonetic_class=PhoneticClass1.TANWEEN_POLICY,
         candidates=[wasl_candidate, waqf_candidate],
         policies=[policy],
         evidence=[make_evidence(
@@ -433,7 +433,7 @@ def apply_tanween_policy(grapheme: GraphemeCarrierU1) -> Optional[PhoneticProjec
 
     # Residual: boundary context needed
     result.residuals.append(make_warning(
-        ResidualType.DEFERRED_CLASSIFICATION,
+        ResidualType.AMBIGUOUS_SYMBOL,
         "Tanween realization depends on waqf/wasl boundary",
         location=f"position {grapheme.position}"
     ))
@@ -523,7 +523,7 @@ def classify_ambiguous_letter(
     result = PhoneticProjectionResult(
         grapheme=grapheme,
         success=True,
-        phonetic_class=PhoneticClass₁.DEFERRED,
+        phonetic_class=PhoneticClass1.DEFERRED,
         candidates=candidates,
         evidence=evidence_list,
         rank=RANK_AMBIGUOUS_CANDIDATE
@@ -531,7 +531,7 @@ def classify_ambiguous_letter(
 
     # Residual: needs context for resolution
     result.residuals.append(make_warning(
-        ResidualType.DEFERRED_CLASSIFICATION,
+        ResidualType.AMBIGUOUS_SYMBOL,
         f"Ambiguous letter {grapheme.base} needs context",
         location=f"position {grapheme.position}"
     ))
