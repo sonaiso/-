@@ -39,7 +39,7 @@ from enum import Enum, auto
 from typing import List, Optional, FrozenSet, Dict, Any, Tuple
 from uuid import uuid4
 
-from dal_core.residuals import Residual, ResidualType, make_blocker, make_warning
+from dal_core.residuals import Residual, ResidualType, ResidualSeverity, make_blocker, make_warning
 from dal_core.foundation import (
     Rank,
     RankVector,
@@ -176,7 +176,7 @@ class ArabicSyllable:
 
     def has_blocker(self) -> bool:
         """Check if syllable has blocking residual."""
-        return any(r.type == ResidualType.BLOCKER for r in self.residuals)
+        return any(r.severity == ResidualSeverity.BLOCKER for r in self.residuals)
 
     def is_certified(self) -> bool:
         """Check if syllable is certified."""
@@ -362,6 +362,73 @@ def syllabify_phonetic_projections(
             location=f"projection {i}"
         ))
         i += 1
+
+    # ========================================================================
+    # Terminal Closure Policy (Waqf Mode)
+    # ========================================================================
+    # Handle word-final consonants without explicit vowel/closure
+    # Law: No dangling final consonant without policy
+    #
+    # Strategy:
+    # 1. Detect final consonant: last projection with C but no V, no closure
+    # 2. Attach as coda to previous syllable if possible (waqf policy)
+    # 3. Patterns: CV → CVC, CVV → CVVC
+    # 4. Preserve TerminalConsonantResidual if cannot attach
+    # ========================================================================
+
+    terminal_closure_mode = policy.get("terminal_closure", "waqf")  # waqf | wasl | unresolved
+
+    if terminal_closure_mode == "waqf" and len(projections) > 0:
+        last_proj = projections[-1]
+
+        # Check if final projection is unprocessed consonant (no vowel, no closure)
+        if (last_proj.consonant_candidate and
+            not last_proj.short_vowel_candidate and
+            not last_proj.closure_candidate):
+
+            # Check if it was already consumed by previous syllable
+            # (by checking if all projections are accounted for in syllables)
+            consumed_proj_ids = set()
+            for syll in syllables:
+                consumed_proj_ids.update(syll.trace_2p)
+
+            if last_proj.id not in consumed_proj_ids:
+                # Terminal consonant not consumed - apply waqf policy
+                if len(syllables) > 0:
+                    # Attach to previous syllable as coda
+                    last_syll = syllables[-1]
+
+                    # Only attach if previous syllable has no coda (Arabic phonotactics)
+                    if not last_syll.ordered_coda:
+                        updated_syll = _attach_terminal_coda(
+                            last_syll,
+                            last_proj,
+                            residuals_list
+                        )
+                        if updated_syll:
+                            # Replace last syllable with updated version
+                            syllables[-1] = updated_syll
+                        else:
+                            # Could not attach - preserve as residual
+                            residuals_list.append(make_warning(
+                                ResidualType.AMBIGUOUS_SYMBOL,
+                                f"TerminalConsonant: Cannot attach {last_proj.consonant_candidate} as coda",
+                                location=f"projection {len(projections)-1}"
+                            ))
+                    else:
+                        # Previous syllable already has coda - cannot attach (would create CCC)
+                        residuals_list.append(make_warning(
+                            ResidualType.AMBIGUOUS_SYMBOL,
+                            f"TerminalConsonant: Previous syllable has coda, cannot attach {last_proj.consonant_candidate}",
+                            location=f"projection {len(projections)-1}"
+                        ))
+                else:
+                    # No previous syllable - preserve as residual
+                    residuals_list.append(make_warning(
+                        ResidualType.AMBIGUOUS_SYMBOL,
+                        f"TerminalConsonant: No previous syllable for {last_proj.consonant_candidate}",
+                        location=f"projection {len(projections)-1}"
+                    ))
 
     # Determine success
     success = not has_blocking_residuals(frozenset(residuals_list))
@@ -586,6 +653,100 @@ def _make_cvc_syllable(
             ResidualType.MALFORMED_ATOM,
             f"SyllableCreationFailed: {str(e)}",
             location=proj.id
+        ))
+        return None
+
+
+def _attach_terminal_coda(
+    base_syllable: ArabicSyllable,
+    terminal_proj: PhoneticProjection,
+    residuals_list: List[Residual]
+) -> Optional[ArabicSyllable]:
+    """
+    Attach terminal consonant as coda to existing syllable (waqf policy).
+
+    Terminal Closure Policy:
+        - Word-final consonant without vowel → attach as coda
+        - CV + terminal C → CVC
+        - CVV + terminal C → CVVC
+        - Preserve trace to terminal projection
+
+    Args:
+        base_syllable: Existing syllable to extend
+        terminal_proj: Final projection with consonant only
+        residuals_list: List to append residuals
+
+    Returns:
+        Updated syllable with terminal coda, or None if cannot attach
+    """
+    if not terminal_proj.consonant_candidate:
+        return None
+
+    # Verify base syllable has no coda (Arabic: no triple consonant clusters)
+    if base_syllable.ordered_coda:
+        return None
+
+    # Determine new pattern
+    if base_syllable.pattern == SyllablePattern.CV:
+        new_pattern = SyllablePattern.CVC
+        new_weight = SyllableWeight.HEAVY
+    elif base_syllable.pattern == SyllablePattern.CVV:
+        new_pattern = SyllablePattern.CVVC
+        new_weight = SyllableWeight.SUPER_HEAVY
+    else:
+        # Cannot attach to CVC, CVVC, etc. (would create illegal cluster)
+        return None
+
+    # Collect residuals
+    all_residuals = set(base_syllable.residuals)
+    all_residuals.update(terminal_proj.residuals)
+
+    # Add terminal closure residual (this is a policy decision, not error)
+    # Using INFO severity to mark as informational, not warning
+    all_residuals.add(Residual(
+        type=ResidualType.AMBIGUOUS_SYMBOL,
+        severity=ResidualSeverity.INFO,
+        message=f"TerminalClosureWaqf: Attached {terminal_proj.consonant_candidate} as final coda",
+        location=terminal_proj.id,
+        metadata=None
+    ))
+
+    # Build updated syllable
+    ordered_coda = (terminal_proj.consonant_candidate,)
+    ordered_surface = base_syllable.ordered_surface + terminal_proj.consonant_candidate
+
+    try:
+        updated_syllable = ArabicSyllable(
+            id=str(uuid4()),  # New ID for modified syllable
+            # Frozenset (comparison view only)
+            onset=base_syllable.onset,
+            nucleus=base_syllable.nucleus,
+            coda=frozenset([terminal_proj.consonant_candidate]),
+            # AUTHORITATIVE ordered fields
+            ordered_onset=base_syllable.ordered_onset,
+            ordered_nucleus=base_syllable.ordered_nucleus,
+            ordered_coda=ordered_coda,
+            ordered_surface=ordered_surface,
+            # Classification
+            pattern=new_pattern,
+            weight=new_weight,
+            boundary_policy=BoundaryPolicy.PAUSAL,  # Mark as pausal/waqf
+            # Trace - merge both syllables
+            trace_2p=base_syllable.trace_2p.union(frozenset([terminal_proj.id])),
+            trace_1=base_syllable.trace_1.union(terminal_proj.trace_1),
+            residuals=frozenset(all_residuals),
+            rank=base_syllable.rank,  # Preserve rank
+            metadata=base_syllable.metadata + (
+                ("terminal_coda", terminal_proj.consonant_candidate),
+                ("waqf_policy", "applied")
+            )
+        )
+        return updated_syllable
+    except ValueError as e:
+        residuals_list.append(make_blocker(
+            ResidualType.MALFORMED_ATOM,
+            f"TerminalCodaAttachmentFailed: {str(e)}",
+            location=terminal_proj.id
         ))
         return None
 
