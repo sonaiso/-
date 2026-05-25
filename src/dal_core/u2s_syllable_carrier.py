@@ -200,12 +200,16 @@ class SyllableLayerObject:
     Complete U₂s layer output.
 
     Contains:
-        - syllables: Sequence of Arabic syllables
+        - syllables: ORDERED sequence of Arabic syllables (authoritative execution trace)
         - total_residuals: All residuals from layer
         - metadata: Additional processing information
         - proof: ProofObject documenting U₂s certification
+
+    Critical Law (ExecutionTraceOrderLaw):
+        - syllables is Tuple (ordered), not FrozenSet
+        - Syllable sequence preserves original character order from U₀→U₁→U₂p
     """
-    syllables: FrozenSet[ArabicSyllable]
+    syllables: Tuple[ArabicSyllable, ...]  # ORDERED execution trace (was FrozenSet - WRONG)
     total_residuals: FrozenSet[Residual]
     metadata: Optional[tuple] = None
     proof: Optional[ProofObject] = None
@@ -682,7 +686,7 @@ def cpb2s_validate(
 
     # Create layer object
     layer_object = SyllableLayerObject(
-        syllables=frozenset(syllables),
+        syllables=tuple(syllables),  # ORDERED execution trace (was frozenset - WRONG)
         total_residuals=frozenset(total_residuals),
         metadata=(
             ("u2p_projections", len(phonetic_layer.projections)),
@@ -789,7 +793,10 @@ def phonetic_to_syllable_layer(
     Returns:
         CPB2sResult with validation status and layer object
     """
-    projections_list = sorted(phonetic_layer.projections, key=lambda p: p.grapheme_ref)
+    # CRITICAL: Do NOT sort projections - tuple order is authoritative (ExecutionTraceOrderLaw)
+    # phonetic_layer.projections is Tuple (ordered), not FrozenSet
+    # sorted() by UUID would destroy the original character sequence
+    projections_list = list(phonetic_layer.projections)
 
     result = syllabify_phonetic_projections(projections_list, policy)
 
