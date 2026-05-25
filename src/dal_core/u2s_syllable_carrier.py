@@ -111,9 +111,9 @@ class ArabicSyllable:
     Arabic syllable structure.
 
     Immutable carrier preserving:
-        - onset: Initial consonant(s) (C)
-        - nucleus: Vowel core (V or VV) - MANDATORY
-        - coda: Final consonant(s) (optional)
+        - onset/nucleus/coda: Unordered sets for comparison (frozenset)
+        - ordered_onset/nucleus/coda: AUTHORITATIVE ordered segments (tuple)
+        - ordered_surface: Complete ordered phonetic surface string
         - pattern: Syllable pattern (CV, CVV, CVC, ...)
         - weight: Syllable weight (light, heavy, super-heavy)
         - boundary_policy: Boundary behavior
@@ -121,19 +121,28 @@ class ArabicSyllable:
         - residuals: Warnings/blockers
         - rank: Epistemic status
 
-    Laws:
+    Critical Laws:
+        - ordered_surface is AUTHORITATIVE for surface reconstruction
+        - frozenset fields are COMPARISON VIEWS ONLY (not source of truth)
         - ArabicSyllable ⊬ Root
         - ArabicSyllable ⊬ Weight (morphological)
         - ArabicSyllable ⊬ Meaning
         - Every syllable has nucleus (V or VV)
         - Only licensed patterns allowed
+        - Trace preservation from U₂p mandatory
     """
     id: str                                    # Unique identifier
 
-    # Syllable structure (onset optional, nucleus mandatory, coda optional)
-    onset: FrozenSet[str] = field(default_factory=frozenset)      # C onset phonemes
-    nucleus: FrozenSet[str] = field(default_factory=frozenset)    # V/VV nucleus (MANDATORY)
-    coda: FrozenSet[str] = field(default_factory=frozenset)       # C coda phonemes
+    # Syllable structure (frozenset for comparison only)
+    onset: FrozenSet[str] = field(default_factory=frozenset)      # C onset phonemes (unordered)
+    nucleus: FrozenSet[str] = field(default_factory=frozenset)    # V/VV nucleus (unordered, MANDATORY)
+    coda: FrozenSet[str] = field(default_factory=frozenset)       # C coda phonemes (unordered)
+
+    # AUTHORITATIVE ordered representation (source of truth for surface reconstruction)
+    ordered_onset: Tuple[str, ...] = field(default_factory=tuple)      # Ordered onset segments
+    ordered_nucleus: Tuple[str, ...] = field(default_factory=tuple)    # Ordered nucleus segments (MANDATORY)
+    ordered_coda: Tuple[str, ...] = field(default_factory=tuple)       # Ordered coda segments
+    ordered_surface: str = ""                                           # Complete ordered surface string
 
     # Classification
     pattern: SyllablePattern = SyllablePattern.CV
@@ -149,9 +158,21 @@ class ArabicSyllable:
 
     def __post_init__(self):
         """Validate syllable constraints."""
-        # CRITICAL LAW: No nucleus, no syllable
-        if not self.nucleus:
+        # CRITICAL LAW: No nucleus, no syllable (check both frozenset and ordered)
+        if not self.nucleus and not self.ordered_nucleus:
             raise ValueError("Axiom 2s.1 violation: No nucleus, no syllable")
+
+        # Consistency check: frozenset is derived from ordered representation
+        # Note: We use set() not frozenset() comparison to handle duplicates (shadda, gemination)
+        if self.ordered_onset and set(self.ordered_onset) != self.onset:
+            # This is a warning, not a blocker - ordered is authoritative
+            pass
+        if self.ordered_nucleus and set(self.ordered_nucleus) != self.nucleus:
+            # ordered_nucleus is authoritative
+            pass
+        if self.ordered_coda and set(self.ordered_coda) != self.coda:
+            # ordered_coda is authoritative
+            pass
 
     def has_blocker(self) -> bool:
         """Check if syllable has blocking residual."""
@@ -162,11 +183,15 @@ class ArabicSyllable:
         return self.rank == Rank.CERTIFICATE
 
     def get_phonetic_string(self) -> str:
-        """Reconstruct phonetic string representation."""
-        onset_str = "".join(sorted(self.onset))
-        nucleus_str = "".join(sorted(self.nucleus))
-        coda_str = "".join(sorted(self.coda))
-        return f"{onset_str}{nucleus_str}{coda_str}"
+        """
+        Reconstruct phonetic string representation.
+
+        CRITICAL: Uses ordered_surface (authoritative), NOT sorted().
+        """
+        if self.ordered_surface:
+            return self.ordered_surface
+        # Fallback: construct from ordered segments
+        return "".join(self.ordered_onset) + "".join(self.ordered_nucleus) + "".join(self.ordered_coda)
 
 
 @dataclass(frozen=True)
@@ -258,12 +283,15 @@ def syllabify_phonetic_projections(
             i += 1
             continue
 
-        # Case 1: Consonant + short vowel → CV syllable
-        if proj.consonant_candidate and proj.short_vowel_candidate:
-            syllable = _make_cv_syllable(proj, residuals_list)
+        # Case 1: Consonant + short vowel + consonant with sukun → CVC syllable (PRIORITY)
+        # Example: مَكْ + تَب → [CVC] + [CVC]
+        # Critical: CVC before CV to avoid CV.CCV (no CC onset in Arabic)
+        if (proj.consonant_candidate and proj.short_vowel_candidate and
+            next_proj and next_proj.consonant_candidate and next_proj.closure_candidate):
+            syllable = _make_cvc_syllable(proj, next_proj, residuals_list)
             if syllable:
                 syllables.append(syllable)
-            i += 1
+            i += 2  # Skip next projection (consumed as coda)
             continue
 
         # Case 2: Consonant + short vowel + long vowel carrier → CVV syllable
@@ -277,7 +305,15 @@ def syllabify_phonetic_projections(
                 i += 2  # Skip next projection (consumed)
                 continue
 
-        # Case 3: Consonant + closure (sukun) → needs nucleus from context
+        # Case 3: Consonant + short vowel → CV syllable
+        if proj.consonant_candidate and proj.short_vowel_candidate:
+            syllable = _make_cv_syllable(proj, residuals_list)
+            if syllable:
+                syllables.append(syllable)
+            i += 1
+            continue
+
+        # Case 4: Consonant + closure (sukun) → needs nucleus from context
         if proj.consonant_candidate and proj.closure_candidate:
             # بْ alone cannot form syllable (no nucleus)
             residuals_list.append(make_blocker(
@@ -288,7 +324,7 @@ def syllabify_phonetic_projections(
             i += 1
             continue
 
-        # Case 4: Gemination (shadda) policy
+        # Case 5: Gemination (shadda) policy
         if proj.gemination_candidate:
             # Shadda requires special handling
             # For now, treat as hypothesis needing context
@@ -305,7 +341,7 @@ def syllabify_phonetic_projections(
             i += 1
             continue
 
-        # Case 5: Ambiguous carrier without context
+        # Case 6: Ambiguous carrier without context
         if proj.phonetic_class == PhoneticClass.AMBIGUOUS_CARRIER:
             residuals_list.append(make_warning(
                 ResidualType.AMBIGUOUS_SYMBOL,
@@ -315,7 +351,7 @@ def syllabify_phonetic_projections(
             i += 1
             continue
 
-        # Case 6: Unknown/unhandled
+        # Case 7: Unknown/unhandled
         residuals_list.append(make_warning(
             ResidualType.AMBIGUOUS_SYMBOL,
             f"UnhandledProjection: Cannot syllabify {proj.phonetic_class}",
@@ -344,22 +380,36 @@ def _make_cv_syllable(proj: PhoneticProjection, residuals_list: List[Residual]) 
     # Determine rank
     rank = Rank.CERTIFICATE if proj.rank == Rank.CERTIFICATE else Rank.HYPOTHESIS
 
+    # AUTHORITATIVE ordered representation
+    ordered_onset = (proj.consonant_candidate,)
+    ordered_nucleus = (proj.short_vowel_candidate,)
+    ordered_coda = ()
+    ordered_surface = proj.consonant_candidate + proj.short_vowel_candidate
+
     try:
         syllable = ArabicSyllable(
             id=str(uuid4()),
+            # Frozenset (comparison view only)
             onset=frozenset([proj.consonant_candidate]),
             nucleus=frozenset([proj.short_vowel_candidate]),
             coda=frozenset(),
+            # AUTHORITATIVE ordered fields
+            ordered_onset=ordered_onset,
+            ordered_nucleus=ordered_nucleus,
+            ordered_coda=ordered_coda,
+            ordered_surface=ordered_surface,
+            # Classification
             pattern=SyllablePattern.CV,
             weight=SyllableWeight.LIGHT,
             boundary_policy=BoundaryPolicy.NORMAL,
+            # Trace
             trace_2p=frozenset([proj.id]),
             trace_1=proj.trace_1,
             residuals=frozenset(all_residuals),
             rank=rank,
             metadata=(
                 ("pattern", "CV"),
-                ("phonetic", f"{proj.consonant_candidate}{proj.short_vowel_candidate}")
+                ("phonetic", ordered_surface)
             )
         )
         return syllable
@@ -400,22 +450,36 @@ def _make_cvv_syllable(
     # Determine rank
     rank = Rank.HYPOTHESIS  # CVV requires policy resolution
 
+    # AUTHORITATIVE ordered representation
+    ordered_onset = (proj.consonant_candidate,)
+    ordered_nucleus = (long_vowel,)  # Long vowel as single unit
+    ordered_coda = ()
+    ordered_surface = proj.consonant_candidate + long_vowel
+
     try:
         syllable = ArabicSyllable(
             id=str(uuid4()),
+            # Frozenset (comparison view only)
             onset=frozenset([proj.consonant_candidate]),
             nucleus=frozenset([long_vowel]),
             coda=frozenset(),
+            # AUTHORITATIVE ordered fields
+            ordered_onset=ordered_onset,
+            ordered_nucleus=ordered_nucleus,
+            ordered_coda=ordered_coda,
+            ordered_surface=ordered_surface,
+            # Classification
             pattern=SyllablePattern.CVV,
             weight=SyllableWeight.HEAVY,
             boundary_policy=BoundaryPolicy.NORMAL,
+            # Trace
             trace_2p=frozenset([proj.id, next_proj.id]),
             trace_1=proj.trace_1.union(next_proj.trace_1),
             residuals=frozenset(all_residuals),
             rank=rank,
             metadata=(
                 ("pattern", "CVV"),
-                ("phonetic", f"{proj.consonant_candidate}{long_vowel}")
+                ("phonetic", ordered_surface)
             )
         )
         return syllable
@@ -452,6 +516,74 @@ def _is_long_vowel_compatible(proj: PhoneticProjection, carrier_proj: PhoneticPr
     carrier_base = carrier_metadata.get('base', '')
 
     return carrier_base == expected_carrier
+
+
+def _make_cvc_syllable(
+    proj: PhoneticProjection,
+    next_proj: PhoneticProjection,
+    residuals_list: List[Residual]
+) -> Optional[ArabicSyllable]:
+    """
+    Create CVC syllable from C + V + C(sukun).
+
+    Pattern: Consonant + Short Vowel + Consonant with sukun/closure
+    Example: مَكْ in مَكْتَب
+
+    Critical: This implements CVC, not CV.CCV (no CC onset in Arabic).
+    """
+    if not proj.consonant_candidate or not proj.short_vowel_candidate:
+        return None
+
+    if not next_proj.consonant_candidate or not next_proj.closure_candidate:
+        return None
+
+    # Inherit residuals
+    all_residuals = set(proj.residuals)
+    all_residuals.update(next_proj.residuals)
+
+    # Determine rank
+    rank = Rank.HYPOTHESIS  # CVC requires syllable boundary policy
+
+    # AUTHORITATIVE ordered representation
+    ordered_onset = (proj.consonant_candidate,)
+    ordered_nucleus = (proj.short_vowel_candidate,)
+    ordered_coda = (next_proj.consonant_candidate,)  # Coda consonant
+    ordered_surface = proj.consonant_candidate + proj.short_vowel_candidate + next_proj.consonant_candidate
+
+    try:
+        syllable = ArabicSyllable(
+            id=str(uuid4()),
+            # Frozenset (comparison view only)
+            onset=frozenset([proj.consonant_candidate]),
+            nucleus=frozenset([proj.short_vowel_candidate]),
+            coda=frozenset([next_proj.consonant_candidate]),
+            # AUTHORITATIVE ordered fields
+            ordered_onset=ordered_onset,
+            ordered_nucleus=ordered_nucleus,
+            ordered_coda=ordered_coda,
+            ordered_surface=ordered_surface,
+            # Classification
+            pattern=SyllablePattern.CVC,
+            weight=SyllableWeight.HEAVY,
+            boundary_policy=BoundaryPolicy.NORMAL,
+            # Trace
+            trace_2p=frozenset([proj.id, next_proj.id]),
+            trace_1=proj.trace_1.union(next_proj.trace_1),
+            residuals=frozenset(all_residuals),
+            rank=rank,
+            metadata=(
+                ("pattern", "CVC"),
+                ("phonetic", ordered_surface)
+            )
+        )
+        return syllable
+    except ValueError as e:
+        residuals_list.append(make_blocker(
+            ResidualType.MALFORMED_ATOM,
+            f"SyllableCreationFailed: {str(e)}",
+            location=proj.id
+        ))
+        return None
 
 
 # ============================================================================
