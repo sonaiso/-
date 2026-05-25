@@ -5,7 +5,7 @@ Purpose: Define official execution layer sequence and prevent architectural laye
 
 Critical Law: لا قفز بين الطبقات بلا دليل (No layer jump without evidence)
 
-Canonical Sequence:
+Execution Core (U₀-U₉): Closed, implemented, operational layers
     U₀ Unicode          → U₁ Grapheme
     U₁ Grapheme         → U₂p PhoneticProjection
     U₂p PhoneticProjection → U₂s ArabicSyllable
@@ -16,6 +16,14 @@ Canonical Sequence:
     U₆ MabniClosedClass → U₇ PreWeightContract
     U₇ PreWeightContract → U₈ RootStem
     U₈ RootStem         → U₉ Weight
+
+Design Layers (U₁₀-U₁₅): Future design, not closed execution layers
+    U₁₀ WordForm
+    U₁₁ LexicalEntry
+    U₁₂ MorphosyntacticFeature
+    U₁₃ PhraseRelation
+    U₁₄ SentenceStructure
+    U₁₅ Dalālah
 
 Forbidden Jumps:
     U₂s → FunctionalRole   (Missing Boundary + TrueLafẓ)
@@ -86,7 +94,8 @@ class LayerTransition:
 # Canonical Execution Layer Order
 # ============================================================================
 
-EXECUTION_LAYER_ORDER = [
+# Execution Core Layers (U₀-U₉): Closed, implemented, operational
+EXECUTION_CORE_LAYERS = [
     ExecutionLayer.U0_UNICODE,
     ExecutionLayer.U1_GRAPHEME,
     ExecutionLayer.U2P_PHONETIC_PROJECTION,
@@ -98,6 +107,10 @@ EXECUTION_LAYER_ORDER = [
     ExecutionLayer.U7_PRE_WEIGHT_CONTRACT,
     ExecutionLayer.U8_ROOT_STEM,
     ExecutionLayer.U9_WEIGHT,
+]
+
+# Design Layers (U₁₀-U₁₅): Future design, not closed execution layers
+DESIGN_LAYERS = [
     ExecutionLayer.U10_WORD_FORM,
     ExecutionLayer.U11_LEXICAL_ENTRY,
     ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE,
@@ -106,12 +119,16 @@ EXECUTION_LAYER_ORDER = [
     ExecutionLayer.U15_DALALAH,
 ]
 
+# Complete layer order (for reference and tooling)
+EXECUTION_LAYER_ORDER = EXECUTION_CORE_LAYERS + DESIGN_LAYERS
+
 
 # ============================================================================
 # Allowed Transitions (Canonical Path)
 # ============================================================================
 
-ALLOWED_TRANSITIONS = {
+# Core execution layer transitions (U₀-U₉) - Operational
+CORE_ALLOWED_TRANSITIONS = {
     # Foundation layers (U₀-U₂s)
     ExecutionLayer.U0_UNICODE: {ExecutionLayer.U1_GRAPHEME},
     ExecutionLayer.U1_GRAPHEME: {ExecutionLayer.U2P_PHONETIC_PROJECTION},
@@ -129,15 +146,23 @@ ALLOWED_TRANSITIONS = {
     ExecutionLayer.U6_MABNI_CLOSED_CLASS: {ExecutionLayer.U7_PRE_WEIGHT_CONTRACT},
     ExecutionLayer.U7_PRE_WEIGHT_CONTRACT: {ExecutionLayer.U8_ROOT_STEM},
     ExecutionLayer.U8_ROOT_STEM: {ExecutionLayer.U9_WEIGHT},
+}
 
-    # Higher layers
+# Design layer transitions (U₁₀-U₁₅) - Future design, not closed execution
+DESIGN_ALLOWED_TRANSITIONS = {
+    # Transition from core to design layers
     ExecutionLayer.U9_WEIGHT: {ExecutionLayer.U10_WORD_FORM},
+
+    # Design layer internal transitions (not yet closed)
     ExecutionLayer.U10_WORD_FORM: {ExecutionLayer.U11_LEXICAL_ENTRY},
     ExecutionLayer.U11_LEXICAL_ENTRY: {ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE},
     ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE: {ExecutionLayer.U13_PHRASE_RELATION},
     ExecutionLayer.U13_PHRASE_RELATION: {ExecutionLayer.U14_SENTENCE_STRUCTURE},
     ExecutionLayer.U14_SENTENCE_STRUCTURE: {ExecutionLayer.U15_DALALAH},
 }
+
+# Combined transitions (for compatibility and tooling)
+ALLOWED_TRANSITIONS = {**CORE_ALLOWED_TRANSITIONS, **DESIGN_ALLOWED_TRANSITIONS}
 
 
 # ============================================================================
@@ -245,6 +270,32 @@ def validate_layer_sequence(sequence: list[ExecutionLayer]) -> tuple[bool, Optio
                 return False, f"Invalid transition: {from_layer.value} → {to_layer.value}"
 
     return True, None
+
+
+def is_core_layer(layer: ExecutionLayer) -> bool:
+    """
+    Check if a layer is part of the execution core (U₀-U₉).
+
+    Args:
+        layer: Layer to check
+
+    Returns:
+        True if layer is in EXECUTION_CORE_LAYERS, False otherwise
+    """
+    return layer in EXECUTION_CORE_LAYERS
+
+
+def is_design_layer(layer: ExecutionLayer) -> bool:
+    """
+    Check if a layer is part of the design layers (U₁₀-U₁₅).
+
+    Args:
+        layer: Layer to check
+
+    Returns:
+        True if layer is in DESIGN_LAYERS, False otherwise
+    """
+    return layer in DESIGN_LAYERS
 
 
 # ============================================================================
