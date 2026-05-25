@@ -170,12 +170,16 @@ class PhoneticProjectionLayerObject:
     Complete U₂p layer output.
 
     Contains:
-        - projections: Sequence of phonetic projections
+        - projections: ORDERED sequence of phonetic projections (Tuple, not FrozenSet)
         - total_residuals: All residuals from layer
         - metadata: Additional processing information
         - proof: ProofObject documenting U₂p certification
+
+    Critical Law:
+        - projections MUST preserve U₁ cluster order (no frozenset for execution trace)
+        - Order preservation is MANDATORY for syllable formation (U₂s)
     """
-    projections: FrozenSet[PhoneticProjection]
+    projections: Tuple[PhoneticProjection, ...]  # ORDERED sequence (was FrozenSet - WRONG)
     total_residuals: FrozenSet[Residual]
     metadata: Optional[tuple] = None
     proof: Optional[ProofObject] = None
@@ -548,9 +552,9 @@ def cpb2p_validate(
     # Create proof object
     proof = _make_u2p_proof(grapheme_layer, projections, frozenset(total_residuals))
 
-    # Create layer object
+    # Create layer object with ORDERED projections (tuple, not frozenset)
     layer_object = PhoneticProjectionLayerObject(
-        projections=frozenset(projections),
+        projections=tuple(projections),  # CRITICAL: Preserve order (was frozenset - WRONG)
         total_residuals=frozenset(total_residuals),
         metadata=(
             ("u1_graphemes", len(grapheme_layer.clusters)),

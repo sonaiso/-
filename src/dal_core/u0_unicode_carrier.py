@@ -26,7 +26,7 @@ Created: 2026-05-25
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import List, Optional, FrozenSet, Dict, Any
+from typing import List, Optional, FrozenSet, Dict, Any, Tuple
 from uuid import uuid4
 import unicodedata
 
@@ -134,11 +134,15 @@ class UnicodeLayerObject:
     Complete U₀ layer output.
 
     Contains:
-        - units: Sequence of classified Unicode units
+        - units: ORDERED sequence of classified Unicode units (Tuple, not FrozenSet)
         - total_residuals: All residuals from layer
         - metadata: Additional processing information
+
+    Critical Law:
+        - units MUST preserve input order (no frozenset for execution trace)
+        - Order preservation is MANDATORY for downstream layer integrity
     """
-    units: FrozenSet[UnicodeUnit]
+    units: Tuple[UnicodeUnit, ...]  # ORDERED sequence (was FrozenSet - WRONG)
     total_residuals: FrozenSet[Residual]
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -456,9 +460,9 @@ def cpb0_validate(
     for unit in units:
         total_residuals.update(unit.residuals)
 
-    # Create layer object
+    # Create layer object with ORDERED units (tuple, not frozenset)
     layer_object = UnicodeLayerObject(
-        units=frozenset(units),
+        units=tuple(units),  # CRITICAL: Preserve order (was frozenset - WRONG)
         total_residuals=frozenset(total_residuals),
         metadata={"input_length": input_length}
     )

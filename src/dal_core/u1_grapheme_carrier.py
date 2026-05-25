@@ -127,12 +127,16 @@ class GraphemeLayerObject:
     Complete U₁ layer output.
 
     Contains:
-        - clusters: Sequence of grapheme clusters
+        - clusters: ORDERED sequence of grapheme clusters (Tuple, not FrozenSet)
         - total_residuals: All residuals from layer
         - metadata: Additional processing information
         - proof: ProofObject documenting U₁ certification
+
+    Critical Law:
+        - clusters MUST preserve U₀ order (no frozenset for execution trace)
+        - Order preservation is MANDATORY for downstream phonetic/syllabic layers
     """
-    clusters: FrozenSet[GraphemeCluster]
+    clusters: Tuple[GraphemeCluster, ...]  # ORDERED sequence (was FrozenSet - WRONG)
     total_residuals: FrozenSet[Residual]
     metadata: Optional[tuple] = None
     proof: Optional[ProofObject] = None
@@ -534,9 +538,9 @@ def cpb1_validate(
     # Create proof object
     proof = _make_u1_proof(unicode_layer, clusters, frozenset(total_residuals))
 
-    # Create layer object
+    # Create layer object with ORDERED clusters (tuple, not frozenset)
     layer_object = GraphemeLayerObject(
-        clusters=frozenset(clusters),
+        clusters=tuple(clusters),  # CRITICAL: Preserve order (was frozenset - WRONG)
         total_residuals=frozenset(total_residuals),
         metadata=(
             ("u0_units", len(unicode_layer.units)),
