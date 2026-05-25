@@ -10,6 +10,8 @@ Exports:
     - ResidualSet: Residual algebra with merge/discharge operations
     - CPBContract: Identity guardian contract interface
     - LayerObject: Base protocol for layer outputs
+    - PotentialPath: Foundational potentiality-certification separation
+    - PotentialPathStatus: Status enum for potential paths
 """
 
 from dal_core.foundation.rank import Rank, RankVector
@@ -20,6 +22,16 @@ from dal_core.foundation.residual_set import (
     discharge_residual,
     has_blocking_residuals
 )
+from dal_core.foundation.potential_path import (
+    PotentialPath,
+    PotentialPathStatus,
+    certify_path,
+    validate_no_direct_certificate,
+    DirectCertificationError,
+    make_potential_path,
+    certify_potential_path,
+    block_potential_path,
+)
 
 __all__ = [
     "Rank",
@@ -29,5 +41,13 @@ __all__ = [
     "ResidualSet",
     "merge_residuals",
     "discharge_residual",
-    "has_blocking_residuals"
+    "has_blocking_residuals",
+    "PotentialPath",
+    "PotentialPathStatus",
+    "certify_path",
+    "validate_no_direct_certificate",
+    "DirectCertificationError",
+    "make_potential_path",
+    "certify_potential_path",
+    "block_potential_path",
 ]
