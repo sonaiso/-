@@ -193,18 +193,59 @@ FORBIDDEN_JUMPS = {
 # Layer Validation Functions
 # ============================================================================
 
-def is_transition_allowed(from_layer: ExecutionLayer, to_layer: ExecutionLayer) -> bool:
+def is_core_transition_allowed(from_layer: ExecutionLayer, to_layer: ExecutionLayer) -> bool:
     """
-    Check if a transition between layers is allowed.
+    Check if a transition between execution core layers is allowed.
 
     Args:
         from_layer: Source layer
         to_layer: Target layer
 
     Returns:
-        True if transition is in ALLOWED_TRANSITIONS, False otherwise
+        True if transition is in CORE_ALLOWED_TRANSITIONS, False otherwise
     """
-    allowed = ALLOWED_TRANSITIONS.get(from_layer, set())
+    allowed = CORE_ALLOWED_TRANSITIONS.get(from_layer, set())
+    return to_layer in allowed
+
+
+def is_design_transition_allowed(from_layer: ExecutionLayer, to_layer: ExecutionLayer) -> bool:
+    """
+    Check if a transition between design layers is allowed.
+
+    Args:
+        from_layer: Source layer
+        to_layer: Target layer
+
+    Returns:
+        True if transition is in DESIGN_ALLOWED_TRANSITIONS, False otherwise
+    """
+    allowed = DESIGN_ALLOWED_TRANSITIONS.get(from_layer, set())
+    return to_layer in allowed
+
+
+def is_transition_allowed(from_layer: ExecutionLayer, to_layer: ExecutionLayer, include_design: bool = False) -> bool:
+    """
+    Check if a transition between layers is allowed.
+
+    By default, only execution core transitions (U₀-U₉) are allowed.
+    Design layer transitions (U₁₀-U₁₅) require explicit opt-in.
+
+    Args:
+        from_layer: Source layer
+        to_layer: Target layer
+        include_design: If True, allow design layer transitions. Default False.
+
+    Returns:
+        True if transition is allowed, False otherwise
+
+    Core Law:
+        Design transition is not execution transition.
+        U₉ → U₁₀ is NOT allowed by default.
+    """
+    if include_design:
+        allowed = ALLOWED_TRANSITIONS.get(from_layer, set())
+    else:
+        allowed = CORE_ALLOWED_TRANSITIONS.get(from_layer, set())
     return to_layer in allowed
 
 
@@ -244,15 +285,23 @@ def get_required_intermediate_layers(from_layer: ExecutionLayer, to_layer: Execu
     return frozenset(intermediate)
 
 
-def validate_layer_sequence(sequence: list[ExecutionLayer]) -> tuple[bool, Optional[str]]:
+def validate_layer_sequence(sequence: list[ExecutionLayer], include_design: bool = False) -> tuple[bool, Optional[str]]:
     """
     Validate that a sequence of layers follows canonical ordering.
 
+    By default, only validates execution core transitions (U₀-U₉).
+    Design layer transitions require explicit opt-in.
+
     Args:
         sequence: List of execution layers
+        include_design: If True, allow design layer transitions. Default False.
 
     Returns:
         (is_valid, error_message) tuple
+
+    Core Law:
+        Design transition is not execution transition.
+        Sequences ending beyond U₉ must explicitly set include_design=True.
     """
     if not sequence:
         return True, None
@@ -261,12 +310,15 @@ def validate_layer_sequence(sequence: list[ExecutionLayer]) -> tuple[bool, Optio
         from_layer = sequence[i]
         to_layer = sequence[i + 1]
 
-        if not is_transition_allowed(from_layer, to_layer):
+        if not is_transition_allowed(from_layer, to_layer, include_design=include_design):
             # Check if it's a known forbidden jump
             reason = get_forbidden_jump_reason(from_layer, to_layer)
             if reason:
                 return False, f"Forbidden jump: {from_layer.value} → {to_layer.value}. Reason: {reason}"
             else:
+                # Check if it's a design transition without opt-in
+                if not include_design and is_design_transition_allowed(from_layer, to_layer):
+                    return False, f"Design transition: {from_layer.value} → {to_layer.value}. Design layers (U₁₀-U₁₅) are not closed execution layers. Use include_design=True if intentional."
                 return False, f"Invalid transition: {from_layer.value} → {to_layer.value}"
 
     return True, None

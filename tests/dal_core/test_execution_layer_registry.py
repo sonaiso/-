@@ -378,3 +378,149 @@ def test_integration_all_transitions_in_path_allowed():
         assert is_transition_allowed(from_layer, to_layer), (
             f"Transition {from_layer.value} → {to_layer.value} should be allowed"
         )
+
+
+# ============================================================================
+# Strict Execution Core Boundary Tests
+# ============================================================================
+
+def test_u9_to_u10_not_allowed_by_default():
+    """CRITICAL: U₉ → U₁₀ must fail by default (design transition)."""
+    # U₉ is the last execution core layer
+    # U₁₀ is the first design layer
+    # This transition must be blocked by default
+    assert not is_transition_allowed(
+        ExecutionLayer.U9_WEIGHT,
+        ExecutionLayer.U10_WORD_FORM
+    ), "U₉ → U₁₀ must NOT be allowed by default (design layer boundary)"
+
+
+def test_u9_to_u10_allowed_with_include_design_true():
+    """U₉ → U₁₀ should be allowed when include_design=True."""
+    assert is_transition_allowed(
+        ExecutionLayer.U9_WEIGHT,
+        ExecutionLayer.U10_WORD_FORM,
+        include_design=True
+    ), "U₉ → U₁₀ should be allowed with include_design=True"
+
+
+def test_design_transition_allowed_only_with_include_design_true():
+    """Design transitions (U₁₀-U₁₅) require include_design=True."""
+    # Test several design layer transitions
+    design_transitions = [
+        (ExecutionLayer.U10_WORD_FORM, ExecutionLayer.U11_LEXICAL_ENTRY),
+        (ExecutionLayer.U11_LEXICAL_ENTRY, ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE),
+        (ExecutionLayer.U14_SENTENCE_STRUCTURE, ExecutionLayer.U15_DALALAH),
+    ]
+
+    for from_layer, to_layer in design_transitions:
+        # Should fail by default
+        assert not is_transition_allowed(from_layer, to_layer), (
+            f"{from_layer.value} → {to_layer.value} must NOT be allowed by default"
+        )
+
+        # Should succeed with include_design=True
+        assert is_transition_allowed(from_layer, to_layer, include_design=True), (
+            f"{from_layer.value} → {to_layer.value} should be allowed with include_design=True"
+        )
+
+
+def test_validate_layer_sequence_stops_at_u9_by_default():
+    """Sequence validation must reject transitions beyond U₉ by default."""
+    # Valid core sequence (should pass)
+    core_sequence = [
+        ExecutionLayer.U0_UNICODE,
+        ExecutionLayer.U1_GRAPHEME,
+        ExecutionLayer.U2P_PHONETIC_PROJECTION,
+    ]
+    is_valid, error = validate_layer_sequence(core_sequence)
+    assert is_valid, f"Core sequence should be valid. Error: {error}"
+
+    # Sequence extending into design layers (should fail by default)
+    design_sequence = [
+        ExecutionLayer.U8_ROOT_STEM,
+        ExecutionLayer.U9_WEIGHT,
+        ExecutionLayer.U10_WORD_FORM,  # Design layer!
+    ]
+    is_valid, error = validate_layer_sequence(design_sequence)
+    assert not is_valid, "Sequence into design layers should fail by default"
+    assert error is not None, "Should have error message"
+    assert "design" in error.lower(), "Error should mention design layers"
+
+    # Same sequence should pass with include_design=True
+    is_valid, error = validate_layer_sequence(design_sequence, include_design=True)
+    assert is_valid, f"Design sequence should be valid with include_design=True. Error: {error}"
+
+
+def test_execution_core_layers_excludes_u10_to_u15():
+    """Verify EXECUTION_CORE_LAYERS contains only U₀-U₉."""
+    from dal_core.execution_layer_registry import EXECUTION_CORE_LAYERS, DESIGN_LAYERS
+
+    # Core should be exactly 11 layers (U₀-U₉, but U₂ has two variants: U₂p and U₂s)
+    assert len(EXECUTION_CORE_LAYERS) == 11, f"Expected 11 core layers, got {len(EXECUTION_CORE_LAYERS)}"
+
+    # All core layers should be U₀-U₉
+    for layer in EXECUTION_CORE_LAYERS:
+        layer_name = layer.value
+        assert not any(f"u{i}" in layer_name for i in range(10, 16)), (
+            f"Core layer {layer_name} should not be U₁₀-U₁₅"
+        )
+
+    # Design layers should be exactly 6 layers (U₁₀-U₁₅)
+    assert len(DESIGN_LAYERS) == 6, f"Expected 6 design layers, got {len(DESIGN_LAYERS)}"
+
+    # No overlap between core and design
+    core_set = set(EXECUTION_CORE_LAYERS)
+    design_set = set(DESIGN_LAYERS)
+    assert core_set.isdisjoint(design_set), "Core and design layers must not overlap"
+
+
+def test_design_layers_not_closed_execution_layers():
+    """Design layers are future design, not closed execution."""
+    from dal_core.execution_layer_registry import is_core_layer, is_design_layer
+
+    # U₉ is core (last execution layer)
+    assert is_core_layer(ExecutionLayer.U9_WEIGHT), "U₉ should be core layer"
+    assert not is_design_layer(ExecutionLayer.U9_WEIGHT), "U₉ should not be design layer"
+
+    # U₁₀ is design (first design layer)
+    assert not is_core_layer(ExecutionLayer.U10_WORD_FORM), "U₁₀ should not be core layer"
+    assert is_design_layer(ExecutionLayer.U10_WORD_FORM), "U₁₀ should be design layer"
+
+    # U₁₅ is design (last design layer)
+    assert not is_core_layer(ExecutionLayer.U15_DALALAH), "U₁₅ should not be core layer"
+    assert is_design_layer(ExecutionLayer.U15_DALALAH), "U₁₅ should be design layer"
+
+
+def test_is_core_transition_allowed_strict():
+    """is_core_transition_allowed() should only allow core transitions."""
+    from dal_core.execution_layer_registry import is_core_transition_allowed
+
+    # Core transition (should pass)
+    assert is_core_transition_allowed(
+        ExecutionLayer.U8_ROOT_STEM,
+        ExecutionLayer.U9_WEIGHT
+    ), "U₈ → U₉ is core transition"
+
+    # Design transition (should fail)
+    assert not is_core_transition_allowed(
+        ExecutionLayer.U9_WEIGHT,
+        ExecutionLayer.U10_WORD_FORM
+    ), "U₉ → U₁₀ is NOT core transition"
+
+
+def test_is_design_transition_allowed_strict():
+    """is_design_transition_allowed() should only recognize design transitions."""
+    from dal_core.execution_layer_registry import is_design_transition_allowed
+
+    # Design transition (should pass)
+    assert is_design_transition_allowed(
+        ExecutionLayer.U9_WEIGHT,
+        ExecutionLayer.U10_WORD_FORM
+    ), "U₉ → U₁₀ is design transition"
+
+    # Core transition (should fail)
+    assert not is_design_transition_allowed(
+        ExecutionLayer.U8_ROOT_STEM,
+        ExecutionLayer.U9_WEIGHT
+    ), "U₈ → U₉ is NOT design transition"
