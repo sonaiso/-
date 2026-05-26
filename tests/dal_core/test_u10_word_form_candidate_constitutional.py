@@ -39,7 +39,7 @@ from dal_core.approved_transition_context import ApprovedTransitionContext
 from dal_core.execution_layer_registry import ExecutionLayer
 from dal_core.identity_registry import IdentityType
 from dal_core.domain_registry import DomainType
-from dal_core.foundation import Rank
+from dal_core.foundation.rank import Rank
 from dal_core.residuals import Residual, ResidualType, ResidualSeverity
 
 
@@ -351,8 +351,8 @@ def test_u10_preserves_residual_audit():
 
     # Add upstream residuals
     upstream_residual = Residual(
-        residual_type=ResidualType.AMBIGUITY,
-        severity=ResidualSeverity.LOW,
+        type=ResidualType.AMBIGUOUS_TYPE,  # Fixed: residual_type → type
+        severity=ResidualSeverity.INFO,  # Fixed: LOW → INFO
         message="Multiple weight candidates",
         location="U₉",
     )
