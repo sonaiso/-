@@ -1,0 +1,304 @@
+"""
+Approved Transition Context (سياق الانتقال المُجاز)
+
+Constitutional Contract:
+    Layer does not own Governor.
+    Governor owns Transition Permission.
+
+This module provides the evidence structure that proves a transition
+has been approved by AlgebraicDecisionCore.
+
+Key Principle:
+    U₉ (or any layer) should NEVER instantiate AlgebraicDecisionCore internally.
+
+    Instead:
+    - Pipeline/Orchestrator owns AlgebraicDecisionCore
+    - Pipeline asks AlgebraicDecisionCore to approve transition
+    - Layer receives ApprovedTransitionContext as proof
+    - Layer MUST refuse execution without ApprovedTransitionContext
+
+Architecture Pattern:
+    Pipeline/Orchestrator
+      → owns AlgebraicDecisionCore
+      → asks: approve U₈→U₉ transition?
+      → receives DecisionAudit
+      → if approved: creates ApprovedTransitionContext
+      → passes context to U₉
+      → U₉ verifies context and executes
+
+    NOT:
+    U₉
+      → creates AlgebraicDecisionCore()
+      → approves itself
+      → executes
+
+    (This would make the guard inside the guarded - breaks constitutional meaning)
+
+PR: ALGEBRAIC-DECISION-CORE
+Created: 2026-05-26
+"""
+
+from dataclasses import dataclass, field
+from typing import Tuple, FrozenSet
+
+from dal_core.algebraic_decision_core import DecisionAudit, CPBStatus
+from dal_core.execution_layer_registry import ExecutionLayer
+from dal_core.identity_registry import IdentityType
+from dal_core.domain_registry import DomainType
+from dal_core.foundation import Rank
+from dal_core.residuals import Residual
+
+
+# Private sentinel token - prevents forgery through direct construction
+# Only create_approved_context() can pass this token
+_APPROVED_CONTEXT_TOKEN = object()
+
+
+@dataclass(frozen=True)
+class ApprovedTransitionContext:
+    """
+    سياق الانتقال المُجاز (Approved Transition Context)
+
+    Evidence that AlgebraicDecisionCore approved a specific transition.
+
+    Constitutional Law:
+        No layer execution without ApprovedTransitionContext.
+        No ApprovedTransitionContext without AlgebraicDecisionCore approval.
+        No approval without 8-dimensional validation.
+
+    The 8 Dimensions:
+        1. Identity: Input → Output identity valid?
+        2. Domain: Operation within competency?
+        3. Gate: Required gates passed?
+        4. Evidence: Sufficient evidence?
+        5. Rank: Rank progression valid?
+        6. Residuals: No blocking residuals?
+        7. Trace: Execution trace preserved?
+        8. No Leap: Sequential progression?
+
+    Attributes:
+        audit: Complete DecisionAudit from AlgebraicDecisionCore
+        from_layer: Source layer (verified)
+        to_layer: Target layer (verified)
+        input_identity: Identity before transition (verified)
+        output_identity: Identity after transition (verified)
+        domain: Domain of operation (verified)
+        allowed_determination: What the layer may determine
+        trace: Execution trace (verified)
+        existing_identities: All established identities up to this point
+    """
+    audit: DecisionAudit
+    from_layer: ExecutionLayer
+    to_layer: ExecutionLayer
+    input_identity: IdentityType
+    output_identity: IdentityType
+    domain: DomainType
+    allowed_determination: str
+    trace: Tuple[str, ...]
+    existing_identities: FrozenSet[IdentityType]
+    _token: object = field(repr=False, compare=False, default=None)
+
+    def __post_init__(self):
+        """
+        Verify that this context is truly approved and cannot be forged.
+
+        Security Principle:
+            ApprovedTransitionContext is transition-specific evidence,
+            NOT a universal permission token.
+
+        Anti-Forgery:
+            Cannot be constructed directly - must use create_approved_context()
+            Private sentinel token prevents bypass of factory function.
+
+        Validates:
+            0. Factory function used (sentinel token present)
+            1. Audit is truly approved (CPB status, allowed, no violations)
+            2. Layer consistency (from_layer, to_layer match audit)
+            3. Identity consistency (input/output identities match audit)
+            4. Domain consistency (domain matches audit)
+            5. Trace is present (non-empty execution trace)
+            6. No blocking residuals (cannot approve blocked transition)
+            7. Rank does not exceed evidence (constitutional requirement)
+        """
+        # 0. Verify construction through factory function (anti-forgery)
+        if self._token is not _APPROVED_CONTEXT_TOKEN:
+            raise ValueError(
+                "ApprovedTransitionContext cannot be constructed directly. "
+                "Use create_approved_context() factory function. "
+                "Direct construction is a security violation - "
+                "ApprovedTransitionContext must be unforgeable."
+            )
+        # 1. Verify audit is truly approved
+        if not self.is_approved():
+            raise ValueError(
+                f"Cannot create ApprovedTransitionContext with unapproved audit. "
+                f"CPB Status: {self.audit.cpb_status}, "
+                f"Violations: {self.audit.violations}"
+            )
+
+        # 2. Verify layer consistency
+        if self.audit.from_layer != self.from_layer:
+            raise ValueError(
+                f"Audit from_layer {self.audit.from_layer} != context from_layer {self.from_layer}"
+            )
+        if self.audit.to_layer != self.to_layer:
+            raise ValueError(
+                f"Audit to_layer {self.audit.to_layer} != context to_layer {self.to_layer}"
+            )
+
+        # 3. Verify identity consistency
+        if self.audit.input_identity != self.input_identity:
+            raise ValueError(
+                f"Audit input_identity {self.audit.input_identity} != context input_identity {self.input_identity}"
+            )
+        if self.audit.output_identity != self.output_identity:
+            raise ValueError(
+                f"Audit output_identity {self.audit.output_identity} != context output_identity {self.output_identity}"
+            )
+
+        # 4. Verify domain consistency
+        if self.audit.domain != self.domain:
+            raise ValueError(
+                f"Audit domain {self.audit.domain} != context domain {self.domain}. "
+                f"Cannot use approval for one domain in another domain."
+            )
+
+        # 5. Verify trace is present (non-empty)
+        if not self.trace or len(self.trace) == 0:
+            raise ValueError(
+                f"Cannot create ApprovedTransitionContext without execution trace. "
+                f"Trace is required for constitutional governance."
+            )
+
+        # 6. Verify no blocking residuals
+        if self.has_blocking_residuals():
+            raise ValueError(
+                f"Cannot create ApprovedTransitionContext with blocking residuals. "
+                f"Blocking residuals: {self.audit.get_blocking_residuals()}"
+            )
+
+        # 7. Verify rank does not exceed evidence (constitutional requirement)
+        # This prevents elevation without sufficient evidence
+        if self.audit.rank and hasattr(self.audit, 'input_rank'):
+            # If rank increased, must have evidence
+            if hasattr(self.audit.rank, 'value') and hasattr(self.audit.input_rank, 'value'):
+                if self.audit.rank.value > self.audit.input_rank.value:
+                    if not self.audit.evidence or len(self.audit.evidence) == 0:
+                        raise ValueError(
+                            f"Cannot elevate rank from {self.audit.input_rank} to {self.audit.rank} "
+                            f"without evidence. Rank elevation requires evidence."
+                        )
+
+    def is_approved(self) -> bool:
+        """
+        Check if audit is truly approved.
+
+        Returns:
+            True only if CPB status is APPROVED and no violations
+        """
+        return (
+            self.audit.cpb_status == CPBStatus.APPROVED
+            and self.audit.allowed
+            and len(self.audit.violations) == 0
+        )
+
+    def get_decision_id(self) -> str:
+        """Get the unique decision ID."""
+        return self.audit.decision_id
+
+    def get_transition_id(self) -> str:
+        """Get the transition type ID."""
+        return self.audit.transition_id
+
+    def get_rank(self) -> Rank:
+        """Get the approved rank for this transition."""
+        return self.audit.rank
+
+    def get_residuals(self) -> Tuple[Residual, ...]:
+        """Get residuals from the transition."""
+        return self.audit.residuals
+
+    def get_evidence(self) -> Tuple[str, ...]:
+        """Get evidence that supported this approval."""
+        return self.audit.evidence
+
+    def has_blocking_residuals(self) -> bool:
+        """
+        Check if there are blocking residuals.
+
+        Note: Should always be False for approved context,
+        but provided for completeness.
+        """
+        return len(self.audit.get_blocking_residuals()) > 0
+
+    def __str__(self) -> str:
+        return (
+            f"ApprovedTransition({self.from_layer.value}→{self.to_layer.value}, "
+            f"{self.input_identity.value}→{self.output_identity.value}, "
+            f"domain={self.domain.value}, "
+            f"decision_id={self.audit.decision_id[:8]}...)"
+        )
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+def create_approved_context(
+    audit: DecisionAudit,
+    existing_identities: FrozenSet[IdentityType]
+) -> ApprovedTransitionContext:
+    """
+    Create ApprovedTransitionContext from DecisionAudit.
+
+    This is the ONLY authorized way to create ApprovedTransitionContext.
+
+    Security:
+        - Passes private sentinel token to prevent direct construction
+        - Direct construction will raise ValueError (anti-forgery)
+        - Each context is unforgeable and transition-specific
+
+    Args:
+        audit: DecisionAudit from AlgebraicDecisionCore.decide_transition()
+        existing_identities: Set of all established identities
+
+    Returns:
+        ApprovedTransitionContext if audit is approved
+
+    Raises:
+        ValueError: If audit is not approved
+
+    Usage:
+        core = AlgebraicDecisionCore()
+        audit = core.decide_transition(...)
+
+        if audit.is_approved():
+            context = create_approved_context(audit, existing_identities)
+            u9_output = transition_to_u9(u8_input, context)
+        else:
+            handle_violations(audit.violations)
+    """
+    if not audit.is_approved():
+        raise ValueError(
+            f"Cannot create ApprovedTransitionContext from unapproved audit. "
+            f"CPB Status: {audit.cpb_status}, "
+            f"Violations: {audit.violations}"
+        )
+
+    return ApprovedTransitionContext(
+        audit=audit,
+        from_layer=audit.from_layer,
+        to_layer=audit.to_layer,
+        input_identity=audit.input_identity,
+        output_identity=audit.output_identity,
+        domain=audit.domain,
+        allowed_determination=audit.function,
+        trace=audit.trace,
+        existing_identities=existing_identities,
+        _token=_APPROVED_CONTEXT_TOKEN,  # Pass sentinel token (anti-forgery)
+    )
+
+
+__all__ = [
+    "ApprovedTransitionContext",
+    "create_approved_context",
+]
