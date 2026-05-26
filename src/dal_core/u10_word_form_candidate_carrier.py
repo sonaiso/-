@@ -71,7 +71,7 @@ from dal_core.approved_transition_context import ApprovedTransitionContext
 from dal_core.execution_layer_registry import ExecutionLayer
 from dal_core.identity_registry import IdentityType
 from dal_core.domain_registry import DomainType
-from dal_core.foundation import Rank
+from dal_core.foundation.rank import Rank
 from dal_core.residuals import Residual, ResidualType, ResidualSeverity
 
 
@@ -129,9 +129,9 @@ def validate_approved_context_for_u10(
     # NOTE: WORDFORM_DOMAIN must be added to DomainType enum
     # For now, we check it's not forbidden domains
     forbidden_domains = {
-        DomainType.SEMANTIC_DOMAIN,
+        DomainType.SEMANTICS_DOMAIN,  # Fixed: SEMANTIC_DOMAIN → SEMANTICS_DOMAIN
         DomainType.SYNTAX_DOMAIN,
-        DomainType.HUKM_DOMAIN,
+        DomainType.JUDGMENT_DOMAIN,  # Fixed: HUKM_DOMAIN → JUDGMENT_DOMAIN
     }
     if context.domain in forbidden_domains:
         raise ValueError(
@@ -200,7 +200,7 @@ class WordFormCandidateUnit:
     agreement_edge_ids: FrozenSet[str] = frozenset()
 
     # Candidate metadata (not certificate)
-    rank: Rank = field(default_factory=lambda: Rank(value=0.5))
+    rank: Rank = field(default_factory=lambda: Rank.CANDIDATE)
     residuals: Tuple[Residual, ...] = ()
 
     def __post_init__(self):
@@ -359,7 +359,7 @@ def word_form_candidate_carrier_10(
         weight_identity=weight_identity,
         weight_pattern=weight_pattern,
         agreement_edge_ids=agreement_edge_ids,
-        rank=Rank(value=0.7),  # TODO: Implement actual ranking
+        rank=Rank.CANDIDATE,  # Fixed: Rank is enum, not value-based
         residuals=tuple(),  # TODO: Carry forward residuals
     )
 
