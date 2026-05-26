@@ -63,9 +63,9 @@ def test_official_u9_api_is_from_canonical_module():
 
 def test_legacy_dispatch_weight_shows_deprecation_warning():
     """
-    Constitutional Law: Legacy dispatch_weight() must warn about deprecation.
+    Constitutional Law: Legacy dispatch_weight() must be BLOCKED, not just warned.
 
-    This guides users toward the official implementation.
+    This enforces constitutional prohibition of ungoverned U₉ execution.
     """
     from dal_core.u9_arabic_weight import dispatch_weight, PreWeightContract, RootStemInput
     from dal_core.evidence import Evidence
@@ -91,16 +91,15 @@ def test_legacy_dispatch_weight_shows_deprecation_warning():
         pattern_candidate=None,
     )
 
-    # Should raise DeprecationWarning
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    # Should raise RuntimeError, not just warn
+    with pytest.raises(RuntimeError) as exc_info:
         dispatch_weight(contract, root_stem)
 
-        # Verify warning was raised
-        assert len(w) >= 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "dispatch_weight() is DEPRECATED" in str(w[0].message)
-        assert "ApprovedTransitionContext" in str(w[0].message)
+    # Verify error message explains constitutional block
+    error_msg = str(exc_info.value)
+    assert "Constitutional Violation" in error_msg or "BLOCKED" in error_msg
+    assert "ApprovedTransitionContext" in error_msg
+    assert "weight_candidate_carrier_9" in error_msg
 
 
 # ============================================================================
@@ -247,7 +246,7 @@ def test_no_dual_u9_execution_paths():
 
     This test ensures:
     1. Official API enforces ApprovedTransitionContext
-    2. Legacy API shows deprecation warnings
+    2. Legacy API is BLOCKED (raises RuntimeError)
     3. No code can bypass governance
     """
     from dal_core import weight_candidate_carrier_9
@@ -259,7 +258,7 @@ def test_no_dual_u9_execution_paths():
     with pytest.raises(ValueError):
         weight_candidate_carrier_9(u8_input, approved_context=None)
 
-    # Legacy API shows deprecation warning
+    # Legacy API is BLOCKED (raises RuntimeError)
     from dal_core.u9_arabic_weight import PreWeightContract, RootStemInput
 
     contract = PreWeightContract(
@@ -282,8 +281,61 @@ def test_no_dual_u9_execution_paths():
         pattern_candidate=None,
     )
 
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    # Must raise RuntimeError, not just warn
+    with pytest.raises(RuntimeError) as exc_info:
         dispatch_weight(contract, root_stem)
-        assert len(w) >= 1
-        assert issubclass(w[0].category, DeprecationWarning)
+
+    assert "Constitutional" in str(exc_info.value) or "BLOCKED" in str(exc_info.value)
+
+
+# ============================================================================
+# Test 8: Explicit constitutional block test
+# ============================================================================
+
+def test_legacy_dispatch_weight_cannot_produce_weight_without_approved_context():
+    """
+    Constitutional Law Enforcement Test:
+
+    Legacy dispatch_weight() CANNOT produce a weight object without ApprovedTransitionContext.
+    This is not a deprecation - it's a constitutional block.
+
+    The function MUST raise RuntimeError, preventing any weight candidate production
+    outside the governed canonical implementation.
+
+    Critical: This test proves NO legacy execution path exists.
+    """
+    from dal_core.u9_arabic_weight import dispatch_weight, PreWeightContract, RootStemInput
+
+    # Attempt to create weight via legacy path
+    contract = PreWeightContract(
+        build_status="MuʿrabCandidate",
+        lexical_status="UnknownLexical",
+        path_type="Muʿrab",
+        derivation_access="blocked",
+        inflection_access=False,
+        evidence=(),
+        trace={},
+        competitors=frozenset(),
+    )
+
+    root_stem = RootStemInput(
+        root_or_stem=("ك", "ت", "ب"),
+        input_type="root",
+        root_status="RootCandidate",
+        evidence=(),
+        trace={},
+        pattern_candidate=None,
+    )
+
+    # CRITICAL: Must raise RuntimeError, not return any weight object
+    with pytest.raises(RuntimeError) as exc_info:
+        weight_obj = dispatch_weight(contract, root_stem)
+        # If we reach here, the constitutional block failed
+        pytest.fail("Constitutional violation: dispatch_weight() produced a weight object without ApprovedTransitionContext")
+
+    # Verify the error is a constitutional block, not a runtime accident
+    error_msg = str(exc_info.value)
+    assert "Constitutional" in error_msg, "Error must explicitly state constitutional violation"
+    assert "BLOCKED" in error_msg or "prohibited" in error_msg, "Error must indicate execution is blocked"
+    assert "ApprovedTransitionContext" in error_msg, "Error must reference governance requirement"
+    assert "weight_candidate_carrier_9" in error_msg, "Error must guide to official implementation"

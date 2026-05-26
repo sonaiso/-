@@ -566,109 +566,18 @@ def dispatch_weight(
     Returns:
         ArabicWeightObject with appropriate WeightType
     """
-    warnings.warn(
-        "dispatch_weight() is DEPRECATED and does NOT enforce ApprovedTransitionContext. "
-        "Use weight_candidate_carrier_9() from dal_core instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    # Validate gate first
-    gate_result = gate_89_validate(contract, root_stem)
-    if not gate_result.passed:
-        # Return blocked weight object
-        return ArabicWeightObject(
-            weight_type=WeightType.BUILT,  # Default to safest
-            input_contract=contract,
-            root_stem_input=root_stem,
-            rank=WeightRank.WEIGHT_BLOCKED,
-            residuals=gate_result.residuals,
-            trace=gate_result.trace,
-            evidence=evidence,
-        )
-
-    # Dispatch logic
-    residuals = list(gate_result.residuals)
-    trace = {
-        "dispatch": "WeightDispatch",
-        "gate_trace": gate_result.trace,
-    }
-
-    # Path 1: Built (مبني)
-    if contract.build_status == "ClosedMabniCertificate":
-        return ArabicWeightObject(
-            weight_type=WeightType.BUILT,
-            input_contract=contract,
-            root_stem_input=root_stem,
-            frozen_status="frozen_ending",
-            rank=WeightRank.WEIGHT_CERTIFICATE,
-            residuals=tuple(residuals),
-            trace=trace,
-            evidence=evidence,
-            competitors=contract.competitors,
-        )
-
-    # Path 2: Jāmid (جامد)
-    if contract.lexical_status == "JāmidCertificate":
-        return ArabicWeightObject(
-            weight_type=WeightType.JAMID,
-            input_contract=contract,
-            root_stem_input=root_stem,
-            rank=WeightRank.WEIGHT_CERTIFICATE,
-            residuals=tuple(residuals),
-            trace=trace,
-            evidence=evidence,
-            competitors=contract.competitors,
-        )
-
-    # Path 3: Inflectable (معرب)
-    if (contract.build_status == "MuʿrabCandidate" and
-        contract.inflection_access):
-        return ArabicWeightObject(
-            weight_type=WeightType.INFLECTABLE,
-            input_contract=contract,
-            root_stem_input=root_stem,
-            inflection_site="final",  # Default, can be refined
-            frozen_status="variable_ending",
-            rank=WeightRank.WEIGHT_STRONG_HYPOTHESIS,
-            residuals=tuple(residuals),
-            trace=trace,
-            evidence=evidence,
-            competitors=contract.competitors,
-        )
-
-    # Path 4: Mushtaq (مشتق)
-    if (contract.derivation_access == "open" and
-        root_stem.root_status == "RootLicensed" and
-        root_stem.pattern_candidate):
-        return ArabicWeightObject(
-            weight_type=WeightType.MUSHTAQ,
-            input_contract=contract,
-            root_stem_input=root_stem,
-            pattern_shape=root_stem.pattern_candidate,
-            rank=WeightRank.WEIGHT_CERTIFICATE,
-            residuals=tuple(residuals),
-            trace=trace,
-            evidence=evidence,
-            competitors=contract.competitors,
-        )
-
-    # Path 5: Ambiguous - preserve competitors
-    residuals.append(Residual(
-        type=ResidualType.WAZN_UNRESOLVED,
-        severity=ResidualSeverity.WARNING,
-        message="Weight type ambiguous, competitors preserved",
-        location="WeightDispatch",
-    ))
-
-    return ArabicWeightObject(
-        weight_type=WeightType.INFLECTABLE,  # Default fallback
-        input_contract=contract,
-        root_stem_input=root_stem,
-        rank=WeightRank.WEIGHT_HYPOTHESIS,
-        residuals=tuple(residuals),
-        trace=trace,
-        evidence=evidence,
-        competitors=contract.competitors,
+    # CONSTITUTIONAL BLOCK: Legacy path cannot execute
+    raise RuntimeError(
+        "Constitutional Violation: dispatch_weight() is BLOCKED. "
+        "\n\n"
+        "Legacy U₉ execution path is constitutionally prohibited.\n"
+        "No U₉ execution without ApprovedTransitionContext.\n"
+        "\n"
+        "Use the official governed implementation:\n"
+        "    from dal_core import weight_candidate_carrier_9\n"
+        "\n"
+        "This function cannot produce weight candidates outside constitutional governance.\n"
+        "For migration guidance, see docs/U9_CANONICALIZATION_SUMMARY.md"
     )
 
 

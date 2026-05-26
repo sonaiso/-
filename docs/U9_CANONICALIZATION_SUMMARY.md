@@ -74,33 +74,41 @@ from dal_core.u9_arabic_weight import dispatch_weight
        src/dal_core/u9_weight_candidate_carrier.py
    ```
 
-2. **Function warnings** - Added `DeprecationWarning` to `dispatch_weight()`:
+2. **Constitutional block** - `dispatch_weight()` raises `RuntimeError`:
    ```python
-   warnings.warn(
-       "dispatch_weight() is DEPRECATED and does NOT enforce ApprovedTransitionContext. "
-       "Use weight_candidate_carrier_9() from dal_core instead.",
-       DeprecationWarning,
-       stacklevel=2
+   raise RuntimeError(
+       "Constitutional Violation: dispatch_weight() is BLOCKED. "
+       "\n\n"
+       "Legacy U₉ execution path is constitutionally prohibited.\n"
+       "No U₉ execution without ApprovedTransitionContext.\n"
+       "\n"
+       "Use the official governed implementation:\n"
+       "    from dal_core import weight_candidate_carrier_9\n"
    )
    ```
+
+**Critical:** This is **not** a deprecation warning - it's a **constitutional block**. The function cannot execute and produce weight objects.
 
 ### 3. Comprehensive Testing
 
 **File:** `tests/dal_core/test_u9_canonicalization.py`
 
-Created 9 tests enforcing canonicalization:
+Created 10 tests enforcing canonicalization:
 
 | Test | Purpose | Result |
 |------|---------|--------|
 | `test_official_u9_api_importable_from_dal_core` | Verify official API exports | ✅ PASS |
 | `test_official_u9_api_is_from_canonical_module` | Verify source module | ✅ PASS |
-| `test_legacy_dispatch_weight_shows_deprecation_warning` | Verify deprecation warning | ✅ PASS |
+| `test_legacy_dispatch_weight_shows_deprecation_warning` | Verify constitutional block (RuntimeError) | ✅ PASS |
 | `test_official_u9_rejects_without_approved_context` | Verify constitutional guard | ✅ PASS |
 | `test_official_u9_rejects_wrong_transition_context` | Verify transition validation | ✅ PASS |
 | `test_no_algebraic_decision_core_instantiation_in_u9_files` | Verify no governor ownership | ✅ PASS |
 | `test_legacy_module_still_importable` | Verify backward compatibility | ✅ PASS |
 | `test_legacy_module_documentation_shows_deprecation` | Verify deprecation notice | ✅ PASS |
 | `test_no_dual_u9_execution_paths` | Verify single canonical path | ✅ PASS |
+| `test_legacy_dispatch_weight_cannot_produce_weight_without_approved_context` | **Explicit block verification** | ✅ PASS |
+
+**Key Test:** The last test (`test_legacy_dispatch_weight_cannot_produce_weight_without_approved_context`) explicitly proves that calling `dispatch_weight()` **raises RuntimeError** and **cannot produce any weight object** without `ApprovedTransitionContext`.
 
 ## Verification Results (نتائج التحقق)
 
@@ -109,7 +117,7 @@ Created 9 tests enforcing canonicalization:
 ```bash
 # Canonicalization tests
 pytest tests/dal_core/test_u9_canonicalization.py -v
-✓ 9/9 tests passed
+✓ 10/10 tests passed (including explicit block test)
 
 # Constitutional tests
 pytest tests/dal_core/test_u9_weight_candidate_constitutional.py -v
@@ -132,9 +140,11 @@ grep -R "AlgebraicDecisionCore()" src/dal_core/u*.py
 | Law | Status | Evidence |
 |-----|--------|----------|
 | U₉ has one canonical governed implementation | ✅ | `u9_weight_candidate_carrier.py` is official |
-| Legacy U₉ must not bypass ApprovedTransitionContext | ✅ | `dispatch_weight()` shows deprecation warning |
+| Legacy U₉ **blocked** from execution | ✅ | `dispatch_weight()` raises RuntimeError |
 | No weight candidate outside official implementation | ✅ | All tests enforce this |
 | Layer does not own Governor | ✅ | No `AlgebraicDecisionCore()` in U₉ files |
+
+**Critical Update:** Legacy path doesn't just "warn" - it's **constitutionally blocked**. No execution possible.
 
 ## Migration Guide (دليل الهجرة)
 
@@ -157,10 +167,10 @@ result = weight_candidate_carrier_9(
 If you have code using the legacy module:
 
 ```python
-# ❌ OLD (deprecated)
+# ❌ OLD (blocked - will raise RuntimeError)
 from dal_core.u9_arabic_weight import dispatch_weight
 
-weight_obj = dispatch_weight(contract, root_stem)
+weight_obj = dispatch_weight(contract, root_stem)  # RuntimeError!
 ```
 
 Migrate to:
@@ -174,24 +184,31 @@ from dal_core import weight_candidate_carrier_9
 result = weight_candidate_carrier_9(u8_input, approved_context)
 ```
 
+**Important:** The legacy function does **not** warn - it **blocks execution entirely**. Any attempt to call `dispatch_weight()` will raise `RuntimeError` with clear guidance to the official implementation.
+
 ## Files Changed
 
 1. **src/dal_core/__init__.py** (+4 lines)
    - Exported official U₉ API
 
-2. **src/dal_core/u9_arabic_weight.py** (+34 lines, -2 lines)
-   - Added deprecation warnings
+2. **src/dal_core/u9_arabic_weight.py** (-95 lines of unreachable code)
+   - Added constitutional block (RuntimeError)
    - Updated module docstring
+   - Removed all weight dispatch logic (unreachable after RuntimeError)
 
-3. **tests/dal_core/test_u9_canonicalization.py** (+300 lines, new file)
-   - Comprehensive canonicalization test suite
+3. **tests/dal_core/test_u9_canonicalization.py** (+342 lines, new file)
+   - Comprehensive canonicalization test suite (10 tests)
+   - Explicit block verification test
+
+4. **docs/U9_CANONICALIZATION_SUMMARY.md** (updated)
+   - Complete documentation reflecting constitutional block
 
 ## Future Work
 
-The legacy `u9_arabic_weight.py` module should be:
-1. Monitored for usage via deprecation warnings
-2. Removed entirely in a future major version once all consumers migrate
-3. Replaced with a stub that only imports from the canonical module
+The legacy `u9_arabic_weight.py` module:
+1. **Current state:** Constitutionally blocked - cannot execute
+2. **Future:** Can be removed entirely once all imports are migrated
+3. **Transition:** Module serves as clear error message guiding to official API
 
 ## References
 
@@ -203,14 +220,16 @@ The legacy `u9_arabic_weight.py` module should be:
 
 ## Conclusion
 
-The dual implementation issue is now **resolved**:
+The dual implementation issue is now **fully resolved** with **constitutional enforcement**:
 
 ✅ Official U₉ API is exported from `dal_core`
-✅ Legacy module shows clear deprecation warnings
-✅ No execution path bypasses `ApprovedTransitionContext`
+✅ Legacy module is **constitutionally blocked** (raises RuntimeError)
+✅ No execution path can bypass `ApprovedTransitionContext`
 ✅ Constitutional laws are enforced by tests
-✅ Migration path is documented
+✅ Migration path is documented and enforced
 
-**U₉ integration is now constitutionally complete.**
+**U₉ integration is now constitutionally complete with enforcement.**
 
-Before building U₁₀ or any subsequent layer, this canonicalization ensures no governance bypass exists in U₉.
+The legacy path doesn't just "warn" - it **prevents execution entirely**. No weight candidate can be produced outside the governed canonical implementation.
+
+Before building U₁₀ or any subsequent layer, this canonicalization ensures **no governance bypass exists** in U₉.
