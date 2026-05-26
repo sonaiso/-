@@ -219,6 +219,10 @@ from .algebraic_decision_core import (
     CPBIdentityGuardian,
     AlgebraicDecisionCore,
 )
+from .approved_transition_context import (
+    ApprovedTransitionContext,
+    create_approved_context,
+)
 from .identity_registry import (
     IdentityType,
     IdentityLayer,
@@ -372,6 +376,8 @@ __all__ = [
     "DecisionAudit",
     "CPBIdentityGuardian",
     "AlgebraicDecisionCore",
+    "ApprovedTransitionContext",
+    "create_approved_context",
     "IdentityType",
     "IdentityLayer",
     "IdentitySpec",

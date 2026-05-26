@@ -5,6 +5,48 @@ Domain: U₉ = ArabicWeightCarrier
 Transition: PreWeightContract + RootStemCarrier (U₇+U₈) → ArabicWeightObject (U₉)
 Purpose: Typed weight algebra with four distinct pathways
 
+Constitutional Governance (الحكم الدستوري):
+    CRITICAL: This layer operates under AlgebraicDecisionCore governance.
+
+    Architectural Law:
+        Layer does not own Governor.
+        Governor owns Transition Permission.
+
+    Execution Pattern:
+        Pipeline/Orchestrator owns AlgebraicDecisionCore
+          → asks: approve U₈→U₉ transition?
+          → receives DecisionAudit
+          → if approved: creates ApprovedTransitionContext
+          → passes context to U₉
+          → U₉ verifies context and executes
+
+    Constitutional Requirements:
+        ✓ No U₉ execution without ApprovedTransitionContext
+        ✓ No ApprovedTransitionContext without AlgebraicDecisionCore approval
+        ✓ No approval without 8-dimensional validation:
+          1. Identity: ROOT_MATERIAL_IDENTITY → WEIGHT_IDENTITY
+          2. Domain: WEIGHT_DOMAIN only (no meaning, no syntax, no hukm)
+          3. Gate: WeightTransitionGate passed
+          4. Evidence: Root/stem candidacy evidence present
+          5. Rank: CANDIDATE → CANDIDATE (no elevation without evidence)
+          6. Residuals: No blocking residuals
+          7. Trace: Complete U₀→U₁→...→U₈ trace preserved
+          8. No Leap: Sequential progression verified
+
+    Domain Boundaries (حدود المجال):
+        Forbidden in WEIGHT_DOMAIN:
+            ✗ Meaning determination (معنى) - صيغة فاعل ≠ معنى الفاعلية
+            ✗ Syntactic role (فاعل نحوي) - صيغة فاعل ≠ الفاعل النحوي
+            ✗ I'rab judgment (إعراب)
+            ✗ Hukm (حكم)
+            ✗ Semantic derivation (اشتقاق معنوي)
+            ✗ Functional assignment (وظيفة)
+
+        Permitted in WEIGHT_DOMAIN:
+            ✓ Weight pattern (وزن)
+            ✓ Morphological template (قالب صرفي)
+            ✓ F-'-L mapping (فاء-عين-لام)
+
 Key Principle:
     Weight is NOT just derivational pattern (وزن المشتق).
     It's an algebraic system with four types:
@@ -21,6 +63,7 @@ Critical Laws:
     5. Residuals preserved, not deleted
     6. Competitors preserved until evidence blocks
     7. Rank progression evidence-based only
+    8. NO internal AlgebraicDecisionCore instantiation (Constitutional violation)
 
 Architecture:
     U₀ (Unicode) → U₁ (Grapheme) → U₂ (Syllable) → U₃ (Boundary) →
@@ -29,6 +72,7 @@ Architecture:
 
 PR: U9-WEIGHT-ALGEBRA
 Created: 2026-05-25
+Updated: 2026-05-26 (Constitutional governance)
 """
 
 from dataclasses import dataclass, field
