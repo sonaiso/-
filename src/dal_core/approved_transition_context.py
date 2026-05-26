@@ -38,7 +38,7 @@ PR: ALGEBRAIC-DECISION-CORE
 Created: 2026-05-26
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Tuple, FrozenSet
 
 from dal_core.algebraic_decision_core import DecisionAudit, CPBStatus
@@ -47,6 +47,11 @@ from dal_core.identity_registry import IdentityType
 from dal_core.domain_registry import DomainType
 from dal_core.foundation import Rank
 from dal_core.residuals import Residual
+
+
+# Private sentinel token - prevents forgery through direct construction
+# Only create_approved_context() can pass this token
+_APPROVED_CONTEXT_TOKEN = object()
 
 
 @dataclass(frozen=True)
@@ -91,6 +96,7 @@ class ApprovedTransitionContext:
     allowed_determination: str
     trace: Tuple[str, ...]
     existing_identities: FrozenSet[IdentityType]
+    _token: object = field(repr=False, compare=False, default=None)
 
     def __post_init__(self):
         """
@@ -100,7 +106,12 @@ class ApprovedTransitionContext:
             ApprovedTransitionContext is transition-specific evidence,
             NOT a universal permission token.
 
+        Anti-Forgery:
+            Cannot be constructed directly - must use create_approved_context()
+            Private sentinel token prevents bypass of factory function.
+
         Validates:
+            0. Factory function used (sentinel token present)
             1. Audit is truly approved (CPB status, allowed, no violations)
             2. Layer consistency (from_layer, to_layer match audit)
             3. Identity consistency (input/output identities match audit)
@@ -109,6 +120,14 @@ class ApprovedTransitionContext:
             6. No blocking residuals (cannot approve blocked transition)
             7. Rank does not exceed evidence (constitutional requirement)
         """
+        # 0. Verify construction through factory function (anti-forgery)
+        if self._token is not _APPROVED_CONTEXT_TOKEN:
+            raise ValueError(
+                "ApprovedTransitionContext cannot be constructed directly. "
+                "Use create_approved_context() factory function. "
+                "Direct construction is a security violation - "
+                "ApprovedTransitionContext must be unforgeable."
+            )
         # 1. Verify audit is truly approved
         if not self.is_approved():
             raise ValueError(
@@ -231,7 +250,12 @@ def create_approved_context(
     """
     Create ApprovedTransitionContext from DecisionAudit.
 
-    This is the ONLY way to create ApprovedTransitionContext.
+    This is the ONLY authorized way to create ApprovedTransitionContext.
+
+    Security:
+        - Passes private sentinel token to prevent direct construction
+        - Direct construction will raise ValueError (anti-forgery)
+        - Each context is unforgeable and transition-specific
 
     Args:
         audit: DecisionAudit from AlgebraicDecisionCore.decide_transition()
@@ -269,7 +293,8 @@ def create_approved_context(
         domain=audit.domain,
         allowed_determination=audit.function,
         trace=audit.trace,
-        existing_identities=existing_identities
+        existing_identities=existing_identities,
+        _token=_APPROVED_CONTEXT_TOKEN,  # Pass sentinel token (anti-forgery)
     )
 
 
