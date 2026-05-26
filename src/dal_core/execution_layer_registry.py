@@ -148,6 +148,9 @@ CORE_ALLOWED_TRANSITIONS = {
     ExecutionLayer.U8_ROOT_STEM: {ExecutionLayer.U9_WEIGHT},
 }
 
+# NOTE: U₈ ROOT_STEM is now IMPLEMENTED and registered.
+# U₈ is closed over real U₇ pre-weight contract output.
+
 # Design layer transitions (U₁₀-U₁₅) - Future design, not closed execution
 DESIGN_ALLOWED_TRANSITIONS = {
     # Transition from core to design layers
