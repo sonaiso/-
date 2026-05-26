@@ -213,6 +213,26 @@ from .d1_rank_policy import (
     rank_is_not_certificate,
     confidence_is_not_certificate,
 )
+from .algebraic_decision_core import (
+    CPBStatus,
+    DecisionAudit,
+    CPBIdentityGuardian,
+    AlgebraicDecisionCore,
+)
+from .identity_registry import (
+    IdentityType,
+    IdentityLayer,
+    IdentitySpec,
+    IdentityRegistry,
+    verify_identity_preserved,
+)
+from .domain_registry import (
+    DomainType,
+    DomainLayer,
+    DomainSpec,
+    DomainRegistry,
+    verify_domain_boundary,
+)
 
 __all__ = [
     "Rank",
@@ -347,4 +367,19 @@ __all__ = [
     "generate_syllable_candidate",
     "generate_syllable_candidates",
     "syllabify_word",
+    # AlgebraicDecisionCore (Governance Layer)
+    "CPBStatus",
+    "DecisionAudit",
+    "CPBIdentityGuardian",
+    "AlgebraicDecisionCore",
+    "IdentityType",
+    "IdentityLayer",
+    "IdentitySpec",
+    "IdentityRegistry",
+    "verify_identity_preserved",
+    "DomainType",
+    "DomainLayer",
+    "DomainSpec",
+    "DomainRegistry",
+    "verify_domain_boundary",
 ]
