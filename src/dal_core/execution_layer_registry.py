@@ -201,6 +201,16 @@ FORBIDDEN_JUMPS = {
 
     (ExecutionLayer.U5_FUNCTIONAL_ROLE, ExecutionLayer.U8_ROOT_STEM):
         "Missing U₆ MabniClosedClass and U₇ PreWeightContract",
+
+    # Critical U₉→U₁₁ forbidden jump (no direct weight→meaning)
+    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U11_LEXICAL_ENTRY):
+        "Missing U₁₀ WordFormCandidate - لا انتقال من الوزن إلى المعنى مباشرة",
+
+    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE):
+        "Missing U₁₀ WordFormCandidate and U₁₁ LexicalEntry",
+
+    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U15_DALALAH):
+        "Missing U₁₀ WordFormCandidate - no direct weight→semantic jump",
 }
 
 
