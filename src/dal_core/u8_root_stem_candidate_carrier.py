@@ -73,13 +73,16 @@ from dal_core.foundation import (
     merge_residuals,
     has_blocking_residuals
 )
+from dal_core.u7c_clause_surface_agreement_carrier import (
+    ClauseSurfaceAgreementLayerObject,
+    ClauseSurfaceAgreementUnit,
+)
 from dal_core.u7b_inflectional_surface_contract_carrier import (
-    InflectionalSurfaceContractLayerObject,
-    InflectionalSurfaceContractUnit,
+    RootInputPermission,
     MarkerHint,
 )
 from dal_core.u7_pre_weight_contract_carrier import (
-    PathPermission,  # Keep for compatibility
+    PathPermission,  # Keep for compatibility with blocking potentials
 )
 
 
@@ -189,10 +192,14 @@ class StemCandidate:
 @dataclass(frozen=True)
 class RootStemCandidateUnit:
     """
-    U₈ root/stem candidate unit for a pre-weight contract unit.
+    U₈ root/stem candidate unit for a clause surface agreement unit (U₇-C).
 
     This represents ROOT/STEM CANDIDATES, NOT certificates.
     Candidates are HYPOTHESES requiring further evidence for certification.
+
+    CRITICAL ARCHITECTURAL CHANGE (PR #110):
+        U₈ now consumes U₇-C (ClauseSurfaceAgreementUnit), NOT U₇-B directly.
+        Transition: U₇-B → U₇-C → U₈
 
     Forbidden fields (CRITICAL - these cause ValueError):
         - weight (that's U₉)
@@ -207,13 +214,14 @@ class RootStemCandidateUnit:
         - resolved_reference (that's U₁₅)
         - root_certificate (that's U₈+, NOT U₈)
         - stem_certificate (that's U₈+, NOT U₈)
+        - fa3il, maf3ul, mubtada, khabar (syntactic functions)
     """
     uid: str
-    surface: str  # Original surface from U₇-B
-    protected_core: str  # Protected core from U₇-B
-    root_input: str  # Licensed root input from U₇-B (THIS is what root extraction uses)
-    source_u7b_unit_id: str  # Trace to U₇-B inflectional surface contract unit
-    source_u7b_trace: Tuple[str, ...]  # Ordered trace to U₇-B
+    surface: str  # Original surface from U₇-C (carries through from U₇-B)
+    protected_core: str  # Protected core from U₇-C (carries through from U₇-B)
+    root_input: str  # Licensed root input from U₇-C (THIS is what root extraction uses)
+    source_u7c_unit_id: str  # Trace to U₇-C clause surface agreement unit
+    source_u7c_trace: Tuple[str, ...]  # Ordered trace to U₇-C
 
     # Root/stem candidate paths (NOT certificates)
     root_status: RootCandidateStatus  # Root candidate status
@@ -232,6 +240,11 @@ class RootStemCandidateUnit:
     proper_name_blocking_potential: PathPermission  # Proper name blocks free root
     loanword_blocking_potential: PathPermission  # Loanword blocks Arabic root
     frozen_primitive_blocking_potential: PathPermission  # Frozen primitive blocks derivation
+
+    # Agreement edge preservation from U₇-C (NOT interpretation)
+    agreement_edge_ids: Tuple[str, ...]  # UIDs of agreement edges from U₇-C (preserved, NOT interpreted)
+    broken_plural_guard_id: Optional[str]  # UID of broken plural guard from U₇-C (if applicable)
+    permission_elevated_by_agreement: bool  # Was permission elevated by U₇-C agreement?
 
     # Evidence and blocking
     required_evidence: Tuple[str, ...]  # What evidence is needed for certification
@@ -269,11 +282,14 @@ class RootStemCandidateLayerObject:
     Provides root/stem candidate paths for weight/pattern determination.
     Blocked units do NOT have candidate paths (blocked in U₇).
     Candidate units have POSSIBLE roots/stems (not certified).
+
+    CRITICAL ARCHITECTURAL CHANGE (PR #110):
+        Source is now U₇-C ClauseSurfaceAgreementLayerObject, NOT U₇-B.
     """
     uid: str
     units: Tuple[RootStemCandidateUnit, ...]  # Candidate units
-    source_inflectional_surface_layer_id: str  # Trace to U₇-B layer
-    trace_7b: Tuple[str, ...]  # Ordered trace to U₇-B
+    source_clause_surface_layer_id: str  # Trace to U₇-C layer
+    trace_7c: Tuple[str, ...]  # Ordered trace to U₇-C
     residuals: FrozenSet[Residual]
     rank: Rank
     proof: Optional[ProofObject] = None
@@ -332,7 +348,7 @@ class CPB8:
         if not layer_obj.units:
             return False
 
-        if not layer_obj.source_inflectional_surface_layer_id:
+        if not layer_obj.source_clause_surface_layer_id:
             return False
 
         # Check no forbidden fields
@@ -391,7 +407,7 @@ class CPB8:
                 f"deferred_count={deferred_count}",
                 f"total_root_candidates={total_root_candidates}",
                 f"total_stem_candidates={total_stem_candidates}",
-                f"trace_preserved={bool(layer_obj.source_inflectional_surface_layer_id)}",
+                f"trace_preserved={bool(layer_obj.source_clause_surface_layer_id)}",
                 f"rank={layer_obj.rank.value}",
             ]),
             counter_evidence=frozenset(),
@@ -429,7 +445,7 @@ class CPB8:
 def _extract_root_candidates(
     root_input: str,
     protected_core: str,
-    contract_unit: InflectionalSurfaceContractUnit
+    clause_unit: ClauseSurfaceAgreementUnit
 ) -> Tuple[Tuple[RootCandidate, ...], List[str]]:
     """
     Extract root candidates from protected root_input (NOT raw surface).
@@ -438,9 +454,9 @@ def _extract_root_candidates(
     Returns possible roots with evidence.
 
     Args:
-        root_input: Licensed root input from U₇-B (protected from markers)
-        protected_core: Protected core from U₇-B
-        contract_unit: U₇-B inflectional surface contract unit
+        root_input: Licensed root input from U₇-C (protected from markers)
+        protected_core: Protected core from U₇-C
+        clause_unit: U₇-C clause surface agreement unit
 
     Returns:
         (root_candidates_tuple, evidence_list)
@@ -510,7 +526,7 @@ def _extract_root_candidates(
 def _extract_stem_candidates(
     root_input: str,
     protected_core: str,
-    contract_unit: InflectionalSurfaceContractUnit
+    clause_unit: ClauseSurfaceAgreementUnit
 ) -> Tuple[Tuple[StemCandidate, ...], List[str]]:
     """
     Extract stem candidates from protected root_input (NOT raw surface).
@@ -519,9 +535,9 @@ def _extract_stem_candidates(
     Returns possible stems with evidence.
 
     Args:
-        root_input: Licensed root input from U₇-B
-        protected_core: Protected core from U₇-B
-        contract_unit: U₇-B inflectional surface contract unit
+        root_input: Licensed root input from U₇-C
+        protected_core: Protected core from U₇-C
+        clause_unit: U₇-C clause surface agreement unit
 
     Returns:
         (stem_candidates_tuple, evidence_list)
@@ -600,29 +616,35 @@ def _determine_weak_radical_hint(
 # ============================================================================
 
 def root_stem_candidate_8(
-    inflectional_surface_layer: InflectionalSurfaceContractLayerObject
+    clause_surface_layer: ClauseSurfaceAgreementLayerObject
 ) -> RootStemCandidateResult:
     """
-    Determine root/stem candidates from U₇-B inflectional surface contract layer.
+    Determine root/stem candidates from U₇-C clause surface agreement layer.
+
+    CRITICAL ARCHITECTURAL CHANGE (PR #110):
+        Function now accepts ClauseSurfaceAgreementLayerObject from U₇-C, NOT U₇-B.
+        Transition: U₇-B → U₇-C → U₈
 
     Critical Examples:
-        From U₇-B [الكتاب: protected_core="كتاب", root_input="كتاب"]:
+        From U₇-C [الكتاب: protected_core="كتاب", root_input="كتاب"]:
             → root_candidates=[(ك-ت-ب)], stem_candidates=[كتاب]
-        From U₇-B [كتابٌ: protected_core="كتاب", root_input="كتاب"]:
+        From U₇-C [كتابٌ: protected_core="كتاب", root_input="كتاب"]:
             → root_candidates=[(ك-ت-ب)], stem_candidates=[كتاب]
-        From U₇-B [مسلمان: protected_core="مسلم", root_input="مسلم"]:
-            → root_candidates=[(م-س-ل-م)], stem_candidates=[مسلم]
-        From U₇-B [يكتبون: protected_core="كتب", root_input="كتب"]:
+        From U₇-C [الكتب: broken_plural_guard exists, permission=DEFERRED]:
+            → root_status=DEFERRED, root_candidates=()
+        From U₇-C [يكتبون: protected_core="كتب", root_input="كتب"]:
             → root_candidates=[(ك-ت-ب)], stem_candidates=[كتب]
 
     Args:
-        inflectional_surface_layer: U₇-B layer object with protected markers and root_input
+        clause_surface_layer: U₇-C layer object with clause-level agreement contracts
 
     Returns:
         RootStemCandidateResult with root/stem candidates
 
-    Critical Law:
-        U₇-B.blocked_root_segments → U₈ must skip blocked segments
+    Critical Law (CPB₈ Identity Guardian):
+        U₇-C.ALLOWED   → U₈ may open RootStemCandidate
+        U₇-C.DEFERRED  → U₈ must not extract (broken plural, proper name, etc.)
+        U₇-C.BLOCKED   → U₈ must not extract
         U₈ reads root_input (NOT raw surface)
         protected_core ≠ surface ≠ root_input
 
@@ -633,134 +655,112 @@ def root_stem_candidate_8(
         - Pattern certification (U₉+)
         - Meaning assignment (U₁₅)
         - Hukm judgment (U₇+)
+        - Grammatical function interpretation (fa3il, maf3ul, mubtada, khabar)
     """
     # Validate input
-    if not inflectional_surface_layer.units:
+    if not clause_surface_layer.units:
         return RootStemCandidateResult(
             success=False,
             layer_object=None,
             failure_type=RootStemFailureType.NO_PRE_WEIGHT_UNITS,
-            message="No inflectional surface contract units in input",
-            residuals=frozenset([make_blocker("no_units", "Cannot determine root/stem candidates without inflectional surface units")])
+            message="No clause surface agreement units in input",
+            residuals=frozenset([make_blocker("no_units", "Cannot determine root/stem candidates without clause surface units")])
         )
 
-    # Process each inflectional surface contract unit
+    # Process each clause surface agreement unit
     candidate_units = []
     all_residuals = []
 
-    for contract_unit in inflectional_surface_layer.units:
-        # CRITICAL: Check root_input_permission FIRST
-        # Import RootInputPermission from U₇-B
-        from dal_core.u7b_inflectional_surface_contract_carrier import RootInputPermission
+    for clause_unit in clause_surface_layer.units:
+        # CRITICAL: Check root_input_permission FIRST (CPB₈ Identity Guardian)
 
-        # Handle DEFERRED root_input (broken plurals, unresolved markers)
-        if hasattr(contract_unit, 'root_input_permission') and \
-           contract_unit.root_input_permission == RootInputPermission.DEFERRED:
+        # Handle DEFERRED root_input (broken plurals, unresolved markers, proper names, etc.)
+        if clause_unit.root_input_permission == RootInputPermission.DEFERRED:
             # Root/stem extraction DEFERRED - cannot proceed
+            # Preserve broken plural guard ID if present
+            broken_plural_guard_id = None
+            if clause_unit.broken_plural_guard:
+                broken_plural_guard_id = clause_unit.broken_plural_guard.uid
+
             deferred_unit = RootStemCandidateUnit(
                 uid=str(uuid4()),
-                surface=contract_unit.surface,
-                protected_core=contract_unit.protected_core,
-                root_input=contract_unit.root_input,  # Empty or deferred
-                source_u7b_unit_id=contract_unit.uid,
-                source_u7b_trace=contract_unit.source_u7_trace,
+                surface=clause_unit.surface,
+                protected_core=clause_unit.protected_core,
+                root_input=clause_unit.root_input,  # Empty or deferred
+                source_u7c_unit_id=clause_unit.uid,
+                source_u7c_trace=clause_unit.source_u7b_trace,
                 root_status=RootCandidateStatus.DEFERRED,
                 stem_status=StemCandidateStatus.DEFERRED,
                 root_candidate_paths=(),  # No candidates - deferred
                 stem_candidate_paths=(),  # No candidates - deferred
                 radical_count_hint=RadicalCountHint.UNRESOLVED,
                 weak_radical_hint=WeakRadicalHint.UNRESOLVED,
-                jamid_blocking_potential=contract_unit.jamid_surface_hint,
-                proper_name_blocking_potential=contract_unit.proper_name_surface_hint,
-                loanword_blocking_potential=contract_unit.loanword_surface_hint,
-                frozen_primitive_blocking_potential=contract_unit.frozen_primitive_surface_hint,
-                required_evidence=("lexical_attestation", "pattern_verification"),
+                jamid_blocking_potential=PathPermission.UNRESOLVED,
+                proper_name_blocking_potential=PathPermission.UNRESOLVED,
+                loanword_blocking_potential=PathPermission.UNRESOLVED,
+                frozen_primitive_blocking_potential=PathPermission.UNRESOLVED,
+                agreement_edge_ids=clause_unit.agreement_edges,  # Preserve from U₇-C
+                broken_plural_guard_id=broken_plural_guard_id,  # Preserve if exists
+                permission_elevated_by_agreement=clause_unit.permission_elevated_by_agreement,
+                required_evidence=("lexical_attestation", "pattern_verification", "agreement_resolution"),
                 blocked_paths=tuple(["root_extraction_deferred", "stem_extraction_deferred"]),
-                residuals=contract_unit.residuals,
-                rank=contract_unit.rank,
-                trace=contract_unit.trace
+                residuals=clause_unit.residuals,
+                rank=clause_unit.rank,
+                trace=clause_unit.trace
             )
             candidate_units.append(deferred_unit)
-            all_residuals.extend(list(contract_unit.residuals))
+            all_residuals.extend(list(clause_unit.residuals))
             # Add warning residual
             all_residuals.append(
                 make_warning(
                     "root_input_deferred",
-                    f"Root/stem extraction deferred for '{contract_unit.surface}' - needs lexical/pattern evidence"
+                    f"Root/stem extraction deferred for '{clause_unit.surface}' - needs lexical/pattern/agreement evidence"
                 )
             )
             continue
 
         # Handle BLOCKED root_input
-        if hasattr(contract_unit, 'root_input_permission') and \
-           contract_unit.root_input_permission == RootInputPermission.BLOCKED:
+        if clause_unit.root_input_permission == RootInputPermission.BLOCKED:
             blocked_unit = RootStemCandidateUnit(
                 uid=str(uuid4()),
-                surface=contract_unit.surface,
-                protected_core=contract_unit.protected_core,
-                root_input=contract_unit.root_input,
-                source_u7b_unit_id=contract_unit.uid,
-                source_u7b_trace=contract_unit.source_u7_trace,
+                surface=clause_unit.surface,
+                protected_core=clause_unit.protected_core,
+                root_input=clause_unit.root_input,
+                source_u7c_unit_id=clause_unit.uid,
+                source_u7c_trace=clause_unit.source_u7b_trace,
                 root_status=RootCandidateStatus.BLOCKED,
                 stem_status=StemCandidateStatus.BLOCKED,
                 root_candidate_paths=(),
                 stem_candidate_paths=(),
                 radical_count_hint=RadicalCountHint.UNRESOLVED,
                 weak_radical_hint=WeakRadicalHint.UNRESOLVED,
-                jamid_blocking_potential=contract_unit.jamid_surface_hint,
-                proper_name_blocking_potential=contract_unit.proper_name_surface_hint,
-                loanword_blocking_potential=contract_unit.loanword_surface_hint,
-                frozen_primitive_blocking_potential=contract_unit.frozen_primitive_surface_hint,
+                jamid_blocking_potential=PathPermission.UNRESOLVED,
+                proper_name_blocking_potential=PathPermission.UNRESOLVED,
+                loanword_blocking_potential=PathPermission.UNRESOLVED,
+                frozen_primitive_blocking_potential=PathPermission.UNRESOLVED,
+                agreement_edge_ids=clause_unit.agreement_edges,  # Preserve from U₇-C
+                broken_plural_guard_id=None,
+                permission_elevated_by_agreement=False,
                 required_evidence=(),
                 blocked_paths=tuple(["root_extraction_blocked", "stem_extraction_blocked"]),
-                residuals=contract_unit.residuals,
-                rank=contract_unit.rank,
-                trace=contract_unit.trace
+                residuals=clause_unit.residuals,
+                rank=clause_unit.rank,
+                trace=clause_unit.trace
             )
             candidate_units.append(blocked_unit)
-            all_residuals.extend(list(contract_unit.residuals))
+            all_residuals.extend(list(clause_unit.residuals))
             continue
 
-        # Check if blocked_root_segments indicates blocking (legacy check)
-        if contract_unit.blocked_root_segments:
-            # Unit blocked - no root/stem extraction
-            blocked_unit = RootStemCandidateUnit(
-                uid=str(uuid4()),
-                surface=contract_unit.surface,
-                protected_core=contract_unit.protected_core,
-                root_input=contract_unit.root_input,
-                source_u7b_unit_id=contract_unit.uid,
-                source_u7b_trace=contract_unit.source_u7_trace,
-                root_status=RootCandidateStatus.BLOCKED,
-                stem_status=StemCandidateStatus.BLOCKED,
-                root_candidate_paths=(),  # No candidates
-                stem_candidate_paths=(),  # No candidates
-                radical_count_hint=RadicalCountHint.UNRESOLVED,
-                weak_radical_hint=WeakRadicalHint.UNRESOLVED,
-                jamid_blocking_potential=contract_unit.jamid_surface_hint,
-                proper_name_blocking_potential=contract_unit.proper_name_surface_hint,
-                loanword_blocking_potential=contract_unit.loanword_surface_hint,
-                frozen_primitive_blocking_potential=contract_unit.frozen_primitive_surface_hint,
-                required_evidence=(),
-                blocked_paths=tuple(["root_extraction", "stem_extraction"]),
-                residuals=contract_unit.residuals,
-                rank=contract_unit.rank,
-                trace=contract_unit.trace
-            )
-            candidate_units.append(blocked_unit)
-            all_residuals.extend(list(contract_unit.residuals))
-            continue
-
-        # Unit has root_input - extract candidates
+        # Unit has ALLOWED root_input - extract candidates
         root_candidates, root_evidence = _extract_root_candidates(
-            contract_unit.root_input,
-            contract_unit.protected_core,
-            contract_unit
+            clause_unit.root_input,
+            clause_unit.protected_core,
+            clause_unit
         )
         stem_candidates, stem_evidence = _extract_stem_candidates(
-            contract_unit.root_input,
-            contract_unit.protected_core,
-            contract_unit
+            clause_unit.root_input,
+            clause_unit.protected_core,
+            clause_unit
         )
 
         # Determine statuses
@@ -788,42 +788,50 @@ def root_stem_candidate_8(
             "weight_pattern_for_stem"
         ]
 
+        # Preserve broken plural guard ID if present
+        broken_plural_guard_id = None
+        if clause_unit.broken_plural_guard:
+            broken_plural_guard_id = clause_unit.broken_plural_guard.uid
+
         # Build RootStemCandidateUnit
         candidate_unit = RootStemCandidateUnit(
             uid=str(uuid4()),
-            surface=contract_unit.surface,
-            protected_core=contract_unit.protected_core,
-            root_input=contract_unit.root_input,
-            source_u7b_unit_id=contract_unit.uid,
-            source_u7b_trace=contract_unit.source_u7_trace,
+            surface=clause_unit.surface,
+            protected_core=clause_unit.protected_core,
+            root_input=clause_unit.root_input,
+            source_u7c_unit_id=clause_unit.uid,
+            source_u7c_trace=clause_unit.source_u7b_trace,
             root_status=root_status,
             stem_status=stem_status,
             root_candidate_paths=root_candidates,
             stem_candidate_paths=stem_candidates,
             radical_count_hint=radical_count_hint,
             weak_radical_hint=weak_radical_hint,
-            jamid_blocking_potential=contract_unit.jamid_surface_hint,
-            proper_name_blocking_potential=contract_unit.proper_name_surface_hint,
-            loanword_blocking_potential=contract_unit.loanword_surface_hint,
-            frozen_primitive_blocking_potential=contract_unit.frozen_primitive_surface_hint,
+            jamid_blocking_potential=PathPermission.UNRESOLVED,
+            proper_name_blocking_potential=PathPermission.UNRESOLVED,
+            loanword_blocking_potential=PathPermission.UNRESOLVED,
+            frozen_primitive_blocking_potential=PathPermission.UNRESOLVED,
+            agreement_edge_ids=clause_unit.agreement_edges,  # Preserve from U₇-C
+            broken_plural_guard_id=broken_plural_guard_id,  # Preserve if exists
+            permission_elevated_by_agreement=clause_unit.permission_elevated_by_agreement,
             required_evidence=tuple(required_evidence),
-            blocked_paths=contract_unit.blocked_weight_segments,
-            residuals=contract_unit.residuals,
-            rank=contract_unit.rank,
-            trace=contract_unit.trace
+            blocked_paths=(),
+            residuals=clause_unit.residuals,
+            rank=clause_unit.rank,
+            trace=clause_unit.trace
         )
 
         candidate_units.append(candidate_unit)
-        all_residuals.extend(list(contract_unit.residuals))
+        all_residuals.extend(list(clause_unit.residuals))
 
     # Build layer object
     layer_obj = RootStemCandidateLayerObject(
         uid=str(uuid4()),
         units=tuple(candidate_units),
-        source_inflectional_surface_layer_id=inflectional_surface_layer.uid,
-        trace_7b=(inflectional_surface_layer.uid,),
+        source_clause_surface_layer_id=clause_surface_layer.uid,
+        trace_7c=(clause_surface_layer.uid,),
         residuals=frozenset(all_residuals),
-        rank=inflectional_surface_layer.rank,  # Inherit rank from U₇-B
+        rank=clause_surface_layer.rank,  # Inherit rank from U₇-C
         proof=None
     )
 
@@ -832,8 +840,8 @@ def root_stem_candidate_8(
     layer_obj = RootStemCandidateLayerObject(
         uid=layer_obj.uid,
         units=layer_obj.units,
-        source_inflectional_surface_layer_id=layer_obj.source_inflectional_surface_layer_id,
-        trace_7b=layer_obj.trace_7b,
+        source_clause_surface_layer_id=layer_obj.source_clause_surface_layer_id,
+        trace_7c=layer_obj.trace_7c,
         residuals=layer_obj.residuals,
         rank=layer_obj.rank,
         proof=proof
