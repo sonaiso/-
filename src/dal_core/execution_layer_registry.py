@@ -21,9 +21,9 @@ Execution Core (U₀-U₉): Closed, implemented, operational layers
 
 Design Layers (U₁₀-U₁₅): Future design, not closed execution layers
     U₁₀ WordForm
-    U₁₁ LexicalEntry
-    U₁₂ MorphosyntacticFeature
-    U₁₃ PhraseRelation
+    U₁₁ RelationComposition
+    U₁₂ Ifadah
+    U₁₃ Hukm
     U₁₄ SentenceStructure
     U₁₅ Dalālah
 
@@ -70,9 +70,9 @@ class ExecutionLayer(Enum):
 
     # Higher layers (design phase)
     U10_WORD_FORM = "u10_word_form"
-    U11_LEXICAL_ENTRY = "u11_lexical_entry"
-    U12_MORPHOSYNTACTIC_FEATURE = "u12_morphosyntactic_feature"
-    U13_PHRASE_RELATION = "u13_phrase_relation"
+    U11_RELATION_COMPOSITION = "u11_relation_composition"
+    U12_IFADAH = "u12_ifadah"
+    U13_HUKM = "u13_hukm"
     U14_SENTENCE_STRUCTURE = "u14_sentence_structure"
     U15_DALALAH = "u15_dalalah"
 
@@ -118,9 +118,9 @@ EXECUTION_CORE_LAYERS = [
 # Design Layers (U₁₀-U₁₅): Future design, not closed execution layers
 DESIGN_LAYERS = [
     ExecutionLayer.U10_WORD_FORM,
-    ExecutionLayer.U11_LEXICAL_ENTRY,
-    ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE,
-    ExecutionLayer.U13_PHRASE_RELATION,
+    ExecutionLayer.U11_RELATION_COMPOSITION,
+    ExecutionLayer.U12_IFADAH,
+    ExecutionLayer.U13_HUKM,
     ExecutionLayer.U14_SENTENCE_STRUCTURE,
     ExecutionLayer.U15_DALALAH,
 ]
@@ -169,10 +169,10 @@ DESIGN_ALLOWED_TRANSITIONS = {
     ExecutionLayer.U9_WEIGHT: {ExecutionLayer.U10_WORD_FORM},
 
     # Design layer internal transitions (not yet closed)
-    ExecutionLayer.U10_WORD_FORM: {ExecutionLayer.U11_LEXICAL_ENTRY},
-    ExecutionLayer.U11_LEXICAL_ENTRY: {ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE},
-    ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE: {ExecutionLayer.U13_PHRASE_RELATION},
-    ExecutionLayer.U13_PHRASE_RELATION: {ExecutionLayer.U14_SENTENCE_STRUCTURE},
+    ExecutionLayer.U10_WORD_FORM: {ExecutionLayer.U11_RELATION_COMPOSITION},
+    ExecutionLayer.U11_RELATION_COMPOSITION: {ExecutionLayer.U12_IFADAH},
+    ExecutionLayer.U12_IFADAH: {ExecutionLayer.U13_HUKM},
+    ExecutionLayer.U13_HUKM: {ExecutionLayer.U14_SENTENCE_STRUCTURE},
     ExecutionLayer.U14_SENTENCE_STRUCTURE: {ExecutionLayer.U15_DALALAH},
 }
 
@@ -202,12 +202,20 @@ FORBIDDEN_JUMPS = {
     (ExecutionLayer.U5_FUNCTIONAL_ROLE, ExecutionLayer.U8_ROOT_STEM):
         "Missing U₆ MabniClosedClass and U₇ PreWeightContract",
 
-    # Critical U₉→U₁₁ forbidden jump (no direct weight→meaning)
-    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U11_LEXICAL_ENTRY):
-        "Missing U₁₀ WordFormCandidate - لا انتقال من الوزن إلى المعنى مباشرة",
+    # Critical U₉→U₁₁ forbidden jump (no direct weight→composition)
+    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U11_RELATION_COMPOSITION):
+        "Missing U₁₀ WordFormCandidate - لا انتقال من الوزن إلى التركيب مباشرة",
 
-    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE):
-        "Missing U₁₀ WordFormCandidate and U₁₁ LexicalEntry",
+    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U12_IFADAH):
+        "Missing U₁₀ WordFormCandidate and U₁₁ RelationComposition",
+
+    # Critical U₁₀→U₁₂ forbidden jump (no direct wordform→ifadah)
+    (ExecutionLayer.U10_WORD_FORM, ExecutionLayer.U12_IFADAH):
+        "Missing U₁₁ RelationComposition - لا إفادة بلا تركيب علائقي",
+
+    # Critical U₁₀→U₁₃ forbidden jump (no direct wordform→hukm)
+    (ExecutionLayer.U10_WORD_FORM, ExecutionLayer.U13_HUKM):
+        "Missing U₁₁ RelationComposition and U₁₂ Ifadah - لا حكم بلا إفادة",
 
     (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U15_DALALAH):
         "Missing U₁₀ WordFormCandidate - no direct weight→semantic jump",

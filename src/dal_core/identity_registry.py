@@ -80,7 +80,13 @@ class IdentityType(Enum):
 
     # Layer 9: Weight and Pattern Identities
     WEIGHT_IDENTITY = auto()                   # هوية وزن
+
+    # Layer 10: Word Form Identity
+    WORDFORM_IDENTITY = auto()                 # هوية صورة الكلمة
     FORM_IDENTITY = auto()                     # هوية صيغة
+
+    # Layer 11: Composition Identity
+    RELATION_COMPOSITION_IDENTITY = auto()     # هوية تركيب علائقي
 
     # Layer 10+: Derivational and Lexical Identities
     SOURCE_IDENTITY = auto()                   # هوية مصدر
@@ -346,6 +352,17 @@ class IdentityRegistry:
                 IdentityType.STEM_IDENTITY
             }),
             allows_transition_to=frozenset({
+                IdentityType.WORDFORM_IDENTITY
+            })
+        ))
+
+        self._add_spec(IdentitySpec(
+            identity_type=IdentityType.WORDFORM_IDENTITY,
+            arabic_name="هوية صورة الكلمة",
+            layer=IdentityLayer.FORM_LAYER,
+            requires=frozenset({IdentityType.WEIGHT_IDENTITY}),
+            allows_transition_to=frozenset({
+                IdentityType.RELATION_COMPOSITION_IDENTITY,
                 IdentityType.FORM_IDENTITY
             })
         ))
@@ -354,11 +371,27 @@ class IdentityRegistry:
             identity_type=IdentityType.FORM_IDENTITY,
             arabic_name="هوية صيغة",
             layer=IdentityLayer.FORM_LAYER,
-            requires=frozenset({IdentityType.WEIGHT_IDENTITY}),
+            requires=frozenset({IdentityType.WORDFORM_IDENTITY}),
             allows_transition_to=frozenset({
                 IdentityType.SOURCE_IDENTITY,
                 IdentityType.ATTRIBUTE_IDENTITY,
                 IdentityType.FUNCTIONAL_RELATION_IDENTITY
+            })
+        ))
+
+        # Relation Composition (U₁₁)
+        self._add_spec(IdentitySpec(
+            identity_type=IdentityType.RELATION_COMPOSITION_IDENTITY,
+            arabic_name="هوية تركيب علائقي",
+            layer=IdentityLayer.LEXICAL_LAYER,
+            requires=frozenset({IdentityType.WORDFORM_IDENTITY}),
+            prohibits=frozenset({
+                IdentityType.SEMANTIC_IDENTITY,
+                IdentityType.IFADAH_IDENTITY,
+                IdentityType.HUKM_IDENTITY
+            }),
+            allows_transition_to=frozenset({
+                IdentityType.IFADAH_IDENTITY
             })
         ))
 
