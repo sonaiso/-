@@ -1,5 +1,36 @@
 """
-U₉ Arabic Weight Carrier (طبقة حامل الوزن العربي)
+U₉ Arabic Weight Carrier (طبقة حامل الوزن العربي) - LEGACY/DEPRECATED
+
+⚠️ DEPRECATION WARNING ⚠️
+================================================================================
+This module is DEPRECATED and maintained only for backward compatibility.
+
+Official U₉ Implementation:
+    src/dal_core/u9_weight_candidate_carrier.py
+
+Official API:
+    from dal_core import (
+        WeightCandidateResult,
+        weight_candidate_carrier_9,
+        validate_approved_context_for_u9,
+    )
+
+Migration Path:
+    All new code MUST use u9_weight_candidate_carrier.py.
+    This file is retained only to:
+    1. Prevent breaking existing imports
+    2. Provide safe wrappers that enforce ApprovedTransitionContext
+    3. Guide migration to official implementation
+
+Constitutional Risk:
+    This legacy module does NOT enforce ApprovedTransitionContext at all
+    entry points. It is unsafe for direct use without governance.
+
+    DO NOT use dispatch_weight() directly.
+    DO NOT use gate_89_validate() directly.
+
+    Use ONLY the new official API from dal_core.
+================================================================================
 
 Domain: U₉ = ArabicWeightCarrier
 Transition: PreWeightContract + RootStemCarrier (U₇+U₈) → ArabicWeightObject (U₉)
@@ -73,12 +104,14 @@ Architecture:
 PR: U9-WEIGHT-ALGEBRA
 Created: 2026-05-25
 Updated: 2026-05-26 (Constitutional governance)
+Deprecated: 2026-05-26 (Superseded by u9_weight_candidate_carrier.py)
 """
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List, Optional, Set, FrozenSet, Dict, Any, Tuple, Union
 from uuid import uuid4
+import warnings
 
 from dal_core.residuals import Residual, ResidualType, ResidualSeverity
 from dal_core.ranks import LughaRank
@@ -501,7 +534,17 @@ def dispatch_weight(
     evidence: Tuple[Evidence, ...] = tuple(),
 ) -> ArabicWeightObject:
     """
-    توزيع الوزن (Weight Dispatch)
+    توزيع الوزن (Weight Dispatch) - DEPRECATED
+
+    ⚠️ DEPRECATION WARNING:
+        This function is DEPRECATED and does NOT enforce ApprovedTransitionContext.
+
+        Use instead:
+            from dal_core import weight_candidate_carrier_9
+
+        This function may produce weight candidates WITHOUT constitutional
+        governance, which violates the core architectural law:
+            No U₉ execution without ApprovedTransitionContext.
 
     Routes input to appropriate weight type based on evidence.
 
@@ -523,6 +566,12 @@ def dispatch_weight(
     Returns:
         ArabicWeightObject with appropriate WeightType
     """
+    warnings.warn(
+        "dispatch_weight() is DEPRECATED and does NOT enforce ApprovedTransitionContext. "
+        "Use weight_candidate_carrier_9() from dal_core instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     # Validate gate first
     gate_result = gate_89_validate(contract, root_stem)
     if not gate_result.passed:

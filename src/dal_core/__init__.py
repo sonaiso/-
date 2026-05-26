@@ -237,6 +237,11 @@ from .domain_registry import (
     DomainRegistry,
     verify_domain_boundary,
 )
+from .u9_weight_candidate_carrier import (
+    WeightCandidateResult,
+    weight_candidate_carrier_9,
+    validate_approved_context_for_u9,
+)
 
 __all__ = [
     "Rank",
@@ -388,4 +393,8 @@ __all__ = [
     "DomainSpec",
     "DomainRegistry",
     "verify_domain_boundary",
+    # U₉ WeightCandidateCarrier (Official Implementation)
+    "WeightCandidateResult",
+    "weight_candidate_carrier_9",
+    "validate_approved_context_for_u9",
 ]
