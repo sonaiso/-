@@ -339,6 +339,8 @@ class AgreementSurfaceCandidate:
     """
     uid: str
     agreement_edge: AgreementSurfaceEdge
+    residuals: FrozenSet[Residual]
+    rank: Rank
 
     # Evidence supporting this agreement
     number_evidence: Optional[str] = None
@@ -348,9 +350,6 @@ class AgreementSurfaceCandidate:
     # Permission effects
     elevates_permission: bool = False  # Does this agreement elevate a DEFERRED permission?
     confirms_permission: bool = False  # Does this agreement confirm an ALLOWED permission?
-
-    residuals: FrozenSet[Residual]
-    rank: Rank
 
 
 # ============================================================================
