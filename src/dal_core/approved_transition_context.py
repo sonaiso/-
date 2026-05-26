@@ -93,7 +93,23 @@ class ApprovedTransitionContext:
     existing_identities: FrozenSet[IdentityType]
 
     def __post_init__(self):
-        """Verify that this context is truly approved."""
+        """
+        Verify that this context is truly approved and cannot be forged.
+
+        Security Principle:
+            ApprovedTransitionContext is transition-specific evidence,
+            NOT a universal permission token.
+
+        Validates:
+            1. Audit is truly approved (CPB status, allowed, no violations)
+            2. Layer consistency (from_layer, to_layer match audit)
+            3. Identity consistency (input/output identities match audit)
+            4. Domain consistency (domain matches audit)
+            5. Trace is present (non-empty execution trace)
+            6. No blocking residuals (cannot approve blocked transition)
+            7. Rank does not exceed evidence (constitutional requirement)
+        """
+        # 1. Verify audit is truly approved
         if not self.is_approved():
             raise ValueError(
                 f"Cannot create ApprovedTransitionContext with unapproved audit. "
@@ -101,7 +117,7 @@ class ApprovedTransitionContext:
                 f"Violations: {self.audit.violations}"
             )
 
-        # Verify layer consistency
+        # 2. Verify layer consistency
         if self.audit.from_layer != self.from_layer:
             raise ValueError(
                 f"Audit from_layer {self.audit.from_layer} != context from_layer {self.from_layer}"
@@ -111,7 +127,7 @@ class ApprovedTransitionContext:
                 f"Audit to_layer {self.audit.to_layer} != context to_layer {self.to_layer}"
             )
 
-        # Verify identity consistency
+        # 3. Verify identity consistency
         if self.audit.input_identity != self.input_identity:
             raise ValueError(
                 f"Audit input_identity {self.audit.input_identity} != context input_identity {self.input_identity}"
@@ -120,6 +136,39 @@ class ApprovedTransitionContext:
             raise ValueError(
                 f"Audit output_identity {self.audit.output_identity} != context output_identity {self.output_identity}"
             )
+
+        # 4. Verify domain consistency
+        if self.audit.domain != self.domain:
+            raise ValueError(
+                f"Audit domain {self.audit.domain} != context domain {self.domain}. "
+                f"Cannot use approval for one domain in another domain."
+            )
+
+        # 5. Verify trace is present (non-empty)
+        if not self.trace or len(self.trace) == 0:
+            raise ValueError(
+                f"Cannot create ApprovedTransitionContext without execution trace. "
+                f"Trace is required for constitutional governance."
+            )
+
+        # 6. Verify no blocking residuals
+        if self.has_blocking_residuals():
+            raise ValueError(
+                f"Cannot create ApprovedTransitionContext with blocking residuals. "
+                f"Blocking residuals: {self.audit.get_blocking_residuals()}"
+            )
+
+        # 7. Verify rank does not exceed evidence (constitutional requirement)
+        # This prevents elevation without sufficient evidence
+        if self.audit.rank and hasattr(self.audit, 'input_rank'):
+            # If rank increased, must have evidence
+            if hasattr(self.audit.rank, 'value') and hasattr(self.audit.input_rank, 'value'):
+                if self.audit.rank.value > self.audit.input_rank.value:
+                    if not self.audit.evidence or len(self.audit.evidence) == 0:
+                        raise ValueError(
+                            f"Cannot elevate rank from {self.audit.input_rank} to {self.audit.rank} "
+                            f"without evidence. Rank elevation requires evidence."
+                        )
 
     def is_approved(self) -> bool:
         """
