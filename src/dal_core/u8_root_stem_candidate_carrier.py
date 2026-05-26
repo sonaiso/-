@@ -73,11 +73,13 @@ from dal_core.foundation import (
     merge_residuals,
     has_blocking_residuals
 )
+from dal_core.u7b_inflectional_surface_contract_carrier import (
+    InflectionalSurfaceContractLayerObject,
+    InflectionalSurfaceContractUnit,
+    MarkerHint,
+)
 from dal_core.u7_pre_weight_contract_carrier import (
-    PreWeightContractLayerObject,
-    PreWeightContractUnit,
-    ContractStatus,
-    PathPermission,
+    PathPermission,  # Keep for compatibility
 )
 
 
@@ -207,9 +209,11 @@ class RootStemCandidateUnit:
         - stem_certificate (that's U₈+, NOT U₈)
     """
     uid: str
-    surface: str  # Orthographic surface from U₇
-    source_u7_unit_id: str  # Trace to U₇ pre-weight contract unit
-    source_u7_trace: Tuple[str, ...]  # Ordered trace to U₇
+    surface: str  # Original surface from U₇-B
+    protected_core: str  # Protected core from U₇-B
+    root_input: str  # Licensed root input from U₇-B (THIS is what root extraction uses)
+    source_u7b_unit_id: str  # Trace to U₇-B inflectional surface contract unit
+    source_u7b_trace: Tuple[str, ...]  # Ordered trace to U₇-B
 
     # Root/stem candidate paths (NOT certificates)
     root_status: RootCandidateStatus  # Root candidate status
@@ -268,8 +272,8 @@ class RootStemCandidateLayerObject:
     """
     uid: str
     units: Tuple[RootStemCandidateUnit, ...]  # Candidate units
-    source_pre_weight_layer_id: str  # Trace to U₇ layer
-    trace_7: Tuple[str, ...]  # Ordered trace to U₇
+    source_inflectional_surface_layer_id: str  # Trace to U₇-B layer
+    trace_7b: Tuple[str, ...]  # Ordered trace to U₇-B
     residuals: FrozenSet[Residual]
     rank: Rank
     proof: Optional[ProofObject] = None
@@ -328,7 +332,7 @@ class CPB8:
         if not layer_obj.units:
             return False
 
-        if not layer_obj.source_pre_weight_layer_id:
+        if not layer_obj.source_inflectional_surface_layer_id:
             return False
 
         # Check no forbidden fields
@@ -387,7 +391,7 @@ class CPB8:
                 f"deferred_count={deferred_count}",
                 f"total_root_candidates={total_root_candidates}",
                 f"total_stem_candidates={total_stem_candidates}",
-                f"trace_preserved={bool(layer_obj.source_pre_weight_layer_id)}",
+                f"trace_preserved={bool(layer_obj.source_inflectional_surface_layer_id)}",
                 f"rank={layer_obj.rank.value}",
             ]),
             counter_evidence=frozenset(),
@@ -423,18 +427,20 @@ class CPB8:
 # ============================================================================
 
 def _extract_root_candidates(
-    surface: str,
-    contract_unit: PreWeightContractUnit
+    root_input: str,
+    protected_core: str,
+    contract_unit: InflectionalSurfaceContractUnit
 ) -> Tuple[Tuple[RootCandidate, ...], List[str]]:
     """
-    Extract root candidates from surface.
+    Extract root candidates from protected root_input (NOT raw surface).
 
     This is CANDIDATE EXTRACTION, not root certification.
     Returns possible roots with evidence.
 
     Args:
-        surface: Orthographic surface
-        contract_unit: U₇ pre-weight contract unit
+        root_input: Licensed root input from U₇-B (protected from markers)
+        protected_core: Protected core from U₇-B
+        contract_unit: U₇-B inflectional surface contract unit
 
     Returns:
         (root_candidates_tuple, evidence_list)
@@ -442,16 +448,13 @@ def _extract_root_candidates(
     evidence = []
     candidates = []
 
-    # Remove diacritics for analysis
-    surface_no_diacritics = ''.join(
-        c for c in surface
-        if c not in ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ']
-    )
+    # Use root_input (NOT raw surface) for extraction
+    surface_for_extraction = root_input
 
     # Simple triliteral extraction (placeholder - real implementation would be more sophisticated)
-    if len(surface_no_diacritics) >= 3:
+    if len(surface_for_extraction) >= 3:
         # Try extracting consonants as potential root
-        consonants = [c for c in surface_no_diacritics if c not in ['ا', 'و', 'ي', 'ى']]
+        consonants = [c for c in surface_for_extraction if c not in ['ا', 'و', 'ي', 'ى']]
 
         if len(consonants) >= 3:
             # Triliteral candidate
@@ -505,18 +508,20 @@ def _extract_root_candidates(
 
 
 def _extract_stem_candidates(
-    surface: str,
-    contract_unit: PreWeightContractUnit
+    root_input: str,
+    protected_core: str,
+    contract_unit: InflectionalSurfaceContractUnit
 ) -> Tuple[Tuple[StemCandidate, ...], List[str]]:
     """
-    Extract stem candidates from surface.
+    Extract stem candidates from protected root_input (NOT raw surface).
 
     This is CANDIDATE EXTRACTION, not stem certification.
     Returns possible stems with evidence.
 
     Args:
-        surface: Orthographic surface
-        contract_unit: U₇ pre-weight contract unit
+        root_input: Licensed root input from U₇-B
+        protected_core: Protected core from U₇-B
+        contract_unit: U₇-B inflectional surface contract unit
 
     Returns:
         (stem_candidates_tuple, evidence_list)
@@ -524,19 +529,13 @@ def _extract_stem_candidates(
     evidence = []
     candidates = []
 
-    # Remove diacritics for core stem
-    surface_no_diacritics = ''.join(
-        c for c in surface
-        if c not in ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ']
-    )
-
-    # Simple stem: treat surface as potential stem
-    evidence.append(f"surface_stem={surface_no_diacritics}")
-    evidence.append("direct_surface_extraction")
+    # Use protected_core as potential stem
+    evidence.append(f"protected_core_stem={protected_core}")
+    evidence.append("protected_core_extraction")
 
     stem_candidate = StemCandidate(
-        surface=surface_no_diacritics,
-        confidence=0.6,
+        surface=protected_core,
+        confidence=0.7,  # Higher confidence - protected from markers
         evidence=tuple(evidence)
     )
     candidates.append(stem_candidate)
@@ -601,28 +600,31 @@ def _determine_weak_radical_hint(
 # ============================================================================
 
 def root_stem_candidate_8(
-    pre_weight_layer: PreWeightContractLayerObject
+    inflectional_surface_layer: InflectionalSurfaceContractLayerObject
 ) -> RootStemCandidateResult:
     """
-    Determine root/stem candidates from U₇ pre-weight contract layer.
+    Determine root/stem candidates from U₇-B inflectional surface contract layer.
 
     Critical Examples:
-        وَ → blocked (root blocked, stem blocked, no candidates)
-        بِ → blocked (root blocked, stem blocked, no candidates)
-        ـهِمْ → blocked (pronoun, no root/stem extraction)
-        كَتَبَ → candidate (root candidates: [ك-ت-ب], stem candidates: [كتب])
-        كَاتِب → candidate (root candidates: [ك-ت-ب], stem candidates: [كاتب])
-        مَكْتَب → candidate (root candidates: [ك-ت-ب], stem candidates: [مكتب])
+        From U₇-B [الكتاب: protected_core="كتاب", root_input="كتاب"]:
+            → root_candidates=[(ك-ت-ب)], stem_candidates=[كتاب]
+        From U₇-B [كتابٌ: protected_core="كتاب", root_input="كتاب"]:
+            → root_candidates=[(ك-ت-ب)], stem_candidates=[كتاب]
+        From U₇-B [مسلمان: protected_core="مسلم", root_input="مسلم"]:
+            → root_candidates=[(م-س-ل-م)], stem_candidates=[مسلم]
+        From U₇-B [يكتبون: protected_core="كتب", root_input="كتب"]:
+            → root_candidates=[(ك-ت-ب)], stem_candidates=[كتب]
 
     Args:
-        pre_weight_layer: U₇ layer object with pre-weight contract permissions
+        inflectional_surface_layer: U₇-B layer object with protected markers and root_input
 
     Returns:
         RootStemCandidateResult with root/stem candidates
 
     Critical Law:
-        U₇.root_path_permission = BLOCKED → U₈ must skip / emit blocked record
-        U₇.root_path_permission = POSSIBLE → U₈ may open root/stem candidate paths
+        U₇-B.blocked_root_segments → U₈ must skip blocked segments
+        U₈ reads root_input (NOT raw surface)
+        protected_core ≠ surface ≠ root_input
 
     Forbidden:
         - Root certification (U₈+)
@@ -633,40 +635,42 @@ def root_stem_candidate_8(
         - Hukm judgment (U₇+)
     """
     # Validate input
-    if not pre_weight_layer.units:
+    if not inflectional_surface_layer.units:
         return RootStemCandidateResult(
             success=False,
             layer_object=None,
             failure_type=RootStemFailureType.NO_PRE_WEIGHT_UNITS,
-            message="No pre-weight contract units in input",
-            residuals=frozenset([make_blocker("no_units", "Cannot determine root/stem candidates without pre-weight units")])
+            message="No inflectional surface contract units in input",
+            residuals=frozenset([make_blocker("no_units", "Cannot determine root/stem candidates without inflectional surface units")])
         )
 
-    # Process each pre-weight contract unit
+    # Process each inflectional surface contract unit
     candidate_units = []
     all_residuals = []
 
-    for contract_unit in pre_weight_layer.units:
-        # Check if root path is BLOCKED
-        if contract_unit.root_path_permission == PathPermission.BLOCKED:
+    for contract_unit in inflectional_surface_layer.units:
+        # Check if blocked_root_segments indicates blocking
+        if contract_unit.blocked_root_segments:
             # Unit blocked - no root/stem extraction
             blocked_unit = RootStemCandidateUnit(
                 uid=str(uuid4()),
                 surface=contract_unit.surface,
-                source_u7_unit_id=contract_unit.uid,
-                source_u7_trace=contract_unit.source_u6_trace,
+                protected_core=contract_unit.protected_core,
+                root_input=contract_unit.root_input,
+                source_u7b_unit_id=contract_unit.uid,
+                source_u7b_trace=contract_unit.source_u7_trace,
                 root_status=RootCandidateStatus.BLOCKED,
                 stem_status=StemCandidateStatus.BLOCKED,
                 root_candidate_paths=(),  # No candidates
                 stem_candidate_paths=(),  # No candidates
                 radical_count_hint=RadicalCountHint.UNRESOLVED,
                 weak_radical_hint=WeakRadicalHint.UNRESOLVED,
-                jamid_blocking_potential=contract_unit.jamid_surface_potential,
-                proper_name_blocking_potential=contract_unit.proper_name_surface_potential,
-                loanword_blocking_potential=contract_unit.loanword_surface_potential,
-                frozen_primitive_blocking_potential=contract_unit.frozen_primitive_potential,
-                required_evidence=contract_unit.required_evidence,
-                blocked_paths=tuple(list(contract_unit.blocked_paths) + ["root_extraction", "stem_extraction"]),
+                jamid_blocking_potential=contract_unit.jamid_surface_hint,
+                proper_name_blocking_potential=contract_unit.proper_name_surface_hint,
+                loanword_blocking_potential=contract_unit.loanword_surface_hint,
+                frozen_primitive_blocking_potential=contract_unit.frozen_primitive_surface_hint,
+                required_evidence=(),
+                blocked_paths=tuple(["root_extraction", "stem_extraction"]),
                 residuals=contract_unit.residuals,
                 rank=contract_unit.rank,
                 trace=contract_unit.trace
@@ -675,13 +679,15 @@ def root_stem_candidate_8(
             all_residuals.extend(list(contract_unit.residuals))
             continue
 
-        # Unit has POSSIBLE permission - extract candidates
+        # Unit has root_input - extract candidates
         root_candidates, root_evidence = _extract_root_candidates(
-            contract_unit.surface,
+            contract_unit.root_input,
+            contract_unit.protected_core,
             contract_unit
         )
         stem_candidates, stem_evidence = _extract_stem_candidates(
-            contract_unit.surface,
+            contract_unit.root_input,
+            contract_unit.protected_core,
             contract_unit
         )
 
@@ -705,28 +711,31 @@ def root_stem_candidate_8(
         weak_radical_hint = _determine_weak_radical_hint(root_candidates)
 
         # Build required evidence
-        required_evidence = list(contract_unit.required_evidence)
-        required_evidence.append("lexical_attestation_for_root")
-        required_evidence.append("weight_pattern_for_stem")
+        required_evidence = [
+            "lexical_attestation_for_root",
+            "weight_pattern_for_stem"
+        ]
 
         # Build RootStemCandidateUnit
         candidate_unit = RootStemCandidateUnit(
             uid=str(uuid4()),
             surface=contract_unit.surface,
-            source_u7_unit_id=contract_unit.uid,
-            source_u7_trace=contract_unit.source_u6_trace,
+            protected_core=contract_unit.protected_core,
+            root_input=contract_unit.root_input,
+            source_u7b_unit_id=contract_unit.uid,
+            source_u7b_trace=contract_unit.source_u7_trace,
             root_status=root_status,
             stem_status=stem_status,
             root_candidate_paths=root_candidates,
             stem_candidate_paths=stem_candidates,
             radical_count_hint=radical_count_hint,
             weak_radical_hint=weak_radical_hint,
-            jamid_blocking_potential=contract_unit.jamid_surface_potential,
-            proper_name_blocking_potential=contract_unit.proper_name_surface_potential,
-            loanword_blocking_potential=contract_unit.loanword_surface_potential,
-            frozen_primitive_blocking_potential=contract_unit.frozen_primitive_potential,
+            jamid_blocking_potential=contract_unit.jamid_surface_hint,
+            proper_name_blocking_potential=contract_unit.proper_name_surface_hint,
+            loanword_blocking_potential=contract_unit.loanword_surface_hint,
+            frozen_primitive_blocking_potential=contract_unit.frozen_primitive_surface_hint,
             required_evidence=tuple(required_evidence),
-            blocked_paths=contract_unit.blocked_paths,
+            blocked_paths=contract_unit.blocked_weight_segments,
             residuals=contract_unit.residuals,
             rank=contract_unit.rank,
             trace=contract_unit.trace
@@ -739,10 +748,10 @@ def root_stem_candidate_8(
     layer_obj = RootStemCandidateLayerObject(
         uid=str(uuid4()),
         units=tuple(candidate_units),
-        source_pre_weight_layer_id=pre_weight_layer.uid,
-        trace_7=(pre_weight_layer.uid,),
+        source_inflectional_surface_layer_id=inflectional_surface_layer.uid,
+        trace_7b=(inflectional_surface_layer.uid,),
         residuals=frozenset(all_residuals),
-        rank=pre_weight_layer.rank,  # Inherit rank from U₇
+        rank=inflectional_surface_layer.rank,  # Inherit rank from U₇-B
         proof=None
     )
 
@@ -751,8 +760,8 @@ def root_stem_candidate_8(
     layer_obj = RootStemCandidateLayerObject(
         uid=layer_obj.uid,
         units=layer_obj.units,
-        source_pre_weight_layer_id=layer_obj.source_pre_weight_layer_id,
-        trace_7=layer_obj.trace_7,
+        source_inflectional_surface_layer_id=layer_obj.source_inflectional_surface_layer_id,
+        trace_7b=layer_obj.trace_7b,
         residuals=layer_obj.residuals,
         rank=layer_obj.rank,
         proof=proof
