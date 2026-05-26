@@ -242,6 +242,12 @@ from .u9_weight_candidate_carrier import (
     weight_candidate_carrier_9,
     validate_approved_context_for_u9,
 )
+from .u10_word_form_candidate_carrier import (
+    WordFormCandidateUnit,
+    WordFormCandidateResult,
+    word_form_candidate_carrier_10,
+    validate_approved_context_for_u10,
+)
 
 __all__ = [
     "Rank",
@@ -397,4 +403,9 @@ __all__ = [
     "WeightCandidateResult",
     "weight_candidate_carrier_9",
     "validate_approved_context_for_u9",
+    # U₁₀ WordFormCandidateCarrier (Design Layer - Tests before implementation)
+    "WordFormCandidateUnit",
+    "WordFormCandidateResult",
+    "word_form_candidate_carrier_10",
+    "validate_approved_context_for_u10",
 ]
