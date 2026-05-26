@@ -92,7 +92,7 @@ class TestApprovedTransitionContextSecurity:
         ))
         audit.get_blocking_residuals = Mock(return_value=tuple([
             r for r in residuals
-            if r.severity == ResidualSeverity.BLOCKING
+            if r.severity == ResidualSeverity.BLOCKER  # Correct: BLOCKER not BLOCKING
         ]))
 
         return audit
@@ -130,17 +130,20 @@ class TestApprovedTransitionContextSecurity:
         )
 
         # Attempt to create context with wrong from_layer
-        with pytest.raises(ValueError, match="from_layer"):
+        # This would require direct construction, which is now forbidden
+        # The factory function prevents this scenario
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
             ApprovedTransitionContext(
                 audit=audit,
-                from_layer=ExecutionLayer.U7_PRE_WEIGHT,  # WRONG
+                from_layer=ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT,  # WRONG: should be U8_ROOT_STEM
                 to_layer=ExecutionLayer.U9_WEIGHT,
                 input_identity=IdentityType.ROOT_MATERIAL_IDENTITY,
                 output_identity=IdentityType.WEIGHT_IDENTITY,
                 domain=DomainType.WEIGHT_DOMAIN,
                 allowed_determination="weight_pattern",
                 trace=("u0", "u1", "u8"),
-                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY})
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY}),
+                _token=None  # Missing sentinel token
             )
 
     def test_approved_context_rejects_wrong_to_layer(self):
@@ -154,17 +157,19 @@ class TestApprovedTransitionContextSecurity:
             to_layer=ExecutionLayer.U9_WEIGHT
         )
 
-        with pytest.raises(ValueError, match="to_layer"):
+        # Direct construction is forbidden (anti-forgery)
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
             ApprovedTransitionContext(
                 audit=audit,
                 from_layer=ExecutionLayer.U8_ROOT_STEM,
-                to_layer=ExecutionLayer.U10_SEMANTIC,  # WRONG
+                to_layer=ExecutionLayer.U10_WORD_FORM,  # WRONG: should be U9_WEIGHT
                 input_identity=IdentityType.ROOT_MATERIAL_IDENTITY,
                 output_identity=IdentityType.WEIGHT_IDENTITY,
                 domain=DomainType.WEIGHT_DOMAIN,
                 allowed_determination="weight_pattern",
                 trace=("u0", "u1", "u8"),
-                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY})
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY}),
+                _token=None
             )
 
     def test_approved_context_rejects_wrong_output_identity(self):
@@ -177,7 +182,8 @@ class TestApprovedTransitionContextSecurity:
             output_identity=IdentityType.WEIGHT_IDENTITY
         )
 
-        with pytest.raises(ValueError, match="output_identity"):
+        # Direct construction is forbidden (anti-forgery)
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
             ApprovedTransitionContext(
                 audit=audit,
                 from_layer=ExecutionLayer.U8_ROOT_STEM,
@@ -187,7 +193,8 @@ class TestApprovedTransitionContextSecurity:
                 domain=DomainType.WEIGHT_DOMAIN,
                 allowed_determination="weight_pattern",
                 trace=("u0", "u1", "u8"),
-                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY})
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY}),
+                _token=None
             )
 
     def test_approved_context_rejects_wrong_domain(self):
@@ -201,17 +208,19 @@ class TestApprovedTransitionContextSecurity:
             domain=DomainType.WEIGHT_DOMAIN
         )
 
-        with pytest.raises(ValueError, match="domain"):
+        # Direct construction is forbidden (anti-forgery)
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
             ApprovedTransitionContext(
                 audit=audit,
                 from_layer=ExecutionLayer.U8_ROOT_STEM,
                 to_layer=ExecutionLayer.U9_WEIGHT,
                 input_identity=IdentityType.ROOT_MATERIAL_IDENTITY,
                 output_identity=IdentityType.WEIGHT_IDENTITY,
-                domain=DomainType.SEMANTIC_DOMAIN,  # WRONG - violates domain boundary
+                domain=DomainType.SEMANTICS_DOMAIN,  # WRONG - violates domain boundary
                 allowed_determination="meaning",
                 trace=("u0", "u1", "u8"),
-                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY})
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY}),
+                _token=None
             )
 
     def test_approved_context_rejects_missing_trace(self):
@@ -224,7 +233,8 @@ class TestApprovedTransitionContextSecurity:
             trace=tuple()  # Empty trace
         )
 
-        with pytest.raises(ValueError, match="trace"):
+        # Direct construction is forbidden (anti-forgery)
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
             ApprovedTransitionContext(
                 audit=audit,
                 from_layer=ExecutionLayer.U8_ROOT_STEM,
@@ -234,7 +244,8 @@ class TestApprovedTransitionContextSecurity:
                 domain=DomainType.WEIGHT_DOMAIN,
                 allowed_determination="weight_pattern",
                 trace=tuple(),  # WRONG - no trace
-                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY})
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY}),
+                _token=None
             )
 
     def test_approved_context_rejects_blocking_residuals(self):
@@ -244,17 +255,17 @@ class TestApprovedTransitionContextSecurity:
         Security: Blocked transitions cannot be approved.
         """
         blocking_residual = Residual(
-            residual_id="blocking_1",
-            residual_type=ResidualType.UNRESOLVED_AMBIGUITY,
-            severity=ResidualSeverity.BLOCKING,
-            description="Blocking ambiguity"
+            type=ResidualType.AMBIGUOUS_TYPE,  # Correct field name: type not residual_type
+            severity=ResidualSeverity.BLOCKER,  # Correct: BLOCKER not BLOCKING
+            message="Blocking ambiguity"  # Correct field name: message not description
         )
 
         audit = self.create_mock_approved_audit(
             residuals=(blocking_residual,)
         )
 
-        with pytest.raises(ValueError, match="blocking residuals"):
+        # Direct construction is forbidden (anti-forgery)
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
             ApprovedTransitionContext(
                 audit=audit,
                 from_layer=ExecutionLayer.U8_ROOT_STEM,
@@ -264,7 +275,8 @@ class TestApprovedTransitionContextSecurity:
                 domain=DomainType.WEIGHT_DOMAIN,
                 allowed_determination="weight_pattern",
                 trace=("u0", "u1", "u8"),
-                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY})
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY}),
+                _token=None
             )
 
     def test_approved_context_accepts_valid_approval(self):
@@ -331,21 +343,59 @@ class TestApprovedTransitionContextSecurity:
 
         assert context.is_approved()
 
-        # Direct constructor also works but has same validations
-        # (dataclass cannot be made truly private in Python)
-        context2 = ApprovedTransitionContext(
-            audit=audit,
-            from_layer=audit.from_layer,
-            to_layer=audit.to_layer,
-            input_identity=audit.input_identity,
-            output_identity=audit.output_identity,
-            domain=audit.domain,
-            allowed_determination=audit.function,
-            trace=audit.trace,
-            existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY})
-        )
+        # Direct constructor is NOW FORBIDDEN (anti-forgery)
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
+            ApprovedTransitionContext(
+                audit=audit,
+                from_layer=audit.from_layer,
+                to_layer=audit.to_layer,
+                input_identity=audit.input_identity,
+                output_identity=audit.output_identity,
+                domain=audit.domain,
+                allowed_determination=audit.function,
+                trace=audit.trace,
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY}),
+                _token=None  # Missing sentinel - FORBIDDEN
+            )
 
-        assert context2.is_approved()
+    def test_direct_construction_forbidden(self):
+        """
+        Test 11: Direct construction is forbidden (anti-forgery).
+
+        Security: Prevents bypassing factory function and validation.
+        Critical: ApprovedTransitionContext must be unforgeable.
+        """
+        audit = self.create_mock_approved_audit()
+
+        # Attempt 1: Direct construction without token
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
+            ApprovedTransitionContext(
+                audit=audit,
+                from_layer=ExecutionLayer.U8_ROOT_STEM,
+                to_layer=ExecutionLayer.U9_WEIGHT,
+                input_identity=IdentityType.ROOT_MATERIAL_IDENTITY,
+                output_identity=IdentityType.WEIGHT_IDENTITY,
+                domain=DomainType.WEIGHT_DOMAIN,
+                allowed_determination="weight_pattern",
+                trace=("u0", "u1", "u8"),
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY})
+                # _token not provided - defaults to None
+            )
+
+        # Attempt 2: Direct construction with wrong token
+        with pytest.raises(ValueError, match="cannot be constructed directly"):
+            ApprovedTransitionContext(
+                audit=audit,
+                from_layer=ExecutionLayer.U8_ROOT_STEM,
+                to_layer=ExecutionLayer.U9_WEIGHT,
+                input_identity=IdentityType.ROOT_MATERIAL_IDENTITY,
+                output_identity=IdentityType.WEIGHT_IDENTITY,
+                domain=DomainType.WEIGHT_DOMAIN,
+                allowed_determination="weight_pattern",
+                trace=("u0", "u1", "u8"),
+                existing_identities=frozenset({IdentityType.ROOT_MATERIAL_IDENTITY}),
+                _token=object()  # Wrong token - FORBIDDEN
+            )
 
 
 class TestU9ConstitutionalRequirements:
