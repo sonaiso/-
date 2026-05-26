@@ -470,5 +470,173 @@ This ensures that clause-level agreement contracts are protected before root ext
 
 ---
 
+## Backward Ifādah SurfaceGuard Law (Constitutional Refinement)
+
+### Date: 2026-05-26 (Post-Implementation Clarification)
+
+After PR #110 implementation, a critical constitutional refinement was articulated regarding **how U₇-C should process agreement contracts**.
+
+### The Refined Principle
+
+**Original SurfaceGuard Law** (PR #110):
+```
+Every surface carrying a contract between two words
+must pass through U₇-C before entering U₈.
+```
+
+**Refined: Backward Completion Form**:
+```
+Every surface carrying a contract between two or more words
+must pass through U₇-C by scanning from the point of ifādah completion
+backward to its licensing units before entering U₈.
+
+كل سطح يحمل تعاقدًا بين كلمتين أو أكثر
+يجب أن يمر عبر U₇-C من موضع تمام الإفادة رجوعًا إلى وحداته المرخِّصة
+قبل أن يدخل U₈.
+```
+
+### Why Backward from Completion?
+
+The **last word** or **completion node** in a construction often reveals:
+
+1. **تمام النسبة** (Completion of predication)
+2. **نوع العلاقة** (Type of relationship)
+3. **نقصًا سابقًا** (Previous deficiency)
+4. **تعاقدًا مؤجلًا** (Deferred contract)
+5. **علامةً لا تفهم وحدها** (Marker not understood alone)
+6. **مطابقةً أو مخالفةً** (Agreement or disagreement)
+
+### Ifādah Completion Law
+
+```
+تمام الإفادة هو موضع إغلاق النسبة.
+وموضع الإغلاق هو الذي يراجع ما قبله، لا العكس فقط.
+
+Ifādah completion is the point of predication closure.
+The closure point reviews what came before it, not just the reverse.
+```
+
+**Core Principle**:
+- لا تُفهم العلامة من موقعها وحده (Marker not understood from its position alone)
+- لا تُفهم الكلمة من ذاتها وحدها (Word not understood from itself alone)
+- لا يُفهم التعاقد إلا من تمامه (Contract understood only from its completion)
+
+### Processing Direction Comparison
+
+**Incomplete (forward-only)**:
+```
+word₁ → word₂ → detect agreement
+```
+
+**Complete (backward from completion)**:
+```
+completion_node → look back → license previous nodes
+```
+
+### U₇-C Edge Types
+
+U₇-C should conceptually maintain **two types of edges**:
+
+1. **Forward Surface Edges**: `word_i → word_j` (sequential relationships)
+2. **Backward Completion Edges**: `completion_unit ← required_previous_unit` (**more critical**)
+
+```python
+BackwardCompletionEdge = {
+    completion_unit,              # Where ifādah completes
+    required_previous_unit,       # What it licenses/requires
+    agreement_surface_hint,       # Type of contract
+    missing_or_satisfied_condition,
+    residuals,
+    trace
+}
+```
+
+### Example 1: الكتب كثيرة (Broken Plural + Feminine Singular)
+
+**Forward-only processing** (incomplete):
+```
+الكتب → broken plural candidate → deferred
+(Processing stops, no context available)
+```
+
+**Backward from completion** (correct):
+```
+كثيرة → completion node (feminine singular surface)
+  ↓
+  ← looks back to الكتب
+  ← reveals: non-rational plural + feminine singular agreement
+  ← opens: agreement_surface_hint = non_rational_plural_feminine_possible
+  ← الكتب remains DEFERRED for root extraction
+  ← edge preserved for downstream layers
+```
+
+**Key Insight**: The feminine singular adjective **كثيرة** reveals how **الكتب** should be interpreted (as non-rational plural), but this is discovered only by scanning backward from the completion point.
+
+### Example 2: الرجال صالحون (Broken Plural + Masculine Plural)
+
+**Backward from completion**:
+```
+صالحون → completion node (masculine plural surface)
+  ↓
+  ← looks back to الرجال
+  ← reveals: rational plural agreement
+  ← opens: rationality_surface_hint = rational_possible
+  ← الرجال still needs singular_candidate_path + lexical evidence
+  ← does NOT enter U₈ as raw root
+```
+
+### Example 3: الشمس طلعت (Semantic Feminine + Feminine Verb)
+
+**Backward from completion**:
+```
+طلعت → completion node (feminine verb surface)
+  ↓
+  ← looks back to الشمس
+  ← reveals: semantic_feminine_surface_hint = possible
+  ← preserves edge (does NOT make final judgment)
+  ← judgment deferred to later layers
+```
+
+### Example 4: إِيَّاكَ نَعْبُدُ (Fronted Object)
+
+**Backward from completion**:
+```
+نَعْبُدُ → completion node (verb)
+  ↓
+  ← opens requirement: object/معمول needed
+  ← looks back to إِيَّاكَ
+  ← reveals: fronted object (تقدّم المعمول)
+  ← preserves edge (NOT grammatical judgment)
+  ← position preserved for later syntactic analysis
+```
+
+**Critical**: This is **NOT** assigning grammatical function (مفعول), only preserving the surface contract that a verb-object relationship exists with non-canonical ordering.
+
+### Architectural Implications
+
+1. **U₇-C is completion-aware**: Must identify which unit represents ifādah completion
+2. **Backward scanning mandatory**: Completion node licenses/requires previous nodes
+3. **Edge directionality**: Primary edges point backward from completion
+4. **Preservation NOT judgment**: Edges preserve surface hints, not grammatical roles
+5. **U₈ respects completion**: Only processes units after backward scan completes
+
+### Future Implementation Considerations
+
+This refinement suggests that future U₇-C implementations should:
+
+1. **Identify completion nodes** (typically final unit, but can vary)
+2. **Scan backward** from completion to establish licensing relationships
+3. **Create backward edges** with completion_unit as source
+4. **Preserve context** for why each previous unit is licensed/deferred/blocked
+5. **Maintain separation** between surface contracts and grammatical judgments
+
+### Status
+
+- **Principle**: ✅ Articulated and documented
+- **Current U₇-C**: ⚠️ Needs verification of backward scanning support
+- **Future work**: Explicit backward edge implementation (if not already present)
+
+---
+
 **الحمد لله**
-*All praise is due to Allah for the successful completion of this architectural refactor.*
+*All praise is due to Allah for the successful completion of this architectural refactor and the articulation of the Backward Ifādah principle.*
