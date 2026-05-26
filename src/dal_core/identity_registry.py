@@ -511,9 +511,9 @@ class IdentityRegistry:
         Check if transition from one identity to another is allowed.
 
         Validates:
-            1. Transition is in allowed_transition_to set
-            2. Required identities exist
-            3. No prohibited identities exist
+            1. Required identities exist (checked first - missing prerequisites)
+            2. No prohibited identities exist
+            3. Transition is in allowed_transition_to set
             4. Layer progression is valid
 
         Args:
@@ -527,11 +527,7 @@ class IdentityRegistry:
         from_spec = self.get_spec(from_identity)
         to_spec = self.get_spec(to_identity)
 
-        # Check if transition is explicitly allowed
-        if not from_spec.can_transition_to(to_identity):
-            return False, f"Transition from {from_spec.arabic_name} to {to_spec.arabic_name} not allowed"
-
-        # Check if required identities exist
+        # Check if required identities exist FIRST (missing prerequisites)
         if not to_spec.requires_satisfied(existing_identities):
             missing = to_spec.requires - existing_identities
             missing_names = [self.get_spec(m).arabic_name for m in missing]
@@ -542,6 +538,10 @@ class IdentityRegistry:
             conflicts = to_spec.prohibits.intersection(existing_identities)
             conflict_names = [self.get_spec(c).arabic_name for c in conflicts]
             return False, f"Conflicting identities exist: {', '.join(conflict_names)}"
+
+        # Check if transition is explicitly allowed (structurally forbidden)
+        if not from_spec.can_transition_to(to_identity):
+            return False, f"Transition from {from_spec.arabic_name} to {to_spec.arabic_name} not allowed"
 
         # Check layer progression (cannot skip layers)
         if to_spec.layer.value < from_spec.layer.value:

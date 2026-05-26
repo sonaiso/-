@@ -418,6 +418,20 @@ class CPBIdentityGuardian:
 
         This is the MAIN ENTRY POINT for decision governance.
 
+        CPBStatus Precedence (most severe → least severe):
+            1. FORBIDDEN_LEAP - Layer architecture violation
+            2. TRACE_LOSS - Execution trace integrity
+            3. RESIDUAL_BLOCKING - Unresolved blockers
+            4. RANK_VIOLATION - Epistemic progression
+            5. DOMAIN_VIOLATION - Competency boundary
+            6. IDENTITY_VIOLATION - Identity preservation
+            7. GATE_VIOLATION - Gate passage
+            8. EVIDENCE_INSUFFICIENT - Evidence requirements
+
+        Constitutional Law:
+            القفز الممنوع أعلى من كل خلل
+            Forbidden leap dominates all other violations.
+
         Args:
             transition_id: Identifier for transition type
             from_layer: Source layer
@@ -440,49 +454,24 @@ class CPBIdentityGuardian:
             DecisionAudit with complete audit record
         """
         violations = []
+        # Start with APPROVED, will be updated to most severe violation
         cpb_status = CPBStatus.APPROVED
 
-        # 1. Verify identity
-        identity_ok, identity_reason = self.verify_identity(
-            input_identity, output_identity, existing_identities
-        )
-        if not identity_ok:
-            violations.append(f"Identity: {identity_reason}")
-            cpb_status = CPBStatus.IDENTITY_VIOLATION
+        # Collect all violations (check all, not just first failure)
 
-        # 2. Verify domain
-        domain_ok, domain_reason = self.verify_domain(
-            domain, attempted_determination
+        # 8. Verify no forbidden leap (HIGHEST PRIORITY)
+        leap_ok, leap_reason = self.verify_no_forbidden_leap(
+            from_layer, to_layer
         )
-        if not domain_ok:
-            violations.append(f"Domain: {domain_reason}")
-            if cpb_status == CPBStatus.APPROVED:
-                cpb_status = CPBStatus.DOMAIN_VIOLATION
+        if not leap_ok:
+            violations.append(f"Forbidden leap: {leap_reason}")
+            cpb_status = CPBStatus.FORBIDDEN_LEAP
 
-        # 3. Verify gate
-        gate_ok, gate_reason = self.verify_gate(
-            to_layer, gate_name, gate_passed
-        )
-        if not gate_ok:
-            violations.append(f"Gate: {gate_reason}")
+        # 7. Verify trace (basic check - trace should not be empty)
+        if not trace:
+            violations.append("Trace: Empty trace not allowed")
             if cpb_status == CPBStatus.APPROVED:
-                cpb_status = CPBStatus.GATE_VIOLATION
-
-        # 4. Verify evidence
-        evidence_ok, evidence_reason = self.verify_evidence(
-            evidence, required_evidence
-        )
-        if not evidence_ok:
-            violations.append(f"Evidence: {evidence_reason}")
-            if cpb_status == CPBStatus.APPROVED:
-                cpb_status = CPBStatus.EVIDENCE_INSUFFICIENT
-
-        # 5. Verify rank
-        rank_ok, rank_reason = self.verify_rank(input_rank, output_rank)
-        if not rank_ok:
-            violations.append(f"Rank: {rank_reason}")
-            if cpb_status == CPBStatus.APPROVED:
-                cpb_status = CPBStatus.RANK_VIOLATION
+                cpb_status = CPBStatus.TRACE_LOSS
 
         # 6. Verify residuals
         residuals_ok, residuals_reason = self.verify_residuals(residual_set)
@@ -491,20 +480,48 @@ class CPBIdentityGuardian:
             if cpb_status == CPBStatus.APPROVED:
                 cpb_status = CPBStatus.RESIDUAL_BLOCKING
 
-        # 7. Verify trace (basic check - trace should not be empty)
-        if not trace:
-            violations.append("Trace: Empty trace not allowed")
+        # 5. Verify rank
+        rank_ok, rank_reason = self.verify_rank(input_rank, output_rank)
+        if not rank_ok:
+            violations.append(f"Rank: {rank_reason}")
             if cpb_status == CPBStatus.APPROVED:
-                cpb_status = CPBStatus.TRACE_LOSS
+                cpb_status = CPBStatus.RANK_VIOLATION
 
-        # 8. Verify no forbidden leap
-        leap_ok, leap_reason = self.verify_no_forbidden_leap(
-            from_layer, to_layer
+        # 4. Verify domain
+        domain_ok, domain_reason = self.verify_domain(
+            domain, attempted_determination
         )
-        if not leap_ok:
-            violations.append(f"Forbidden leap: {leap_reason}")
+        if not domain_ok:
+            violations.append(f"Domain: {domain_reason}")
             if cpb_status == CPBStatus.APPROVED:
-                cpb_status = CPBStatus.FORBIDDEN_LEAP
+                cpb_status = CPBStatus.DOMAIN_VIOLATION
+
+        # 3. Verify identity
+        identity_ok, identity_reason = self.verify_identity(
+            input_identity, output_identity, existing_identities
+        )
+        if not identity_ok:
+            violations.append(f"Identity: {identity_reason}")
+            if cpb_status == CPBStatus.APPROVED:
+                cpb_status = CPBStatus.IDENTITY_VIOLATION
+
+        # 2. Verify gate
+        gate_ok, gate_reason = self.verify_gate(
+            to_layer, gate_name, gate_passed
+        )
+        if not gate_ok:
+            violations.append(f"Gate: {gate_reason}")
+            if cpb_status == CPBStatus.APPROVED:
+                cpb_status = CPBStatus.GATE_VIOLATION
+
+        # 1. Verify evidence
+        evidence_ok, evidence_reason = self.verify_evidence(
+            evidence, required_evidence
+        )
+        if not evidence_ok:
+            violations.append(f"Evidence: {evidence_reason}")
+            if cpb_status == CPBStatus.APPROVED:
+                cpb_status = CPBStatus.EVIDENCE_INSUFFICIENT
 
         # Decision is allowed only if ALL checks pass
         allowed = len(violations) == 0
