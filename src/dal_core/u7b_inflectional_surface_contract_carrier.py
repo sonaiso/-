@@ -209,6 +209,9 @@ class InflectionalSurfaceContractUnit:
     passive_surface_hint: MarkerHint      # بناء للمجهول hint
     mazid_extra_hint: MarkerHint          # زوائد المزيد hint
 
+    imperative_surface_hint: MarkerHint   # أمر hint (NEW)
+    six_nouns_pattern_hint: str           # الأسماء الستة pattern (NEW)
+
     proper_name_surface_hint: MarkerHint  # علم hint
     loanword_surface_hint: MarkerHint     # دخيل hint
     jamid_surface_hint: MarkerHint        # جامد hint
@@ -436,6 +439,226 @@ def _detect_tanwin_marker(surface: str) -> MarkerHint:
     return MarkerHint.UNRESOLVED
 
 
+def _detect_original_irab_markers(surface: str) -> Tuple[MarkerHint, MarkerHint, MarkerHint, MarkerHint]:
+    """
+    Detect original i'rāb markers (علامات الإعراب الأصلية).
+
+    Returns:
+        (nominative_hint, accusative_hint, genitive_hint, jussive_hint)
+
+    Note: These are SURFACE HINTS, not grammatical judgments.
+    The same surface marker may appear in multiple contexts.
+    """
+    # Diacritics
+    DAMMA = 'ُ'
+    FATHA = 'َ'
+    KASRA = 'ِ'
+    SUKUN = 'ْ'
+
+    nominative_hint = MarkerHint.UNRESOLVED
+    accusative_hint = MarkerHint.UNRESOLVED
+    genitive_hint = MarkerHint.UNRESOLVED
+    jussive_hint = MarkerHint.UNRESOLVED
+
+    # Check for diacritics in surface
+    # Note: Position matters - typically final position for nouns, but can vary
+
+    # Nominative: ḍamma (ُ) or tanwīn ḍamma (ٌ)
+    if DAMMA in surface or 'ٌ' in surface:
+        nominative_hint = MarkerHint.POSSIBLE
+
+    # Accusative: fatḥa (َ) or tanwīn fatḥa (ً)
+    if FATHA in surface or 'ً' in surface:
+        accusative_hint = MarkerHint.POSSIBLE
+
+    # Genitive: kasra (ِ) or tanwīn kasra (ٍ)
+    if KASRA in surface or 'ٍ' in surface:
+        genitive_hint = MarkerHint.POSSIBLE
+
+    # Jussive: sukūn (ْ) - typically for verbs in jussive mood
+    if SUKUN in surface:
+        jussive_hint = MarkerHint.POSSIBLE
+
+    return (nominative_hint, accusative_hint, genitive_hint, jussive_hint)
+
+
+def _detect_secondary_irab_markers(surface: str) -> Tuple[MarkerHint, Tuple[str, ...]]:
+    """
+    Detect secondary i'rāb markers (علامات الإعراب الفرعية).
+
+    Secondary markers include:
+    - ألف (alif) for dual nominative
+    - واو (wāw) for sound masculine plural nominative / five verbs
+    - ياء (yā') for dual/plural genitive/accusative
+    - نون (nūn) for five verbs nominative
+    - حذف النون (nūn deletion) - cannot detect directly, requires context
+    - حذف حرف العلة (weak letter deletion) - cannot detect directly
+
+    Returns:
+        (hint, protected_markers)
+    """
+    # Remove diacritics for detection
+    surface_no_diacritics = ''.join(
+        c for c in surface
+        if c not in ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ']
+    )
+
+    # Secondary markers detected
+    secondary_markers = []
+    hint = MarkerHint.UNRESOLVED
+
+    # Dual alif nominative (ان)
+    if surface_no_diacritics.endswith('ان'):
+        secondary_markers.append('ان_alif')
+        hint = MarkerHint.POSSIBLE
+
+    # Dual/plural yā' genitive/accusative (ين)
+    elif surface_no_diacritics.endswith('ين'):
+        secondary_markers.append('ين_yaa')
+        hint = MarkerHint.POSSIBLE
+
+    # Sound masculine plural wāw nominative (ون)
+    elif surface_no_diacritics.endswith('ون'):
+        secondary_markers.append('ون_waw')
+        hint = MarkerHint.POSSIBLE
+
+    # Note: نون deletion and weak letter deletion cannot be detected
+    # from surface alone - they require lexical/pattern evidence
+
+    return (hint, tuple(secondary_markers))
+
+
+def _detect_imperative_markers(surface: str) -> Tuple[MarkerHint, Tuple[str, ...]]:
+    """
+    Detect imperative markers (علامات الأمر).
+
+    Markers include:
+    - همزة الوصل (hamzat waṣl) - connecting hamza for imperative
+    - حذف حرف العلة (weak letter deletion) - cannot detect from surface
+    - حذف النون (nūn deletion) - cannot detect from surface
+
+    Returns:
+        (hint, protected_markers)
+    """
+    imperative_markers = []
+    hint = MarkerHint.UNRESOLVED
+
+    # Hamzat waṣl detection (initial ا in certain contexts)
+    # This is conservative - needs more context to be certain
+    if surface.startswith('ا'):
+        # Could be hamzat waṣl (imperative, definite article, or other)
+        # Without diacritics, we cannot distinguish hamzat waṣl from hamzat qaṭʿ
+        # Mark as possible but ambiguous
+        if len(surface) > 2:  # Not just "ا" alone
+            imperative_markers.append('ا_hamza_wasl_possible')
+            hint = MarkerHint.AMBIGUOUS
+
+    return (hint, tuple(imperative_markers))
+
+
+def _detect_passive_voice_markers(surface: str) -> Tuple[MarkerHint, Tuple[str, ...]]:
+    """
+    Detect passive voice surface markers (المبني للمجهول).
+
+    Passive voice patterns:
+    - Past tense: ضم الأول وكسر ما قبل الآخر (ḍamma on first, kasra before last)
+    - Present tense: ضم أوله ويفتح ما قبل آخره (ḍamma on first, fatḥa before last)
+
+    Example:
+        قُتِلَ (qutila - was killed): ُـِـَ pattern
+        يُقْتَلُ (yuqtalu - is killed): ُـَـُ pattern
+
+    Returns:
+        (hint, protected_vowels)
+    """
+    DAMMA = 'ُ'
+    FATHA = 'َ'
+    KASRA = 'ِ'
+    SUKUN = 'ْ'
+
+    protected_vowels = []
+    hint = MarkerHint.UNRESOLVED
+
+    # Extract diacritics with positions
+    diacritics = [(i, c) for i, c in enumerate(surface)
+                  if c in [DAMMA, FATHA, KASRA, SUKUN]]
+
+    if not diacritics:
+        return (hint, tuple(protected_vowels))
+
+    # Past passive pattern detection: ḍamma early + kasra later
+    # This is a heuristic - true detection requires full morphological analysis
+    has_early_damma = any(c == DAMMA for i, c in diacritics if i < len(surface) // 2)
+    has_late_kasra = any(c == KASRA for i, c in diacritics if i > len(surface) // 2)
+
+    # Present passive pattern: ḍamma early + fatḥa later
+    has_late_fatha = any(c == FATHA for i, c in diacritics if i > len(surface) // 2)
+
+    if has_early_damma and has_late_kasra:
+        # Possible past passive
+        protected_vowels.extend([DAMMA, KASRA])
+        hint = MarkerHint.POSSIBLE
+
+    elif has_early_damma and has_late_fatha:
+        # Possible present passive
+        protected_vowels.extend([DAMMA, FATHA])
+        hint = MarkerHint.POSSIBLE
+
+    return (hint, tuple(protected_vowels))
+
+
+def _detect_six_nouns_markers(surface: str) -> Tuple[MarkerHint, str]:
+    """
+    Detect six nouns patterns (الأسماء الستة).
+
+    The six nouns: أب، أخ، حم، فو، ذو، هن
+    With special i'rāb patterns using و/ا/ي
+
+    Returns:
+        (hint, pattern_detected)
+    """
+    # Remove diacritics
+    surface_no_diacritics = ''.join(
+        c for c in surface
+        if c not in ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ']
+    )
+
+    hint = MarkerHint.UNRESOLVED
+    pattern = ""
+
+    # أب patterns: أبو (nom), أبا (acc), أبي (gen)
+    if surface_no_diacritics in ['أبو', 'أبا', 'أبي']:
+        hint = MarkerHint.POSSIBLE
+        pattern = "أب_six_nouns"
+
+    # أخ patterns: أخو (nom), أخا (acc), أخي (gen)
+    elif surface_no_diacritics in ['أخو', 'أخا', 'أخي']:
+        hint = MarkerHint.POSSIBLE
+        pattern = "أخ_six_nouns"
+
+    # حم patterns: حمو (nom), حما (acc), حمي (gen)
+    elif surface_no_diacritics in ['حمو', 'حما', 'حمي']:
+        hint = MarkerHint.POSSIBLE
+        pattern = "حم_six_nouns"
+
+    # فو patterns: فو، فا، في (rare)
+    elif surface_no_diacritics in ['فو', 'فا', 'في', 'فوك', 'فاك', 'فيك']:
+        hint = MarkerHint.POSSIBLE
+        pattern = "فو_six_nouns"
+
+    # ذو patterns: ذو (nom), ذا (acc), ذي (gen)
+    elif surface_no_diacritics in ['ذو', 'ذا', 'ذي']:
+        hint = MarkerHint.POSSIBLE
+        pattern = "ذو_six_nouns"
+
+    # هن pattern (rare)
+    elif surface_no_diacritics.startswith('هن'):
+        hint = MarkerHint.POSSIBLE
+        pattern = "هن_six_nouns"
+
+    return (hint, pattern)
+
+
 def _detect_number_markers(surface: str) -> Tuple[Tuple[str, ...], MarkerHint]:
     """
     Detect number markers (ان/ين/ون/ات).
@@ -559,6 +782,22 @@ def _detect_pronoun_suffixes(surface: str) -> Tuple[Tuple[str, ...], MarkerHint]
     """
     Detect pronoun suffixes (لاحقات الضمائر).
 
+    Complete inventory (14 forms):
+    - ـه (his/it - 3rd masc sing)
+    - ـها (her/its - 3rd fem sing)
+    - ـهما (their - 3rd dual)
+    - ـهم (their - 3rd masc plural)
+    - ـهن (their - 3rd fem plural)
+    - ـك (your - 2nd masc sing)
+    - ـكِ (your - 2nd fem sing)
+    - ـكما (your - 2nd dual)
+    - ـكم (your - 2nd masc plural)
+    - ـكن (your - 2nd fem plural)
+    - ـي (my - 1st sing)
+    - ـنا (our - 1st plural)
+    - ـني (me - 1st sing accusative for verbs)
+    - ـنِ (dative-accusative me)
+
     Returns:
         (protected_pronoun_suffixes, hint)
     """
@@ -568,36 +807,53 @@ def _detect_pronoun_suffixes(surface: str) -> Tuple[Tuple[str, ...], MarkerHint]
         if c not in ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ']
     )
 
-    # Common pronoun suffixes
-    # ـه (his/it), ـها (her/it), ـهم (their), ـهما (their dual), ـنا (our/us),
-    # ـك (your masc), ـكِ (your fem), ـكم (your plural masc), ـكن (your plural fem)
-
     pronoun_suffixes = []
+    hint = MarkerHint.UNRESOLVED
 
-    # Check for multi-character suffixes first
+    # Check for multi-character suffixes first (longest first to avoid false matches)
     if surface_no_diacritics.endswith('هما'):
         pronoun_suffixes.append('ـهما')
+        hint = MarkerHint.POSSIBLE
+    elif surface_no_diacritics.endswith('كما'):
+        pronoun_suffixes.append('ـكما')
+        hint = MarkerHint.POSSIBLE
+    elif surface_no_diacritics.endswith('هن'):
+        pronoun_suffixes.append('ـهن')
+        hint = MarkerHint.POSSIBLE
     elif surface_no_diacritics.endswith('هم'):
         pronoun_suffixes.append('ـهم')
-    elif surface_no_diacritics.endswith('ها'):
-        pronoun_suffixes.append('ـها')
-    elif surface_no_diacritics.endswith('كم'):
-        pronoun_suffixes.append('ـكم')
+        hint = MarkerHint.POSSIBLE
     elif surface_no_diacritics.endswith('كن'):
         pronoun_suffixes.append('ـكن')
+        hint = MarkerHint.POSSIBLE
+    elif surface_no_diacritics.endswith('كم'):
+        pronoun_suffixes.append('ـكم')
+        hint = MarkerHint.POSSIBLE
+    elif surface_no_diacritics.endswith('ها'):
+        pronoun_suffixes.append('ـها')
+        hint = MarkerHint.POSSIBLE
     elif surface_no_diacritics.endswith('نا'):
         pronoun_suffixes.append('ـنا')
+        hint = MarkerHint.POSSIBLE
+    elif surface_no_diacritics.endswith('ني'):
+        # Verbal object pronoun (me)
+        pronoun_suffixes.append('ـني')
+        hint = MarkerHint.POSSIBLE
     elif surface_no_diacritics.endswith('ه'):
-        # Could be pronoun, needs context
+        # Could be pronoun, needs context but likely
         pronoun_suffixes.append('ـه')
+        hint = MarkerHint.POSSIBLE
     elif surface_no_diacritics.endswith('ك'):
+        # Could be pronoun or other
         pronoun_suffixes.append('ـك')
+        hint = MarkerHint.AMBIGUOUS  # Ambiguous without context
     elif surface_no_diacritics.endswith('ي'):
-        # Could be pronoun (my) or other marker
+        # Could be pronoun (my) or nisba/other marker
         pronoun_suffixes.append('ـي')
+        hint = MarkerHint.AMBIGUOUS  # Very ambiguous
 
     if pronoun_suffixes:
-        return (tuple(pronoun_suffixes), MarkerHint.POSSIBLE)
+        return (tuple(pronoun_suffixes), hint)
 
     return ((), MarkerHint.UNRESOLVED)
 
@@ -699,15 +955,29 @@ def inflectional_surface_contract_7b(
         verb_prefixes, verb_prefix_hint = _detect_verb_prefix_markers(surface)
         mazid_prefixes, mazid_hint = _detect_mazid_markers(surface)
 
+        # NEW Phase 2: I'rāb markers
+        (nominative_hint, accusative_hint, genitive_hint, jussive_hint) = _detect_original_irab_markers(surface)
+        secondary_irab_hint, secondary_irab_markers = _detect_secondary_irab_markers(surface)
+
+        # NEW Phase 2: Imperative markers
+        imperative_hint, imperative_markers = _detect_imperative_markers(surface)
+
+        # NEW Phase 2: Passive voice markers
+        passive_hint, passive_vowels = _detect_passive_voice_markers(surface)
+
+        # NEW Phase 2: Six nouns
+        six_nouns_hint, six_nouns_pattern = _detect_six_nouns_markers(surface)
+
         # NEW: Detect broken plural (CRITICAL for deferral)
         broken_plural_hint, broken_plural_pattern = _detect_broken_plural(surface)
 
-        # NEW: Detect pronoun suffixes
+        # NEW: Detect pronoun suffixes (complete inventory)
         pronoun_suffixes, pronoun_suffix_hint = _detect_pronoun_suffixes(surface)
 
         # Combine protected markers
-        all_protected_prefixes = definiteness_prefixes + verb_prefixes + mazid_prefixes
-        all_protected_suffixes = number_suffixes + gender_suffixes + pronoun_suffixes
+        all_protected_prefixes = definiteness_prefixes + verb_prefixes + mazid_prefixes + tuple(imperative_markers)
+        all_protected_suffixes = number_suffixes + gender_suffixes + pronoun_suffixes + tuple(secondary_irab_markers)
+        all_protected_vowels = tuple(passive_vowels)
 
         # Strip markers to produce protected_core
         protected_core = _strip_protected_markers(
@@ -736,22 +1006,65 @@ def inflectional_surface_contract_7b(
                 )
             )
 
+        # SIX NOUNS: Must defer (special i'rāb patterns)
+        if six_nouns_hint == MarkerHint.POSSIBLE:
+            root_input_permission = RootInputPermission.DEFERRED
+            root_input = ""
+            unit_residuals.append(
+                make_warning(
+                    "six_nouns_deferred",
+                    f"Six nouns pattern detected ({six_nouns_pattern}), root_input deferred pending contextual resolution"
+                )
+            )
+
+        # PROPER NAME/LOANWORD/JĀMID: Defer if strong hint
+        if contract_unit.proper_name_surface_potential == PathPermission.POSSIBLE:
+            root_input_permission = RootInputPermission.DEFERRED
+            root_input = ""
+            unit_residuals.append(
+                make_warning("proper_name_deferred", "Proper name surface potential, root_input deferred")
+            )
+
+        if contract_unit.loanword_surface_potential == PathPermission.POSSIBLE:
+            root_input_permission = RootInputPermission.DEFERRED
+            root_input = ""
+            unit_residuals.append(
+                make_warning("loanword_deferred", "Loanword surface potential, root_input deferred")
+            )
+
+        if contract_unit.jamid_surface_potential == PathPermission.POSSIBLE:
+            # Jāmid surfaces require special handling
+            unit_residuals.append(
+                make_warning("jamid_surface_potential", "Jāmid surface potential detected, requires lexical evidence")
+            )
+
         # AMBIGUOUS NUMBER MARKER: Add residual
         if number_hint == MarkerHint.AMBIGUOUS:
             unit_residuals.append(
                 make_warning("ambiguous_number_marker", "ين could be dual, sound masculine plural, or case marker")
             )
 
-        # PRONOUN SUFFIX: If detected but not fully protected, defer
-        # (This is conservative - we protect what we detect, but if ambiguous, we defer)
+        # PRONOUN SUFFIX: If detected but ambiguous, add residual
         if pronoun_suffix_hint == MarkerHint.AMBIGUOUS:
             unit_residuals.append(
                 make_warning("ambiguous_pronoun_suffix", "Pronoun suffix detected but context needed for certainty")
             )
 
+        # PASSIVE VOICE: Add residual if detected
+        if passive_hint == MarkerHint.POSSIBLE:
+            unit_residuals.append(
+                make_warning("passive_voice_surface_hint", "Passive voice vowel pattern detected, requires verb context")
+            )
+
+        # IMPERATIVE: Add residual if detected
+        if imperative_hint in [MarkerHint.POSSIBLE, MarkerHint.AMBIGUOUS]:
+            unit_residuals.append(
+                make_warning("imperative_surface_hint", "Imperative surface hint detected (hamzat waṣl or pattern)")
+            )
+
         # Build blocked segments (markers should not be consumed by root/weight)
-        blocked_root_segments = all_protected_prefixes + all_protected_suffixes
-        blocked_weight_segments = all_protected_prefixes + all_protected_suffixes
+        blocked_root_segments = all_protected_prefixes + all_protected_suffixes + all_protected_vowels
+        blocked_weight_segments = all_protected_prefixes + all_protected_suffixes + all_protected_vowels
 
         # Build InflectionalSurfaceContractUnit
         contract_unit_obj = InflectionalSurfaceContractUnit(
@@ -762,7 +1075,7 @@ def inflectional_surface_contract_7b(
             protected_prefixes=all_protected_prefixes,
             protected_suffixes=all_protected_suffixes,
             protected_infixes=(),  # Rare - not implemented yet
-            protected_vowels=(),   # Passive vowel patterns - not implemented yet
+            protected_vowels=all_protected_vowels,
             protected_core=protected_core,
             root_input=root_input,
             root_input_permission=root_input_permission,
@@ -770,17 +1083,21 @@ def inflectional_surface_contract_7b(
             tanwin_marker_hint=tanwin_hint,
             number_marker_hint=number_hint,
             gender_marker_hint=gender_hint,
-            rationality_marker_hint=MarkerHint.UNRESOLVED,
-            original_irab_marker_hint=MarkerHint.UNRESOLVED,
-            secondary_irab_marker_hint=MarkerHint.UNRESOLVED,
-            nominative_surface_hint=MarkerHint.UNRESOLVED,
-            accusative_surface_hint=MarkerHint.UNRESOLVED,
-            genitive_surface_hint=MarkerHint.UNRESOLVED,
-            jussive_surface_hint=MarkerHint.UNRESOLVED,
+            rationality_marker_hint=MarkerHint.UNRESOLVED,  # TODO: Implement rationality detection
+            original_irab_marker_hint=MarkerHint.POSSIBLE if any([nominative_hint != MarkerHint.UNRESOLVED,
+                                                                     accusative_hint != MarkerHint.UNRESOLVED,
+                                                                     genitive_hint != MarkerHint.UNRESOLVED]) else MarkerHint.UNRESOLVED,
+            secondary_irab_marker_hint=secondary_irab_hint,
+            nominative_surface_hint=nominative_hint,
+            accusative_surface_hint=accusative_hint,
+            genitive_surface_hint=genitive_hint,
+            jussive_surface_hint=jussive_hint,
             verb_prefix_hint=verb_prefix_hint,
-            verb_suffix_hint=MarkerHint.UNRESOLVED,
-            passive_surface_hint=MarkerHint.UNRESOLVED,
+            verb_suffix_hint=MarkerHint.UNRESOLVED,  # TODO: Refine verb suffix detection
+            passive_surface_hint=passive_hint,
             mazid_extra_hint=mazid_hint,
+            imperative_surface_hint=imperative_hint,
+            six_nouns_pattern_hint=six_nouns_pattern,
             broken_plural_surface_hint=broken_plural_hint,
             broken_plural_pattern_hint=broken_plural_pattern,
             pronoun_suffix_hint=pronoun_suffix_hint,
