@@ -356,24 +356,29 @@ class TestAlgebraicDecisionCore:
         """Test decision rejected due to identity violation."""
         core = AlgebraicDecisionCore()
 
-        # Attempt forbidden identity leap: RAW → ROOT
+        # Attempt identity violation without forbidden leap:
+        # U1 → U2p with wrong output identity (should be PHONETIC but claiming SYLLABIC)
+        # This is identity violation but not a forbidden leap since U1→U2p is allowed
         audit = core.decide_transition(
-            transition_id="INVALID_U0_to_U8",
-            from_layer=ExecutionLayer.U0_UNICODE,
-            to_layer=ExecutionLayer.U8_ROOT_STEM,
-            input_identity=IdentityType.RAW_SURFACE_IDENTITY,
-            output_identity=IdentityType.ROOT_MATERIAL_IDENTITY,  # Invalid leap
-            existing_identities=frozenset({IdentityType.RAW_SURFACE_IDENTITY}),
-            domain=DomainType.ROOT_STEM_DOMAIN,
-            attempted_determination="root_candidate_extraction",
-            gate_name="RootGate",
+            transition_id="U1_to_U2p_wrong_identity",
+            from_layer=ExecutionLayer.U1_GRAPHEME,
+            to_layer=ExecutionLayer.U2P_PHONETIC_PROJECTION,
+            input_identity=IdentityType.ORTHOGRAPHIC_IDENTITY,
+            output_identity=IdentityType.SYLLABIC_IDENTITY,  # Wrong! Should be PHONETIC
+            existing_identities=frozenset({
+                IdentityType.RAW_SURFACE_IDENTITY,
+                IdentityType.ORTHOGRAPHIC_IDENTITY
+            }),
+            domain=DomainType.SOUND_DOMAIN,
+            attempted_determination="phoneme_classification",
+            gate_name="PhoneticGate",
             gate_passed=True,
-            evidence=("surface_analysis",),
-            required_evidence=frozenset({"surface_analysis"}),
-            input_rank=Rank.ZERO,
+            evidence=("grapheme_analysis",),
+            required_evidence=frozenset({"grapheme_analysis"}),
+            input_rank=Rank.CANDIDATE,
             output_rank=Rank.CANDIDATE,
             residual_set=create_residual_set(frozenset()),
-            trace=("invalid_processing",)
+            trace=("U1_processing",)
         )
 
         assert audit.is_approved() is False
