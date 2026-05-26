@@ -13,8 +13,9 @@ Execution Core (U₀-U₉): Closed, implemented, operational layers
     U₃ BoundaryAndAttachment → U₄ TrueSingularLafẓ
     U₄ TrueSingularLafẓ → U₅ FunctionalRole
     U₅ FunctionalRole   → U₆ MabniClosedClass
-    U₆ MabniClosedClass → U₇ PreWeightContract
-    U₇ PreWeightContract → U₈ RootStem
+    U₆ MabniClosedClass → U₇-A PreWeightContract
+    U₇-A PreWeightContract → U₇-B InflectionalSurfaceContract
+    U₇-B InflectionalSurfaceContract → U₈ RootStem
     U₈ RootStem         → U₉ Weight
 
 Design Layers (U₁₀-U₁₅): Future design, not closed execution layers
@@ -60,7 +61,8 @@ class ExecutionLayer(Enum):
     U4_TRUE_SINGULAR_LAFZ = "u4_true_singular_lafz"
     U5_FUNCTIONAL_ROLE = "u5_functional_role"
     U6_MABNI_CLOSED_CLASS = "u6_mabni_closed_class"
-    U7_PRE_WEIGHT_CONTRACT = "u7_pre_weight_contract"
+    U7A_PRE_WEIGHT_CONTRACT = "u7a_pre_weight_contract"
+    U7B_INFLECTIONAL_SURFACE_CONTRACT = "u7b_inflectional_surface_contract"
     U8_ROOT_STEM = "u8_root_stem"
     U9_WEIGHT = "u9_weight"
 
@@ -104,7 +106,8 @@ EXECUTION_CORE_LAYERS = [
     ExecutionLayer.U4_TRUE_SINGULAR_LAFZ,
     ExecutionLayer.U5_FUNCTIONAL_ROLE,
     ExecutionLayer.U6_MABNI_CLOSED_CLASS,
-    ExecutionLayer.U7_PRE_WEIGHT_CONTRACT,
+    ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT,
+    ExecutionLayer.U7B_INFLECTIONAL_SURFACE_CONTRACT,
     ExecutionLayer.U8_ROOT_STEM,
     ExecutionLayer.U9_WEIGHT,
 ]
@@ -143,8 +146,9 @@ CORE_ALLOWED_TRANSITIONS = {
 
     # Morphological layers
     ExecutionLayer.U5_FUNCTIONAL_ROLE: {ExecutionLayer.U6_MABNI_CLOSED_CLASS},
-    ExecutionLayer.U6_MABNI_CLOSED_CLASS: {ExecutionLayer.U7_PRE_WEIGHT_CONTRACT},
-    ExecutionLayer.U7_PRE_WEIGHT_CONTRACT: {ExecutionLayer.U8_ROOT_STEM},
+    ExecutionLayer.U6_MABNI_CLOSED_CLASS: {ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT},
+    ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT: {ExecutionLayer.U7B_INFLECTIONAL_SURFACE_CONTRACT},
+    ExecutionLayer.U7B_INFLECTIONAL_SURFACE_CONTRACT: {ExecutionLayer.U8_ROOT_STEM},
     ExecutionLayer.U8_ROOT_STEM: {ExecutionLayer.U9_WEIGHT},
 }
 
@@ -363,6 +367,7 @@ LEGACY_LAYER_MAPPING = {
     "legacy_u4_morpheme": ExecutionLayer.U6_MABNI_CLOSED_CLASS,
     "legacy_u5_stemroot": ExecutionLayer.U8_ROOT_STEM,
     "legacy_u6_pattern": ExecutionLayer.U9_WEIGHT,
+    "u7_pre_weight_contract": ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT,  # U₇ split into U₇-A and U₇-B
 }
 
 
