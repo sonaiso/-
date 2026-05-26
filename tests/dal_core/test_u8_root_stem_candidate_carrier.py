@@ -52,6 +52,9 @@ from dal_core.u7b_inflectional_surface_contract_carrier import (
     RootInputPermission,
     MarkerHint,
 )
+from dal_core.u7_pre_weight_contract_carrier import (
+    PathPermission,  # Keep for compatibility with blocking potentials
+)
 from dal_core.foundation import Rank
 
 
@@ -380,9 +383,6 @@ def test_deferred_unit_preserves_broken_plural_guard(mock_u7c_layer_deferred_bro
     assert unit.broken_plural_guard_id is not None
     assert unit.broken_plural_guard_id == "bpg_1"
 
-    # Guard should also exist in layer's broken_plural_guards
-    assert len(result.layer_object.broken_plural_guards) > 0 or unit.broken_plural_guard_id
-
 
 def test_deferred_unit_preserves_agreement_edges(mock_u7c_layer_deferred_broken_plural):
     """
@@ -429,13 +429,13 @@ def test_allowed_unit_produces_candidates(mock_u7c_layer_allowed_simple):
     assert len(unit.stem_candidate_paths) > 0
 
 
-def test_root_candidates_are_not_certificates(mock_u7_layer_open_class):
+def test_root_candidates_are_not_certificates(mock_u7c_layer_allowed_simple):
     """
     CRITICAL: Root candidates are HYPOTHESES, not certificates.
 
     Axiom 8.2: Root in U₈ is candidate, not certificate
     """
-    result = root_stem_candidate_8(mock_u7_layer_open_class)
+    result = root_stem_candidate_8(mock_u7c_layer_allowed_simple)
 
     unit = result.layer_object.units[0]
 
@@ -450,9 +450,9 @@ def test_root_candidates_are_not_certificates(mock_u7_layer_open_class):
     assert any('lexical' in ev for ev in unit.required_evidence)
 
 
-def test_root_candidate_structure(mock_u7_layer_open_class):
+def test_root_candidate_structure(mock_u7c_layer_allowed_simple):
     """Test RootCandidate structure and evidence."""
-    result = root_stem_candidate_8(mock_u7_layer_open_class)
+    result = root_stem_candidate_8(mock_u7c_layer_allowed_simple)
 
     unit = result.layer_object.units[0]
     if unit.root_candidate_paths:
@@ -471,9 +471,9 @@ def test_root_candidate_structure(mock_u7_layer_open_class):
         assert candidate.radical_count >= 3
 
 
-def test_stem_candidate_structure(mock_u7_layer_open_class):
+def test_stem_candidate_structure(mock_u7c_layer_allowed_simple):
     """Test StemCandidate structure and evidence."""
-    result = root_stem_candidate_8(mock_u7_layer_open_class)
+    result = root_stem_candidate_8(mock_u7c_layer_allowed_simple)
 
     unit = result.layer_object.units[0]
     if unit.stem_candidate_paths:
@@ -493,13 +493,13 @@ def test_stem_candidate_structure(mock_u7_layer_open_class):
 # Mixed Layer Tests
 # ============================================================================
 
-def test_mixed_layer_preserves_both_types(mock_u7_layer_mixed):
+def test_mixed_layer_preserves_both_types(mock_u7c_layer_mixed):
     """
     Mixed layer with blocked + open-class units.
 
     Should preserve blocked units AND extract candidates from open-class.
     """
-    result = root_stem_candidate_8(mock_u7_layer_mixed)
+    result = root_stem_candidate_8(mock_u7c_layer_mixed)
 
     assert result.success
     assert len(result.layer_object.units) == 2
@@ -519,16 +519,16 @@ def test_mixed_layer_preserves_both_types(mock_u7_layer_mixed):
 # CPB₈ Tests
 # ============================================================================
 
-def test_cpb8_is_complete(mock_u7_layer_open_class):
+def test_cpb8_is_complete(mock_u7c_layer_allowed_simple):
     """Test CPB₈ is_complete validation."""
-    result = root_stem_candidate_8(mock_u7_layer_open_class)
+    result = root_stem_candidate_8(mock_u7c_layer_allowed_simple)
 
     assert CPB8.is_complete(result.layer_object)
 
 
-def test_cpb8_build_proof(mock_u7_layer_mixed):
+def test_cpb8_build_proof(mock_u7c_layer_mixed):
     """Test CPB₈ proof building."""
-    result = root_stem_candidate_8(mock_u7_layer_mixed)
+    result = root_stem_candidate_8(mock_u7c_layer_mixed)
 
     proof = CPB8.build_proof(result.layer_object)
 
@@ -549,9 +549,9 @@ def test_cpb8_build_proof(mock_u7_layer_mixed):
     assert "meaning_certificate" in proof.forbidden_next_gates
 
 
-def test_cpb8_proof_has_limitations(mock_u7_layer_open_class):
+def test_cpb8_proof_has_limitations(mock_u7c_layer_allowed_simple):
     """Test CPB₈ proof includes constitutional limitations."""
-    result = root_stem_candidate_8(mock_u7_layer_open_class)
+    result = root_stem_candidate_8(mock_u7c_layer_allowed_simple)
 
     proof = CPB8.build_proof(result.layer_object)
 
@@ -566,17 +566,17 @@ def test_cpb8_proof_has_limitations(mock_u7_layer_open_class):
 # Trace Preservation Tests
 # ============================================================================
 
-def test_trace_preservation_from_u7(mock_u7_layer_open_class):
-    """Verify trace preservation U₇→U₈."""
-    result = root_stem_candidate_8(mock_u7_layer_open_class)
+def test_trace_preservation_from_u7(mock_u7c_layer_allowed_simple):
+    """Verify trace preservation U₇-C→U₈."""
+    result = root_stem_candidate_8(mock_u7c_layer_allowed_simple)
 
-    # Layer should preserve U₇ layer ID
-    assert result.layer_object.source_pre_weight_layer_id == mock_u7_layer_open_class.uid
+    # Layer should preserve U₇-C layer ID
+    assert result.layer_object.source_clause_surface_layer_id == mock_u7c_layer_allowed_simple.uid
 
-    # Units should preserve U₇ unit traces
+    # Units should preserve U₇-C unit traces
     for unit in result.layer_object.units:
-        assert unit.source_u7_unit_id is not None
-        assert unit.source_u7_trace is not None
+        assert unit.source_u7c_unit_id is not None
+        assert unit.source_u7c_trace is not None
 
 
 # ============================================================================
@@ -584,30 +584,52 @@ def test_trace_preservation_from_u7(mock_u7_layer_open_class):
 # ============================================================================
 
 def test_empty_input_fails():
-    """Empty U₇ layer should fail gracefully."""
-    empty_layer = PreWeightContractLayerObject(
+    """Empty U₇-C layer should fail gracefully - but U₇-C doesn't allow empty units.
+
+    Instead, test that U₈ handles layer with no valid units properly.
+    """
+    # Create a layer with a single blocked unit (effectively empty for extraction)
+    blocked_unit = ClauseSurfaceAgreementUnit(
+        uid="u7c_empty",
+        surface="وَ",
+        source_u7b_unit_id="u7b_empty",
+        source_u7b_trace=("u6_empty",),
+        protected_core="و",
+        root_input="",
+        root_input_permission=RootInputPermission.BLOCKED,
+        residuals=frozenset(),
+        rank=Rank.ZERO,
+        trace=("u6_empty",)
+    )
+
+    layer = ClauseSurfaceAgreementLayerObject(
         uid="empty",
-        units=(),
-        source_mabni_layer_id="u6_empty",
-        trace_6=("u6_empty",),
+        units=(blocked_unit,),  # Has unit but it's blocked
+        agreement_edges=(),
+        agreement_candidates=(),
+        broken_plural_guards=(),
+        source_u7b_layer_id="u7b_empty",
+        trace_7b=("u7b_empty",),
         residuals=frozenset(),
         rank=Rank.ZERO,
         proof=None
     )
 
-    result = root_stem_candidate_8(empty_layer)
+    result = root_stem_candidate_8(layer)
 
-    assert not result.success
-    assert result.failure_type == RootStemFailureType.NO_PRE_WEIGHT_UNITS
+    # Should succeed but with blocked status
+    assert result.success
+    assert len(result.layer_object.units) == 1
+    assert result.layer_object.units[0].root_status == RootCandidateStatus.BLOCKED
 
 
 # ============================================================================
 # Radical Count Hint Tests
 # ============================================================================
 
-def test_triliteral_hint(mock_u7_layer_open_class):
+def test_triliteral_hint(mock_u7c_layer_allowed_simple):
     """Test triliteral radical count hint."""
-    result = root_stem_candidate_8(mock_u7_layer_open_class)
+    result = root_stem_candidate_8(mock_u7c_layer_allowed_simple)
 
     unit = result.layer_object.units[0]
     # كَتَبَ should hint triliteral
@@ -623,12 +645,12 @@ def test_triliteral_hint(mock_u7_layer_open_class):
 # Residuals Preservation Tests
 # ============================================================================
 
-def test_residuals_preserved_from_u7(mock_u7_layer_open_class):
+def test_residuals_preserved_from_u7(mock_u7c_layer_allowed_simple):
     """Residuals from U₇ should be preserved in U₈."""
-    result = root_stem_candidate_8(mock_u7_layer_open_class)
+    result = root_stem_candidate_8(mock_u7c_layer_allowed_simple)
 
     # Layer residuals should match or extend U₇ residuals
-    u7_residuals = mock_u7_layer_open_class.residuals
+    u7_residuals = mock_u7c_layer_allowed_simple.residuals
     u8_residuals = result.layer_object.residuals
 
     # U₈ should at least preserve U₇ residuals
@@ -650,41 +672,35 @@ def test_golden_case_kataba():
         - stem_candidates = [كتب]
         - NO weight, NO pattern, NO meaning
     """
-    # Create mock U₇ unit for كَتَبَ
-    u7_unit = PreWeightContractUnit(
-        uid="u7_kataba",
+    # Create mock U₇-C unit for كَتَبَ
+    u7c_unit = ClauseSurfaceAgreementUnit(
+        uid="u7c_kataba",
         surface="كَتَبَ",
-        source_u6_unit_id="u6_kataba",
-        source_u6_trace=("u5", "u4", "u3", "u2", "u1", "u0"),
-        open_closed_status="open_class",
-        contract_status=ContractStatus.OPEN_CORE_CONTRACT_CANDIDATE,
-        lexical_path_potential=PathPermission.POSSIBLE,
-        root_path_permission=PathPermission.POSSIBLE,
-        stem_path_permission=PathPermission.POSSIBLE,
-        weight_path_permission=PathPermission.POSSIBLE,
-        jamid_surface_potential=PathPermission.UNRESOLVED,
-        proper_name_surface_potential=PathPermission.UNRESOLVED,
-        loanword_surface_potential=PathPermission.UNRESOLVED,
-        frozen_primitive_potential=PathPermission.UNRESOLVED,
-        derivational_readiness=PathPermission.UNRESOLVED,
-        required_evidence=("lexical_attestation",),
-        blocked_paths=(),
+        source_u7b_unit_id="u7b_kataba",
+        source_u7b_trace=("u6", "u5", "u4", "u3", "u2", "u1", "u0"),
+        protected_core="كتب",
+        root_input="كتب",  # Licensed for extraction
+        root_input_permission=RootInputPermission.ALLOWED,
+        agreement_edges=(),
         residuals=frozenset(),
         rank=Rank.CANDIDATE,
-        trace=("u5", "u4", "u3", "u2", "u1", "u0")
+        trace=("u6", "u5", "u4", "u3", "u2", "u1", "u0")
     )
 
-    u7_layer = PreWeightContractLayerObject(
-        uid="u7_kataba_layer",
-        units=(u7_unit,),
-        source_mabni_layer_id="u6_layer",
-        trace_6=("u6_layer",),
+    u7c_layer = ClauseSurfaceAgreementLayerObject(
+        uid="u7c_kataba_layer",
+        units=(u7c_unit,),
+        agreement_edges=(),
+        agreement_candidates=(),
+        broken_plural_guards=(),
+        source_u7b_layer_id="u7b_layer",
+        trace_7b=("u7b_layer",),
         residuals=frozenset(),
         rank=Rank.CANDIDATE,
         proof=None
     )
 
-    result = root_stem_candidate_8(u7_layer)
+    result = root_stem_candidate_8(u7c_layer)
 
     assert result.success
     unit = result.layer_object.units[0]
