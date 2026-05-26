@@ -527,3 +527,184 @@ class TestBlockedSegments:
         # Both prefix and suffix should be blocked
         assert "ي" in unit.blocked_root_segments
         assert "ون" in unit.blocked_root_segments
+
+
+# ============================================================================
+# CRITICAL: Broken Plural Deferral Tests (Protection-or-Defer Policy)
+# ============================================================================
+
+class TestBrokenPluralDeferral:
+    """
+    CRITICAL tests for broken plural deferral policy.
+
+    Architectural law: No broken plural enters U₈ as raw singular/root input.
+    Closure criteria: Broken plurals must defer root_input pending lexical evidence.
+    """
+
+    def test_rijal_broken_plural_deferred(self):
+        """
+        Test رجال (men) - فِعال pattern broken plural.
+
+        CRITICAL: Must defer root_input, NOT pass as 'رجال' to U₈.
+        Pattern: فِعال (fi3aal)
+        Expected: root_input=DEFERRED, broken_plural_hint=POSSIBLE
+        """
+        u7_unit = make_test_u7_unit("رجال")
+        u7_layer = make_test_u7_layer([u7_unit])
+
+        result = inflectional_surface_contract_7b(u7_layer)
+        unit = result.layer_object.units[0]
+
+        # Import RootInputPermission after confirming module structure
+        from dal_core.u7b_inflectional_surface_contract_carrier import RootInputPermission
+
+        # CRITICAL assertions
+        assert unit.surface == "رجال"
+        assert unit.root_input_permission == RootInputPermission.DEFERRED, \
+            "رجال must defer root_input (broken plural فِعال pattern)"
+        assert unit.root_input == "", \
+            "root_input must be empty when deferred"
+        assert unit.broken_plural_surface_hint == MarkerHint.POSSIBLE, \
+            "فِعال pattern should be marked as POSSIBLE broken plural"
+        assert unit.broken_plural_pattern_hint == "فِعال", \
+            "Should detect فِعال pattern"
+
+        # Must have deferral residual
+        residual_messages = [str(r) for r in unit.residuals]
+        assert any("broken_plural_deferred" in msg for msg in residual_messages), \
+            "Must emit broken_plural_deferred residual"
+
+    def test_madaris_broken_plural_deferred(self):
+        """
+        Test مدارس (schools) - مَفاعِل pattern broken plural.
+
+        CRITICAL: Must defer root_input, NOT pass as 'مدرس' to U₈.
+        Pattern: مَفاعِل (mafaa3il)
+        Expected: root_input=DEFERRED, broken_plural_hint=POSSIBLE
+        """
+        u7_unit = make_test_u7_unit("مدارس")
+        u7_layer = make_test_u7_layer([u7_unit])
+
+        result = inflectional_surface_contract_7b(u7_layer)
+        unit = result.layer_object.units[0]
+
+        from dal_core.u7b_inflectional_surface_contract_carrier import RootInputPermission
+
+        # CRITICAL assertions
+        assert unit.surface == "مدارس"
+        assert unit.root_input_permission == RootInputPermission.DEFERRED, \
+            "مدارس must defer root_input (broken plural مَفاعِل pattern)"
+        assert unit.root_input == "", \
+            "root_input must be empty when deferred"
+        assert unit.broken_plural_surface_hint == MarkerHint.POSSIBLE, \
+            "مَفاعِل pattern should be marked as POSSIBLE broken plural"
+        assert unit.broken_plural_pattern_hint == "مَفاعِل", \
+            "Should detect مَفاعِل pattern"
+
+        # Must have deferral residual
+        residual_messages = [str(r) for r in unit.residuals]
+        assert any("broken_plural_deferred" in msg for msg in residual_messages)
+
+    def test_kutub_ambiguous_broken_plural_deferred(self):
+        """
+        Test كتب (books or he wrote) - AMBIGUOUS فُعُل pattern.
+
+        CRITICAL: Must defer root_input due to ambiguity.
+        Pattern: فُعُل (fu3ul) - could be broken plural OR verb past tense
+        Expected: root_input=DEFERRED, broken_plural_hint=AMBIGUOUS
+        """
+        u7_unit = make_test_u7_unit("كتب")
+        u7_layer = make_test_u7_layer([u7_unit])
+
+        result = inflectional_surface_contract_7b(u7_layer)
+        unit = result.layer_object.units[0]
+
+        from dal_core.u7b_inflectional_surface_contract_carrier import RootInputPermission
+
+        # CRITICAL assertions
+        assert unit.surface == "كتب"
+        assert unit.root_input_permission == RootInputPermission.DEFERRED, \
+            "كتب must defer root_input (AMBIGUOUS: broken plural فُعُل OR verb)"
+        assert unit.root_input == "", \
+            "root_input must be empty when deferred"
+        assert unit.broken_plural_surface_hint == MarkerHint.AMBIGUOUS, \
+            "فُعُل pattern is AMBIGUOUS (could be plural or verb)"
+        assert unit.broken_plural_pattern_hint == "فُعُل", \
+            "Should detect فُعُل pattern"
+
+        # Must have deferral residual
+        residual_messages = [str(r) for r in unit.residuals]
+        assert any("broken_plural_deferred" in msg for msg in residual_messages)
+
+    def test_non_broken_plural_allowed(self):
+        """
+        Test كتاب (book) - NOT broken plural, should ALLOW root_input.
+
+        CRITICAL: Regular singular forms should proceed normally.
+        Expected: root_input=ALLOWED, broken_plural_hint=UNLIKELY
+        """
+        u7_unit = make_test_u7_unit("كتاب")
+        u7_layer = make_test_u7_layer([u7_unit])
+
+        result = inflectional_surface_contract_7b(u7_layer)
+        unit = result.layer_object.units[0]
+
+        from dal_core.u7b_inflectional_surface_contract_carrier import RootInputPermission
+
+        # Should be ALLOWED (not broken plural)
+        assert unit.surface == "كتاب"
+        assert unit.root_input_permission == RootInputPermission.ALLOWED, \
+            "كتاب is singular, should ALLOW root_input"
+        assert unit.root_input == "كتاب", \
+            "root_input should equal protected_core for allowed forms"
+        assert unit.broken_plural_surface_hint in [MarkerHint.UNLIKELY, MarkerHint.UNRESOLVED], \
+            "Should NOT detect broken plural pattern"
+
+
+# ============================================================================
+# Pronoun Suffix Protection Tests
+# ============================================================================
+
+class TestPronounSuffixProtection:
+    """Test pronoun suffix detection and protection (ـه، ـها، ـهم، ـنا، ـك)."""
+
+    def test_pronoun_suffix_hu(self):
+        """Test كتابه (his book) - ـه pronoun suffix."""
+        u7_unit = make_test_u7_unit("كتابه")
+        u7_layer = make_test_u7_layer([u7_unit])
+
+        result = inflectional_surface_contract_7b(u7_layer)
+        unit = result.layer_object.units[0]
+
+        assert unit.surface == "كتابه"
+        assert "ه" in unit.protected_pronoun_suffixes or "ـه" in unit.protected_pronoun_suffixes, \
+            "Should protect ـه pronoun suffix"
+        assert unit.pronoun_suffix_hint == MarkerHint.POSSIBLE
+        assert unit.protected_core == "كتاب", \
+            "Should strip pronoun suffix from core"
+
+    def test_pronoun_suffix_haa(self):
+        """Test كتابها (her book) - ـها pronoun suffix."""
+        u7_unit = make_test_u7_unit("كتابها")
+        u7_layer = make_test_u7_layer([u7_unit])
+
+        result = inflectional_surface_contract_7b(u7_layer)
+        unit = result.layer_object.units[0]
+
+        assert unit.surface == "كتابها"
+        assert "ها" in unit.protected_pronoun_suffixes or "ـها" in unit.protected_pronoun_suffixes
+        assert unit.pronoun_suffix_hint == MarkerHint.POSSIBLE
+        assert unit.protected_core == "كتاب"
+
+    def test_pronoun_suffix_hum(self):
+        """Test كتابهم (their book) - ـهم pronoun suffix."""
+        u7_unit = make_test_u7_unit("كتابهم")
+        u7_layer = make_test_u7_layer([u7_unit])
+
+        result = inflectional_surface_contract_7b(u7_layer)
+        unit = result.layer_object.units[0]
+
+        assert unit.surface == "كتابهم"
+        assert "هم" in unit.protected_pronoun_suffixes or "ـهم" in unit.protected_pronoun_suffixes
+        assert unit.pronoun_suffix_hint == MarkerHint.POSSIBLE
+        assert unit.protected_core == "كتاب"

@@ -114,6 +114,17 @@ class MarkerHint(Enum):
     BLOCKED = "blocked"                # محجوب
 
 
+class RootInputPermission(Enum):
+    """
+    Permission status for root_input to proceed to U₈.
+
+    CRITICAL: U₈ must never receive unprotected surface.
+    """
+    ALLOWED = "allowed"                # مسموح - protected surface, safe for U₈
+    DEFERRED = "deferred"              # مؤجل - needs lexical/pattern evidence
+    BLOCKED = "blocked"                # محجوب - cannot proceed to root extraction
+
+
 # ============================================================================
 # Failure Types
 # ============================================================================
@@ -167,6 +178,15 @@ class InflectionalSurfaceContractUnit:
 
     protected_core: str  # Core after marker protection (≠ surface)
     root_input: str      # Licensed input for U₈ root extraction (≠ surface, ≠ protected_core in some cases)
+    root_input_permission: RootInputPermission  # CRITICAL: permission for U₈ to consume root_input
+
+    # Broken plural special handling
+    broken_plural_surface_hint: MarkerHint     # جمع التكسير surface hint
+    broken_plural_pattern_hint: str            # Pattern hint (فعال، مفاعل، etc.) or empty
+
+    # Pronoun suffix protection
+    pronoun_suffix_hint: MarkerHint            # لاحقات الضمائر hint
+    protected_pronoun_suffixes: Tuple[str, ...]  # Pronoun suffixes (ـه، ـها، ـهم، etc.)
 
     # Marker hints (all "possible"/"unlikely"/"unresolved", NOT judgments)
     definiteness_marker_hint: MarkerHint  # الـ marker hint
@@ -498,6 +518,90 @@ def _detect_mazid_markers(surface: str) -> Tuple[Tuple[str, ...], MarkerHint]:
     return ((), MarkerHint.UNRESOLVED)
 
 
+def _detect_broken_plural(surface: str) -> Tuple[MarkerHint, str]:
+    """
+    Detect broken plural patterns (جمع التكسير).
+
+    CRITICAL: Broken plurals cannot be treated as simple suffix stripping.
+    They require lexical or pattern-based resolution.
+
+    Returns:
+        (broken_plural_hint, pattern_hint_string)
+    """
+    # Remove diacritics for pattern matching
+    surface_no_diacritics = ''.join(
+        c for c in surface
+        if c not in ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ']
+    )
+
+    # Common broken plural patterns
+    # This is a simplified detection - real implementation would be more comprehensive
+
+    # فعال pattern (e.g., رجال)
+    if len(surface_no_diacritics) == 4:
+        # Could be فعال
+        return (MarkerHint.POSSIBLE, "فعال_possible")
+
+    # مفاعل pattern (e.g., مدارس)
+    if surface_no_diacritics.startswith('م') and len(surface_no_diacritics) >= 5:
+        return (MarkerHint.POSSIBLE, "مفاعل_possible")
+
+    # فُعُل / فُعَل pattern (e.g., كتب)
+    if len(surface_no_diacritics) == 3:
+        # Could be broken plural OR verb OR singular
+        # This is highly ambiguous
+        return (MarkerHint.AMBIGUOUS, "ambiguous_فعل_pattern")
+
+    return (MarkerHint.UNRESOLVED, "")
+
+
+def _detect_pronoun_suffixes(surface: str) -> Tuple[Tuple[str, ...], MarkerHint]:
+    """
+    Detect pronoun suffixes (لاحقات الضمائر).
+
+    Returns:
+        (protected_pronoun_suffixes, hint)
+    """
+    # Remove diacritics for detection
+    surface_no_diacritics = ''.join(
+        c for c in surface
+        if c not in ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ']
+    )
+
+    # Common pronoun suffixes
+    # ـه (his/it), ـها (her/it), ـهم (their), ـهما (their dual), ـنا (our/us),
+    # ـك (your masc), ـكِ (your fem), ـكم (your plural masc), ـكن (your plural fem)
+
+    pronoun_suffixes = []
+
+    # Check for multi-character suffixes first
+    if surface_no_diacritics.endswith('هما'):
+        pronoun_suffixes.append('ـهما')
+    elif surface_no_diacritics.endswith('هم'):
+        pronoun_suffixes.append('ـهم')
+    elif surface_no_diacritics.endswith('ها'):
+        pronoun_suffixes.append('ـها')
+    elif surface_no_diacritics.endswith('كم'):
+        pronoun_suffixes.append('ـكم')
+    elif surface_no_diacritics.endswith('كن'):
+        pronoun_suffixes.append('ـكن')
+    elif surface_no_diacritics.endswith('نا'):
+        pronoun_suffixes.append('ـنا')
+    elif surface_no_diacritics.endswith('ه'):
+        # Could be pronoun, needs context
+        pronoun_suffixes.append('ـه')
+    elif surface_no_diacritics.endswith('ك'):
+        pronoun_suffixes.append('ـك')
+    elif surface_no_diacritics.endswith('ي'):
+        # Could be pronoun (my) or other marker
+        pronoun_suffixes.append('ـي')
+
+    if pronoun_suffixes:
+        return (tuple(pronoun_suffixes), MarkerHint.POSSIBLE)
+
+    return ((), MarkerHint.UNRESOLVED)
+
+
 def _strip_protected_markers(
     surface: str,
     protected_prefixes: Tuple[str, ...],
@@ -595,9 +699,15 @@ def inflectional_surface_contract_7b(
         verb_prefixes, verb_prefix_hint = _detect_verb_prefix_markers(surface)
         mazid_prefixes, mazid_hint = _detect_mazid_markers(surface)
 
+        # NEW: Detect broken plural (CRITICAL for deferral)
+        broken_plural_hint, broken_plural_pattern = _detect_broken_plural(surface)
+
+        # NEW: Detect pronoun suffixes
+        pronoun_suffixes, pronoun_suffix_hint = _detect_pronoun_suffixes(surface)
+
         # Combine protected markers
         all_protected_prefixes = definiteness_prefixes + verb_prefixes + mazid_prefixes
-        all_protected_suffixes = number_suffixes + gender_suffixes
+        all_protected_suffixes = number_suffixes + gender_suffixes + pronoun_suffixes
 
         # Strip markers to produce protected_core
         protected_core = _strip_protected_markers(
@@ -606,19 +716,42 @@ def inflectional_surface_contract_7b(
             all_protected_suffixes
         )
 
-        # root_input is same as protected_core (for now - can be refined later)
+        # CRITICAL POLICY: Protection-or-defer for root_input
+        # If marker family is not protected, root_input must be deferred
+        root_input_permission = RootInputPermission.ALLOWED
         root_input = protected_core
-
-        # Build blocked segments (markers should not be consumed by root/weight)
-        blocked_root_segments = all_protected_prefixes + all_protected_suffixes
-        blocked_weight_segments = all_protected_prefixes + all_protected_suffixes
 
         # Collect residuals
         unit_residuals = list(contract_unit.residuals)
+
+        # Check for unprotected or ambiguous marker families
+        # BROKEN PLURAL: Must defer (cannot be treated as simple stripping)
+        if broken_plural_hint in [MarkerHint.POSSIBLE, MarkerHint.AMBIGUOUS]:
+            root_input_permission = RootInputPermission.DEFERRED
+            root_input = ""  # Empty - deferred pending lexical/pattern evidence
+            unit_residuals.append(
+                make_warning(
+                    "broken_plural_deferred",
+                    f"Broken plural surface detected (pattern: {broken_plural_pattern}), root_input deferred pending lexical/pattern resolution"
+                )
+            )
+
+        # AMBIGUOUS NUMBER MARKER: Add residual
         if number_hint == MarkerHint.AMBIGUOUS:
             unit_residuals.append(
                 make_warning("ambiguous_number_marker", "ين could be dual, sound masculine plural, or case marker")
             )
+
+        # PRONOUN SUFFIX: If detected but not fully protected, defer
+        # (This is conservative - we protect what we detect, but if ambiguous, we defer)
+        if pronoun_suffix_hint == MarkerHint.AMBIGUOUS:
+            unit_residuals.append(
+                make_warning("ambiguous_pronoun_suffix", "Pronoun suffix detected but context needed for certainty")
+            )
+
+        # Build blocked segments (markers should not be consumed by root/weight)
+        blocked_root_segments = all_protected_prefixes + all_protected_suffixes
+        blocked_weight_segments = all_protected_prefixes + all_protected_suffixes
 
         # Build InflectionalSurfaceContractUnit
         contract_unit_obj = InflectionalSurfaceContractUnit(
@@ -632,6 +765,7 @@ def inflectional_surface_contract_7b(
             protected_vowels=(),   # Passive vowel patterns - not implemented yet
             protected_core=protected_core,
             root_input=root_input,
+            root_input_permission=root_input_permission,
             definiteness_marker_hint=definiteness_hint,
             tanwin_marker_hint=tanwin_hint,
             number_marker_hint=number_hint,
@@ -647,6 +781,10 @@ def inflectional_surface_contract_7b(
             verb_suffix_hint=MarkerHint.UNRESOLVED,
             passive_surface_hint=MarkerHint.UNRESOLVED,
             mazid_extra_hint=mazid_hint,
+            broken_plural_surface_hint=broken_plural_hint,
+            broken_plural_pattern_hint=broken_plural_pattern,
+            pronoun_suffix_hint=pronoun_suffix_hint,
+            protected_pronoun_suffixes=pronoun_suffixes,
             proper_name_surface_hint=contract_unit.proper_name_surface_potential,
             loanword_surface_hint=contract_unit.loanword_surface_potential,
             jamid_surface_hint=contract_unit.jamid_surface_potential,
@@ -700,6 +838,7 @@ def inflectional_surface_contract_7b(
 __all__ = [
     # Core types
     'MarkerHint',
+    'RootInputPermission',
 
     # Structures
     'InflectionalSurfaceContractUnit',

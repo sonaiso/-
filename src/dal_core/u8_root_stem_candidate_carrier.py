@@ -649,7 +649,79 @@ def root_stem_candidate_8(
     all_residuals = []
 
     for contract_unit in inflectional_surface_layer.units:
-        # Check if blocked_root_segments indicates blocking
+        # CRITICAL: Check root_input_permission FIRST
+        # Import RootInputPermission from U₇-B
+        from dal_core.u7b_inflectional_surface_contract_carrier import RootInputPermission
+
+        # Handle DEFERRED root_input (broken plurals, unresolved markers)
+        if hasattr(contract_unit, 'root_input_permission') and \
+           contract_unit.root_input_permission == RootInputPermission.DEFERRED:
+            # Root/stem extraction DEFERRED - cannot proceed
+            deferred_unit = RootStemCandidateUnit(
+                uid=str(uuid4()),
+                surface=contract_unit.surface,
+                protected_core=contract_unit.protected_core,
+                root_input=contract_unit.root_input,  # Empty or deferred
+                source_u7b_unit_id=contract_unit.uid,
+                source_u7b_trace=contract_unit.source_u7_trace,
+                root_status=RootCandidateStatus.DEFERRED,
+                stem_status=StemCandidateStatus.DEFERRED,
+                root_candidate_paths=(),  # No candidates - deferred
+                stem_candidate_paths=(),  # No candidates - deferred
+                radical_count_hint=RadicalCountHint.UNRESOLVED,
+                weak_radical_hint=WeakRadicalHint.UNRESOLVED,
+                jamid_blocking_potential=contract_unit.jamid_surface_hint,
+                proper_name_blocking_potential=contract_unit.proper_name_surface_hint,
+                loanword_blocking_potential=contract_unit.loanword_surface_hint,
+                frozen_primitive_blocking_potential=contract_unit.frozen_primitive_surface_hint,
+                required_evidence=("lexical_attestation", "pattern_verification"),
+                blocked_paths=tuple(["root_extraction_deferred", "stem_extraction_deferred"]),
+                residuals=contract_unit.residuals,
+                rank=contract_unit.rank,
+                trace=contract_unit.trace
+            )
+            candidate_units.append(deferred_unit)
+            all_residuals.extend(list(contract_unit.residuals))
+            # Add warning residual
+            all_residuals.append(
+                make_warning(
+                    "root_input_deferred",
+                    f"Root/stem extraction deferred for '{contract_unit.surface}' - needs lexical/pattern evidence"
+                )
+            )
+            continue
+
+        # Handle BLOCKED root_input
+        if hasattr(contract_unit, 'root_input_permission') and \
+           contract_unit.root_input_permission == RootInputPermission.BLOCKED:
+            blocked_unit = RootStemCandidateUnit(
+                uid=str(uuid4()),
+                surface=contract_unit.surface,
+                protected_core=contract_unit.protected_core,
+                root_input=contract_unit.root_input,
+                source_u7b_unit_id=contract_unit.uid,
+                source_u7b_trace=contract_unit.source_u7_trace,
+                root_status=RootCandidateStatus.BLOCKED,
+                stem_status=StemCandidateStatus.BLOCKED,
+                root_candidate_paths=(),
+                stem_candidate_paths=(),
+                radical_count_hint=RadicalCountHint.UNRESOLVED,
+                weak_radical_hint=WeakRadicalHint.UNRESOLVED,
+                jamid_blocking_potential=contract_unit.jamid_surface_hint,
+                proper_name_blocking_potential=contract_unit.proper_name_surface_hint,
+                loanword_blocking_potential=contract_unit.loanword_surface_hint,
+                frozen_primitive_blocking_potential=contract_unit.frozen_primitive_surface_hint,
+                required_evidence=(),
+                blocked_paths=tuple(["root_extraction_blocked", "stem_extraction_blocked"]),
+                residuals=contract_unit.residuals,
+                rank=contract_unit.rank,
+                trace=contract_unit.trace
+            )
+            candidate_units.append(blocked_unit)
+            all_residuals.extend(list(contract_unit.residuals))
+            continue
+
+        # Check if blocked_root_segments indicates blocking (legacy check)
         if contract_unit.blocked_root_segments:
             # Unit blocked - no root/stem extraction
             blocked_unit = RootStemCandidateUnit(

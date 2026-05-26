@@ -233,6 +233,60 @@ Output:
   - blocked_root_segments = ("است",)
 ```
 
+### 10. Broken Plural - فِعال Pattern (CRITICAL)
+
+```
+Input:  رجال
+Output:
+  - surface = "رجال"
+  - protected_core = "رجال"
+  - root_input = "" (EMPTY - deferred)
+  - root_input_permission = DEFERRED
+  - broken_plural_surface_hint = POSSIBLE
+  - broken_plural_pattern_hint = "فِعال"
+  - residuals += ("broken_plural_deferred")
+```
+
+### 11. Broken Plural - مَفاعِل Pattern (CRITICAL)
+
+```
+Input:  مدارس
+Output:
+  - surface = "مدارس"
+  - protected_core = "مدارس"
+  - root_input = "" (EMPTY - deferred)
+  - root_input_permission = DEFERRED
+  - broken_plural_surface_hint = POSSIBLE
+  - broken_plural_pattern_hint = "مَفاعِل"
+  - residuals += ("broken_plural_deferred")
+```
+
+### 12. Broken Plural - فُعُل AMBIGUOUS (CRITICAL)
+
+```
+Input:  كتب
+Output:
+  - surface = "كتب"
+  - protected_core = "كتب"
+  - root_input = "" (EMPTY - deferred)
+  - root_input_permission = DEFERRED
+  - broken_plural_surface_hint = AMBIGUOUS
+  - broken_plural_pattern_hint = "فُعُل"
+  - residuals += ("broken_plural_deferred", "ambiguous_plural_or_verb")
+```
+
+### 13. Pronoun Suffix - ـه
+
+```
+Input:  كتابه
+Output:
+  - surface = "كتابه"
+  - protected_pronoun_suffixes = ("ه",)
+  - protected_core = "كتاب"
+  - root_input = "كتاب"
+  - pronoun_suffix_hint = POSSIBLE
+```
+
 ## Impact on U₈ RootStemCandidate
 
 ### Before Refactoring
@@ -249,7 +303,17 @@ def root_stem_candidate_8(pre_weight_layer: PreWeightContractLayerObject):
 ```python
 def root_stem_candidate_8(inflectional_surface_layer: InflectionalSurfaceContractLayerObject):
     for unit in inflectional_surface_layer.units:
-        # ✅ Extracting from protected root_input
+        # CRITICAL: Check root_input_permission FIRST
+        if unit.root_input_permission == RootInputPermission.DEFERRED:
+            # Cannot extract - broken plural or unresolved marker
+            # Emit DEFERRED status, await lexical/pattern evidence
+            continue
+
+        if unit.root_input_permission == RootInputPermission.BLOCKED:
+            # Extraction blocked
+            continue
+
+        # ✅ Extracting from protected root_input (ALLOWED)
         root_candidates = _extract_root_candidates(
             unit.root_input,        # NOT unit.surface
             unit.protected_core,
@@ -260,14 +324,41 @@ def root_stem_candidate_8(inflectional_surface_layer: InflectionalSurfaceContrac
 ### Key Changes in U₈
 
 1. **Input type changed**: `PreWeightContractLayerObject` → `InflectionalSurfaceContractLayerObject`
-2. **Root extraction uses `root_input`**: NOT raw `surface`
-3. **Stem extraction uses `protected_core`**: Higher confidence (0.7 vs 0.6)
-4. **Blocking logic changed**: Checks `blocked_root_segments` instead of `root_path_permission`
-5. **Additional fields in RootStemCandidateUnit**:
+2. **CRITICAL: Check `root_input_permission` before extraction**:
+   - `DEFERRED` → Cannot extract, await evidence (broken plurals, ambiguous markers)
+   - `BLOCKED` → Extraction blocked
+   - `ALLOWED` → Proceed with extraction
+3. **Root extraction uses `root_input`**: NOT raw `surface`
+4. **Stem extraction uses `protected_core`**: Higher confidence (0.7 vs 0.6)
+5. **Blocking logic changed**: Checks `blocked_root_segments` and `root_input_permission`
+6. **Additional fields in RootStemCandidateUnit**:
    - `protected_core: str`
    - `root_input: str`
    - `source_u7b_unit_id` (instead of `source_u7_unit_id`)
    - `source_u7b_trace` (instead of `source_u7_trace`)
+
+### CRITICAL: Broken Plural Handling
+
+**Before U₇-B**:
+```python
+# رجال (men) would be passed to U₈ as raw surface
+# U₈ might incorrectly extract root as ر-ج-ل
+```
+
+**After U₇-B**:
+```python
+# رجال detected as broken plural (فِعال pattern)
+# root_input_permission = DEFERRED
+# root_input = "" (empty)
+# U₈ cannot extract - emits DEFERRED status
+# Residual: "broken_plural_deferred" awaiting lexical evidence
+```
+
+**Examples**:
+- `رجال` (men) - فِعال pattern → DEFERRED
+- `مدارس` (schools) - مَفاعِل pattern → DEFERRED
+- `كتب` (books/wrote) - فُعُل pattern AMBIGUOUS → DEFERRED
+- `كتاب` (book) - NOT broken plural → ALLOWED
 
 ## Execution Layer Registry Updates
 
@@ -430,8 +521,35 @@ U₇-B InflectionalSurfaceContract is a **mandatory intermediate layer** that:
 1. **Protects** surface markers from being consumed by root/weight extraction
 2. **Separates** `surface` → `protected_core` → `root_input`
 3. **Classifies** markers as hints (POSSIBLE/UNLIKELY/UNRESOLVED/AMBIGUOUS)
-4. **Blocks** segments from being included in root/weight
-5. **Preserves** trace and residuals
-6. **Forbids** premature judgments (no root, weight, hukm, i3rab_final)
+4. **Defers** broken plurals and unresolved markers via `root_input_permission` (ALLOWED/DEFERRED/BLOCKED)
+5. **Blocks** segments from being included in root/weight
+6. **Preserves** trace and residuals
+7. **Forbids** premature judgments (no root, weight, hukm, i3rab_final)
 
-This closes the architectural gap and ensures U₈ operates on **licensed, protected input** rather than raw surface forms.
+### CRITICAL: Protection-or-Defer Policy
+
+U₇-B implements the **protection-or-defer** architectural law:
+
+```
+If marker family is not protected → root_input must be deferred
+```
+
+**Protected marker families**:
+- Definiteness (الـ)
+- Tanwīn (ـٌ، ـاً، ـٍ)
+- Number markers (ان، ين، ون، ات)
+- Gender markers (ة)
+- Verb prefixes (ي، ت، ن، أ)
+- Mazīd augmentation (است، انـ، etc.)
+- Pronoun suffixes (ـه، ـها، ـهم، ـنا، ـك)
+
+**Deferred marker families** (awaiting lexical/pattern evidence):
+- Broken plurals (جمع التكسير) - فِعال، مَفاعِل، فُعُل patterns
+- Ambiguous forms (كتب - could be plural or verb)
+
+**Test coverage**: 13 golden cases including:
+- 9 original marker protection cases (الكتاب, كتابٌ, مسلمان, etc.)
+- 3 broken plural deferral cases (رجال, مدارس, كتب) - **CRITICAL**
+- Pronoun suffix protection (كتابه, كتابها, كتابهم)
+
+This closes the architectural gap and ensures U₈ operates on **licensed, protected input** rather than raw surface forms. **No broken plural enters U₈ as raw singular/root input.**
