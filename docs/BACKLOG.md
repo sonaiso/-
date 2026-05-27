@@ -64,9 +64,10 @@ LEXICAL_FORM_DOMAIN = "lexical_form_domain"  # الصيغة المعجمية ا�
 
 ### 3. dal_contract without dal_domain Validation Gap
 
-**Status**: MINOR GAP
+**Status**: ✅ RESOLVED (PR-124)
 **Impact**: MEDIUM
 **Identified In**: PR-122 review
+**Resolved In**: PR-124 (2026-05-27)
 
 **Issue**:
 Current validator allows:
@@ -82,7 +83,7 @@ if dal_domain is None:
     return tuple(violations)  # Early return, no dal_contract check
 ```
 
-**Required Action**:
+**Resolution**:
 ```python
 # In dal_kernel_validators.py, validate_dal_kernel_mapping():
 # Before early return for dal_domain=None:
@@ -93,11 +94,16 @@ if dal_contract is not None and dal_claim_scope is None:
     violations.append("dal_contract requires dal_claim_scope")
 ```
 
-**Impact**:
-- Currently low (dal_contract rarely used without dal_domain)
-- Could cause inconsistency if contract used standalone
+**Tests Added** (5 tests):
+- `test_dal_contract_without_dal_domain_is_violation`
+- `test_dal_contract_without_dal_claim_scope_is_violation`
+- `test_dal_contract_without_both_domain_and_scope_has_two_violations`
+- `test_approved_context_rejects_dal_contract_without_domain`
+- `test_approved_context_rejects_dal_contract_without_claim_scope`
 
-**Priority**: Add in next validator tightening PR
+**Constitutional Law Enforced**:
+- No contract without domain.
+- No contract without claim scope.
 
 ---
 
@@ -151,31 +157,33 @@ DalTransitionDomain.WORDFORM: frozenset({
 
 ### 5. ApprovedTransitionContext dal_contract Enforcement
 
-**Status**: PARTIAL ENFORCEMENT
+**Status**: ✅ RESOLVED (PR-124)
 **Impact**: LOW-MEDIUM
 **Identified In**: PR-122 implementation
+**Resolved In**: PR-124 (2026-05-27)
 
-**Current**:
+**Previous State**:
 ```python
 # ApprovedTransitionContext.__post_init__() only checks if dal_domain OR dal_claim_scope present:
 if self.audit.dal_domain is not None or self.audit.dal_claim_scope is not None:
     # validate
 ```
 
-**Missing**:
+**Resolution**:
 ```python
-# Should also trigger validation if dal_contract present alone:
+# Now also triggers validation if dal_contract present alone:
 if (self.audit.dal_domain is not None
     or self.audit.dal_claim_scope is not None
-    or self.audit.dal_contract is not None):  # ← Add this
+    or self.audit.dal_contract is not None):  # ✅ Added
     # validate
 ```
 
 **Impact**:
-- Unforgeable tokens could theoretically be created with dal_contract but no domain
-- Low risk if dal_contract validation (issue #3 above) is fixed first
+- Previously: Unforgeable tokens could theoretically be created with dal_contract but no domain
+- Now: Full validation enforced whenever dal_contract is present
+- Combined with issue #3 fix, ensures complete dal_contract validation chain
 
-**Priority**: Address after fixing issue #3
+**Tests**: Covered by PR-124 tests (see issue #3 above)
 
 ---
 
@@ -379,6 +387,12 @@ def test_construction_failure_raises_exception():
 ---
 
 ## Version History
+
+- **2026-05-27 (PR-124)**: Items #3 and #5 resolved
+  - Tightened dal_contract validation
+  - Added 5 new tests for dal_contract without dal_domain/dal_claim_scope
+  - ApprovedTransitionContext now triggers validation for dal_contract
+  - Constitutional law enforced: "No contract without domain. No contract without claim scope."
 
 - **2026-05-27**: Initial BACKLOG created (Post PR-1C)
   - 12 items identified
