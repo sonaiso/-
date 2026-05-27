@@ -2,9 +2,43 @@
 # Unified Algebra Plan - Corrective Edition
 
 **Purpose**: Unify existing algebraic achievements into coherent system
-**Status**: Phase 1 - Inventory and Mapping
+**Status**: Phase 1A - In Progress (Correcting Code Mismatches)
 **Created**: 2026-05-27
+**Last Updated**: 2026-05-27 (Corrective revision)
 **Constitutional Authority**: Evidence-indexed Typed Partial Algebra
+
+---
+
+## جدول التحقق من المخزون (Inventory Verification Table)
+
+| Component | File Path | Status | Line Count | Verification |
+|-----------|-----------|--------|------------|--------------|
+| dal_algebra.py | `src/dal_core/dal_algebra.py` | ✅ Exists | 544 lines | ✅ Verified |
+| DalTransitionDomain | dal_algebra.py:34-47 | ✅ Corrected | 8 values | ✅ Enum names match code |
+| DalClaimScope | dal_algebra.py:50-67 | ✅ Corrected | 11 values | ✅ Enum names match code |
+| DalEvidence | dal_algebra.py:102-122 | ✅ Verified | dataclass | ✅ Fields match code |
+| DalTraceRef | dal_algebra.py:144-154 | ✅ Verified | dataclass | ✅ Fields match code |
+| SyllableCandidate | `src/dal_core/syllable_candidate.py` | ✅ Exists | - | ✅ Imports dal_algebra (line 38) |
+| AlgebraicDecisionCore | `src/dal_core/algebraic_decision_core.py` | ✅ Exists | 667 lines | ⚠️ Relationship unclear |
+| MufradProof | `src/dal_core/mufrad_proof.py` | ⚠️ UNVERIFIED | - | ⚠️ Not re-read |
+| PreSyntaxMufradVector | `src/dal_core/presyntax_vector.py` | ⚠️ UNVERIFIED | - | ⚠️ Not re-read |
+| RelationAlgebraCore | `src/dal_core/relation_algebra_core.py` | ⚠️ UNVERIFIED | "690 lines" | ⚠️ Not re-verified |
+| SlotGeometry | - | ❌ MISSING | N/A | ❌ Does not exist |
+| AlgebraicFailure | - | ❌ MISSING | N/A | ❌ Not in dal_algebra.py |
+| RelationClosure | - | ❌ MISSING | N/A | ❌ Does not exist |
+| IfadahCandidate | - | ❌ MISSING | N/A | ❌ Does not exist |
+
+**Legend**:
+- ✅ **Verified**: Checked against actual code in this session
+- ⚠️ **UNVERIFIED**: Mentioned in document but not re-verified in this session
+- ❌ **MISSING**: Confirmed to not exist (expected gap to be filled in later PRs)
+
+**Key Findings**:
+1. Enum names were hallucinated (D0_GRAPHOPHONEMIC vs GRAPHOPHONEMIC)
+2. Line counts were estimates ("400+") not actual (544)
+3. DalClaimScope values were completely wrong
+4. Many components mentioned but not re-verified
+5. **Action Required**: Either verify all UNVERIFIED items or mark as "claimed from prior knowledge"
 
 ---
 
@@ -36,53 +70,90 @@
 
 ### 1. dal_algebra.py - النواة الموجودة (Existing Kernel)
 
-**File**: `src/dal_core/dal_algebra.py` (400+ lines)
+**File**: `src/dal_core/dal_algebra.py` (544 lines total)
 
-**Core Components**:
+**Core Components** (VERIFIED FROM ACTUAL CODE):
+
 ```python
 # Lines 34-47: DalTransitionDomain (8 layers)
 class DalTransitionDomain(Enum):
-    D0_GRAPHOPHONEMIC = auto()
-    D1_SYLLABIC = auto()
-    D2_PRE_MORPH = auto()
-    D3_ORIGIN = auto()
-    D4_TEMPLATE = auto()
-    D5_IDENTITY_AXIS = auto()
-    D6_DIRECTIONAL_ANALYSIS = auto()
-    D7_JUDGMENT = auto()
+    """8-layer transition domain architecture (D0-D7)."""
+    GRAPHOPHONEMIC = auto()      # D0: رسم/صوت - Carrier → Atom
+    SYLLABIC = auto()            # D1: مقطع - Atom → Syllable
+    PRE_MORPH = auto()           # D2: ما قبل الصرف - Pre-morphological
+    ORIGIN = auto()              # D3: أصل - Root/frozen/functional
+    TEMPLATE = auto()            # D4: وزن - Pattern matching
+    IDENTITY_AXIS = auto()       # D5: محور الهوية - Ism/Fi'l/Harf
+    DIRECTIONAL_ANALYSIS = auto() # D6: تحليل اتجاهي
+    JUDGMENT = auto()            # D7: حكم صرفي - Morphological judgment
 
-# Lines 50-68: DalClaimScope
+# Lines 50-67: DalClaimScope (ACTUAL NAMES)
 class DalClaimScope(Enum):
-    ATOM_TRANSITION = auto()
-    SYLLABLE_FORMATION = auto()
-    BOUNDARY_DETECTION = auto()
-    MORPHOLOGICAL_ANALYSIS = auto()
-    TYPE_INFERENCE = auto()
-    FRAME_CONSTRUCTION = auto()
-    OPERATOR_APPLICATION = auto()
+    """Scope of claim for dal certificate."""
+    CARRIER_VALID = auto()           # Unicode carrier is valid Arabic
+    ATOM_SEQUENCE_VALID = auto()     # Atom sequence is well-formed
+    SYLLABLE_STRUCTURE_VALID = auto() # Syllable structure is valid
+    ORIGIN_CLASSIFIED = auto()       # Origin is classified
+    TEMPLATE_MATCHED = auto()        # Template pattern matched
+    IDENTITY_DETERMINED = auto()     # Identity axis determined
+    FORM_ANALYZED = auto()           # Form analysis complete
+    JUDGMENT_ISSUED = auto()         # Morphological judgment issued
+    # Composition claims
+    FRAME_STRUCTURE_VALID = auto()   # Sentence frame structure valid
+    CASE_SIGNS_OBSERVED = auto()     # Surface case signs observed
+    OPERATOR_TRIGGERED = auto()      # Operator trigger identified
 
 # Lines 102-122: DalEvidence (span requirement)
 @dataclass(frozen=True)
 class DalEvidence:
-    domain: DalTransitionDomain
-    scope: DalClaimScope
-    span: tuple[int, int]  # Required
-    description: str
-    rank: Rank
-    trace_ref: Optional[DalTraceRef] = None
+    source: str                    # Evidence source
+    claim_scope: DalClaimScope     # Scope of this evidence
+    span: tuple[int, int]          # Position span (required)
+    confidence: float = 1.0        # [0.0, 1.0]
+    details: dict[str, Any] = field(default_factory=dict)
 
-# Lines 143-150: DalTraceRef (reversibility)
+# Lines 144-154: DalTraceRef (reversibility)
 @dataclass(frozen=True)
 class DalTraceRef:
-    operation: str
-    inputs: tuple
-    parameters: dict
-    reversible: bool = True
+    transition_id: str             # Which transition produced this
+    source_domain: DalTransitionDomain
+    target_domain: DalTransitionDomain
+    timestamp: str                 # When transition occurred
+    reversible: bool = False       # Can this be reversed?
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+# Lines 163-207: DalTransitionContract
+@dataclass(frozen=True)
+class DalTransitionContract:
+    contract_id: str
+    source_domain: DalTransitionDomain
+    target_domain: DalTransitionDomain
+    input_type: type
+    output_type: type
+    claim_scope: DalClaimScope
+    evidence_requirement: EvidenceRequirement = EvidenceRequirement.NONE
+    shortcut_policy: ShortcutPolicy = ShortcutPolicy.FORBIDDEN
+    candidate_budget_policy: CandidateBudgetPolicy = CandidateBudgetPolicy.SMALL
+    # ... more fields
 ```
 
-**Achievement Status**: ✅ Implemented, exported, used in SyllableCandidate
+**Achievement Status**:
+- ✅ Implemented (544 lines)
+- ✅ Exported in `__all__`
+- ✅ Used in SyllableCandidate (verified: syllable_candidate.py:38-44)
+- ✅ Defines 3 Protocols: DalCandidateProtocol, DalCandidateSetProtocol, DalTransitionProtocol
 
-**Gap**: Not yet promoted as unification kernel for all transitions
+**Critical Internal Tension** (UNRESOLVED):
+```python
+# Line 19: Module docstring says:
+# "Transitions return CandidateSet[𝔾] or Failure."
+
+# BUT Line 310-315: DalTransitionProtocol.apply says:
+# "Returns CandidateSet or raises exception for Failure."
+```
+**This is a design contradiction that must be resolved before PR-2.**
+
+**Gap**: Not yet promoted as unification kernel; relationship with AlgebraicDecisionCore unclear
 
 ---
 
@@ -333,6 +404,74 @@ IdentityType.WEIGHT_IDENTITY: IdentitySpec(
 
 **Bug**: Uses AND logic requiring both ROOT_MATERIAL_IDENTITY and STEM_IDENTITY simultaneously
 **Expected**: Should be ONE-OF (OR logic) since weight can be determined from either root OR stem
+
+---
+
+## العلاقة بين dal_algebra و AlgebraicDecisionCore (Kernel Relationship)
+
+### Critical Question: Who is the Kernel?
+
+**Current State** (UNRESOLVED):
+- `dal_algebra.py` defines **contract algebra** (DalTransitionContract, domains, evidence, protocols)
+- `AlgebraicDecisionCore` defines **decision/audit executor** (8-dimension governance, execution layers, identity/domain registries)
+- No clear specification of which governs which
+
+**Proposed Resolution**:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ AlgebraicDecisionCore (Decision/Audit Layer)            │
+│ - Governs ALL transitions                               │
+│ - Audits identity preservation                          │
+│ - Enforces layer ordering                               │
+│ - Issues ApprovedTransitionContext                      │
+│ - Uses: IdentityRegistry, DomainRegistry,               │
+│         ExecutionLayerRegistry                          │
+└──────────────┬──────────────────────────────────────────┘
+               │ governs
+               ↓
+┌─────────────────────────────────────────────────────────┐
+│ dal_algebra.py (Contract Algebra Layer)                 │
+│ - Defines transition contracts                          │
+│ - Defines evidence requirements                         │
+│ - Defines domain architecture (D0-D7)                   │
+│ - Defines protocols (DalCandidateProtocol, etc.)        │
+│ - Used by: All U-layers that implement transitions      │
+└──────────────┬──────────────────────────────────────────┘
+               │ contracts to
+               ↓
+┌─────────────────────────────────────────────────────────┐
+│ Execution Layers (U₀-U₁₅)                               │
+│ - U₀ Unicode → U₁ Grapheme → U₂s Syllable → ...        │
+│ - Each layer implements DalTransitionProtocol           │
+│ - Each layer requires ApprovedTransitionContext         │
+│ - Each layer follows DalTransitionContract              │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Division of Responsibility**:
+
+| Component | Responsibility | Authority |
+|-----------|----------------|-----------|
+| **AlgebraicDecisionCore** | Decision & Audit | Governance (الحكم) |
+| **dal_algebra.py** | Contract Definition | Constitution (الدستور) |
+| **ExecutionLayer (U₀-U₁₅)** | Runtime Execution | Implementation (التنفيذ) |
+| **IdentityRegistry** | Identity Catalog | Reference (المرجع) |
+| **DomainRegistry** | Domain Catalog | Reference (المرجع) |
+| **ApprovedTransitionContext** | Permission Token | Evidence (الدليل) |
+
+**Key Principle**:
+```
+dal_algebra.py = constitution layer (defines what transitions mean)
+AlgebraicDecisionCore = governance layer (enforces transition rules)
+ApprovedTransitionContext = execution permission (proof of compliance)
+ExecutionLayer = runtime layer (implements actual transitions)
+```
+
+**Critical Gap to Fix in PR-1B**:
+- AlgebraicDecisionCore does NOT import dal_algebra.py currently
+- DalTransitionContract is NOT used in ApprovedTransitionContext
+- Need explicit mapping: DalTransitionDomain ↔ ExecutionLayer
 
 ---
 
@@ -682,20 +821,108 @@ Meaning (معنى) = semantic content (forbidden in dal_core)
 
 ---
 
-## خطة الإصلاح (11-PR Repair Plan)
+## خطة الإصلاح المصححة (Corrected Repair Plan)
 
-### PR-1: Inventory + Mapping Document ✅ THIS DOCUMENT
+### ⚠️ STATUS: PR-1 NOT COMPLETE YET
 
-**Purpose**: Complete inventory and mapping of existing achievements
+**Previous Claim**: "PR-1: Inventory + Mapping — ✅ مكتمل"
+**Actual Status**: ❌ **NOT COMPLETE** - Document contains code mismatches
+
+**Completion Criteria** (NOT YET MET):
+1. ❌ All enum names match actual code (FAILED: DalTransitionDomain, DalClaimScope were wrong)
+2. ⚠️ All file paths verified (PARTIAL: Some paths not checked)
+3. ❌ All line numbers accurate (FAILED: "400+ lines" vs actual 544 lines)
+4. ❌ All mappings either proven or marked unresolved (INCOMPLETE)
+5. ❌ Failure semantics contradiction resolved (UNRESOLVED)
+6. ❌ dal_algebra ↔ AlgebraicDecisionCore relationship clarified (JUST ADDED)
+
+---
+
+### PR-1A: Correct Inventory Document (IN PROGRESS - THIS PR)
+
+**Purpose**: Fix code mismatches in UNIFIED_ALGEBRA_PLAN.md
+
+**Changes Made So Far**:
+- ✅ Fixed DalTransitionDomain enum names (removed D0_, D1_ prefixes)
+- ✅ Fixed DalClaimScope enum names (CARRIER_VALID not ATOM_TRANSITION, etc.)
+- ✅ Fixed dal_algebra.py line count (544 not "400+")
+- ✅ Verified SyllableCandidate imports dal_algebra (syllable_candidate.py:38-44)
+- ✅ Added kernel relationship section (dal_algebra vs AlgebraicDecisionCore)
+- ✅ Documented Failure semantics contradiction
+
+**Remaining Work**:
+- [ ] Add table: "Inventory Verification Status"
+- [ ] Mark all unverified claims as "UNVERIFIED"
+- [ ] Add citations for all file existence claims
+- [ ] Resolve Failure semantics (value vs exception)
+- [ ] Complete DalTransitionDomain ↔ ExecutionLayer mapping
+
+**Deliverable**: `docs/UNIFIED_ALGEBRA_PLAN.md` (code-accurate, no hallucinations)
+
+---
+
+### PR-1B: Define Kernel Relation (NOT STARTED)
+
+**Purpose**: Formalize dal_algebra ↔ AlgebraicDecisionCore relationship
+
+**Required**:
+1. Document decision: Who governs who?
+2. Add DalTransitionContract to ApprovedTransitionContext
+3. Map DalTransitionDomain ↔ ExecutionLayer explicitly
+4. Resolve: Does AlgebraicDecisionCore import dal_algebra?
+
+**Deliverable**: `docs/KERNEL_RELATIONSHIP.md` OR code changes to connect them
+
+---
+
+### PR-1C: Resolve Failure Semantics (NOT STARTED)
+
+**Purpose**: Fix contradiction in dal_algebra.py
+
+**Current Contradiction**:
+```python
+# Line 19: "Transitions return CandidateSet[𝔾] or Failure."
+# Line 310-315: "Returns CandidateSet or raises exception for Failure."
+```
+
+**Resolution Decision** (TO BE MADE):
+```python
+# Option A: Value-based (preferred for algebra)
+Result = CandidateSet[T] | AlgebraicFailure
+
+# Option B: Exception-based (current DalTransitionProtocol)
+Result = CandidateSet[T]  # raises for failure
+
+# Option C: Hybrid
+Construction errors → ValueError (invariant violations)
+Operation failures → AlgebraicFailure value (algebraic closure)
+```
+
+**Deliverable**: Updated `dal_algebra.py` with consistent Failure semantics
+
+---
+
+## خطة الإصلاح (11-PR Repair Plan - REVISED)
+
+### PR-1A: Correct Inventory Document (IN PROGRESS)
+
+**Purpose**: Fix code mismatches and complete code-accurate inventory
+
+**Status**: IN PROGRESS (This PR on branch `claude/add-algebraic-decision-core-again`)
 
 **Deliverables**:
-1. ✅ Inventory of 9 existing achievement categories
-2. ✅ 3 unification maps (Domain/Layer/Pipeline)
-3. ✅ 6 identified structural bugs
-4. ✅ 7 missing components
-5. ✅ Corrective principle established
+1. ✅ Corrected DalTransitionDomain enum names
+2. ✅ Corrected DalClaimScope enum names
+3. ✅ Verified dal_algebra.py actual line count (544 lines)
+4. ✅ Documented kernel relationship (dal_algebra vs AlgebraicDecisionCore)
+5. ✅ Identified Failure semantics contradiction
+6. ⚠️ IN PROGRESS: Complete inventory verification table
+7. ⚠️ IN PROGRESS: Mark all unverified claims
+8. ⚠️ IN PROGRESS: Add file existence citations
 
-**Status**: COMPLETE (this document)
+**Next Steps**:
+- Complete verification table
+- No PR-2 until PR-1A is verified complete
 
 ---
 
@@ -1209,15 +1436,17 @@ NOT:
 
 ### How We Fix It 🔧
 
-**11-PR Corrective Plan**:
-1. PR-1: Inventory + Mapping ✅ (this document)
-2. PR-2: Promote dal_algebra.py as kernel
-3. PR-3: Formalize SlotGeometry
-4. PR-4 to PR-7: Build pathability chain
-5. PR-8: Govern PreSyntax transitions
-6. PR-9: Fix RelationAlgebraCore
-7. PR-10: Add RelationClosure
-8. PR-11: Add IfadahCandidate
+**11-PR Corrective Plan** (REVISED):
+1. **PR-1A**: Correct Inventory Document ⚠️ (IN PROGRESS - this session)
+2. **PR-1B**: Define Kernel Relationship ❌ (NOT STARTED - required before PR-2)
+3. **PR-1C**: Resolve Failure Semantics ❌ (NOT STARTED - required before PR-2)
+4. **PR-2**: Promote dal_algebra.py as kernel ❌ (BLOCKED - waiting for PR-1A/B/C)
+5. **PR-3**: Formalize SlotGeometry
+6. **PR-4 to PR-7**: Build pathability chain
+7. **PR-8**: Govern PreSyntax transitions
+8. **PR-9**: Fix RelationAlgebraCore
+9. **PR-10**: Add RelationClosure
+10. **PR-11**: Add IfadahCandidate
 
 ### Constitutional Authority 📜
 
@@ -1231,8 +1460,86 @@ All work governed by:
 
 ---
 
-**Document Status**: Phase 1 Complete
-**Next Step**: PR-2 (Promote dal_algebra.py as unified kernel)
+## تصحيحات هذه الجلسة (Corrections Made in This Session)
+
+### ✅ Fixed Hallucinations
+
+1. **DalTransitionDomain enum names**:
+   - ❌ WRONG: `D0_GRAPHOPHONEMIC`, `D1_SYLLABIC`, etc.
+   - ✅ CORRECT: `GRAPHOPHONEMIC`, `SYLLABIC`, etc.
+
+2. **DalClaimScope enum names**:
+   - ❌ WRONG: `ATOM_TRANSITION`, `SYLLABLE_FORMATION`, `BOUNDARY_DETECTION`, `MORPHOLOGICAL_ANALYSIS`
+   - ✅ CORRECT: `CARRIER_VALID`, `ATOM_SEQUENCE_VALID`, `SYLLABLE_STRUCTURE_VALID`, `ORIGIN_CLASSIFIED`, etc.
+
+3. **dal_algebra.py line count**:
+   - ❌ WRONG: "400+ lines"
+   - ✅ CORRECT: 544 lines
+
+4. **DalEvidence fields**:
+   - ❌ WRONG: `domain`, `scope`, `description`, `rank`, `trace_ref`
+   - ✅ CORRECT: `source`, `claim_scope`, `span`, `confidence`, `details`
+
+5. **DalTraceRef fields**:
+   - ❌ WRONG: `operation`, `inputs`, `parameters`, `reversible`
+   - ✅ CORRECT: `transition_id`, `source_domain`, `target_domain`, `timestamp`, `reversible`, `metadata`
+
+### ✅ Added Critical Findings
+
+1. **Failure Semantics Contradiction**:
+   - Module docstring (line 19): "Transitions return CandidateSet[𝔾] or Failure"
+   - Protocol (line 310-315): "Returns CandidateSet or raises exception for Failure"
+   - **Resolution Required**: Choose value-based OR exception-based (cannot be both)
+
+2. **Kernel Relationship Undefined**:
+   - `dal_algebra.py` = contract layer?
+   - `AlgebraicDecisionCore` = governance layer?
+   - **No explicit connection between them currently**
+
+3. **Inventory Verification Table**:
+   - Added table showing VERIFIED vs UNVERIFIED vs MISSING components
+   - Identified 5 hallucinations fixed
+   - Identified 3 unverified claims requiring re-check
+
+### ⚠️ Remaining Work for PR-1A
+
+1. Verify or mark as "prior knowledge": MufradProof, PreSyntaxMufradVector, RelationAlgebraCore
+2. Complete DalTransitionDomain ↔ ExecutionLayer mapping
+3. Add file existence citations for all components
+4. Resolve: Should UNVERIFIED items be re-verified or marked as "claimed without re-verification"?
+
+### 📋 PR-1 Completion Checklist
+
+- [x] Fix DalTransitionDomain enum names
+- [x] Fix DalClaimScope enum names
+- [x] Fix dal_algebra.py line count
+- [x] Fix DalEvidence fields
+- [x] Fix DalTraceRef fields
+- [x] Verify SyllableCandidate imports dal_algebra
+- [x] Add Failure semantics contradiction documentation
+- [x] Add kernel relationship section
+- [x] Add inventory verification table
+- [ ] Verify or disclaim all UNVERIFIED components
+- [ ] Add file existence citations
+- [ ] Complete DalTransitionDomain ↔ ExecutionLayer mapping
+
+**PR-1A Status**: 9/12 checklist items complete (75%)
+
+---
+
+**Document Status**: Phase 1A - In Progress (75% complete)
+**Blocking Issues**:
+1. Failure semantics contradiction (dal_algebra.py internal inconsistency)
+2. Kernel relationship undefined (dal_algebra vs AlgebraicDecisionCore)
+3. Three UNVERIFIED components need resolution
+
+**Next Required Steps** (in order):
+1. Complete PR-1A: Finish inventory verification (3 remaining checklist items)
+2. Start PR-1B: Define kernel relationship (documentation or code)
+3. Start PR-1C: Resolve failure semantics (pick value-based vs exception-based)
+4. Only then: PR-2 (promote dal_algebra.py with resolved semantics and clear kernel role)
+
 **Created**: 2026-05-27
-**Author**: Algebraic Decision Core Team
+**Last Updated**: 2026-05-27 (Corrective revision after user feedback)
+**Branch**: `claude/add-algebraic-decision-core-again`
 
