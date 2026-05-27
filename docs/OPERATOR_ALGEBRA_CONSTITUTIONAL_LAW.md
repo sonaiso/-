@@ -46,12 +46,244 @@ where:
 The operator algebra **MUST NOT** accept:
 
 - ❌ `raw_word` - unlicensed surface token
-- ❌ `root` - morphological primitive only
-- ❌ `weight` - pattern without word contract
+- ❌ `raw_slot` - bare phonological/graphemic slot
+- ❌ `raw_syllable` - bare syllable without license
+- ❌ `root_candidate` - morphological primitive only
+- ❌ `weight_candidate` - pattern without word contract
+- ❌ `LicensedSingularLafz` - licensed utterance before word contract (see Article 1A)
 - ❌ `meaning` - semantic entity
 - ❌ `hukm` - judgment entity
 
-**Rationale**: Only licensed, identity-preserving contracts provide stable anchors for operator effects.
+**Rationale**: Only licensed, identity-preserving **word contracts** and **relation candidates** provide stable anchors for syntactic operator effects.
+
+---
+
+## Article 1A: LicensedSingularLafz vs WordContract (Critical Distinction)
+
+### 1A.1 The Two Algebraic Paths
+
+**Constitutional Principle**:
+```
+No syntactic operator before WordContract.
+No WordContract before LicensedSingularLafz.
+```
+
+There are **two distinct algebraic paths**:
+
+#### Path 1: Licensed Singular Utterance (Lafz Path)
+
+```
+SlotGeometry
+  → LetterSlot / VowelSlot
+  → SyllableLicense
+  → SlotComposition
+  → MinimalLicensedLafz
+  → LicensedSingularLafz
+```
+
+**What this establishes**:
+- ✅ A single, licensed phonological/graphemic utterance exists
+- ✅ Slot composition is valid
+- ✅ Syllable structure is licensed
+- ✅ Minimal lafz requirements met
+
+**What this does NOT establish**:
+- ❌ Whether it's a noun, verb, or particle ready for composition
+- ❌ Whether it carries syntactic function
+- ❌ Whether it's eligible for operator effects
+
+#### Path 2: Word Contract (Word Path)
+
+```
+LicensedSingularLafz
+  → Pathability
+  → MabniGate / ToolGate / PronounGate / Rootability / Stemability / Weightability
+  → WordIdentityCandidate
+  → WordContract
+```
+
+**What this establishes**:
+- ✅ The lafz has become a contracted word node
+- ✅ Identity classification complete (or residualized)
+- ✅ Syntactic readiness achieved
+- ✅ Operator eligibility confirmed
+
+### 1A.2 Formal Definitions
+
+#### LicensedSingularLafz
+
+```python
+@dataclass(frozen=True)
+class LicensedSingularLafz:
+    """
+    A phonologically/graphemically licensed singular utterance.
+
+    This is NOT yet a word contract. It is a licensed lafz that:
+    - May be a root candidate
+    - May be a stem candidate
+    - May be mabni (invariable)
+    - May be a tool/particle
+    - May be a pronoun
+    - May be part of a longer composition
+    - May carry unresolved residuals
+
+    Syntactic operators MUST NOT consume this directly.
+    Only WordContract or RelationCandidate are valid operator targets.
+    """
+    lafz_anchor_id: str
+    slot_trace: tuple[int, ...]
+    syllable_trace: tuple[str, ...]
+    minimal_license: bool
+    path_candidates: tuple[str, ...]  # Possible paths (mabni, root, stem, tool, etc.)
+    residuals: tuple[Residual, ...]
+    rank: Rank
+    evidence: DalEvidence
+```
+
+#### WordContract
+
+```python
+@dataclass(frozen=True)
+class WordContract:
+    """
+    A singular word with established contract for syntactic composition.
+
+    This is derived from LicensedSingularLafz after:
+    - Path resolution (or residualized path with rank bounds)
+    - Word identity establishment
+    - Syntactic readiness confirmation
+    - Operator eligibility verification
+
+    This is the MINIMAL input for syntactic operators.
+    """
+    lafz_anchor_id: str  # Preserved from LicensedSingularLafz
+    word_anchor_id: str  # New word-level identity
+    slot_trace: tuple[int, ...]  # Preserved
+    path_trace: tuple[str, ...]  # Path resolution history
+    word_identity: WordIdentity  # Classified or residualized
+    syntactic_readiness: bool
+    operator_eligibility: bool
+    preserved_residuals: tuple[Residual, ...]
+    rank: Rank
+    evidence: DalEvidence
+```
+
+### 1A.3 Example: ما (mā)
+
+Consider the particle ما:
+
+**Stage 1: LicensedSingularLafz**
+```python
+LicensedSingularLafz(
+    lafz_anchor_id="lafz_ma_001",
+    slot_trace=(0, 1),
+    syllable_trace=("mā",),
+    minimal_license=True,
+    path_candidates=("negation", "interrogative", "relative", "masdariyya", "zaidah"),
+    residuals=(
+        Residual(type="path_ambiguity", candidates=5),
+    ),
+    rank=Rank.CANDIDATE,
+    evidence=DalEvidence(...)
+)
+```
+
+At this stage:
+- ❌ Syntactic operators **CANNOT** operate on it
+- ❌ We don't know which ما it is yet
+- ⚠️ Operator would be premature - path unresolved
+
+**Stage 2: WordContract** (after path resolution or residualization)
+```python
+WordContract(
+    lafz_anchor_id="lafz_ma_001",  # PRESERVED
+    word_anchor_id="word_ma_negation_001",
+    slot_trace=(0, 1),  # PRESERVED
+    path_trace=("tool_gate", "negation_particle"),
+    word_identity=WordIdentity.NEGATION_PARTICLE,
+    syntactic_readiness=True,
+    operator_eligibility=True,
+    preserved_residuals=(),  # Path resolved
+    rank=Rank.VALIDATED,
+    evidence=DalEvidence(...)
+)
+```
+
+Now:
+- ✅ Syntactic operators **CAN** operate on it
+- ✅ Identity established: negation particle
+- ✅ Operator can add negation scope effect
+
+### 1A.4 Constitutional Laws
+
+```
+No ʿĀmil before LicensedSingularLafz.
+No syntactic ʿĀmil before WordContract.
+No WordContract before LicensedSingularLafz.
+No WordContract before pathability or residualized path.
+No OperatorEffect without WordContract or RelationCandidate.
+```
+
+**In Arabic**:
+```
+لا عامل قبل لفظ مفرد مرخص.
+ولا عامل نحوي قبل عقد كلمة.
+ولا عقد كلمة قبل لفظ مفرد مرخص.
+ولا عقد كلمة قبل قابلية مسار أو بقايا مسار مصنفة.
+ولا أثر عاملي بلا WordContract أو RelationCandidate.
+```
+
+### 1A.5 Why This Distinction is Critical
+
+**Without this distinction**, an operator could act on ما before knowing:
+- Is it negation? (لا أثر نفي)
+- Is it interrogative? (استفهام)
+- Is it relative? (موصولة)
+- Is it masdariyya? (مصدرية)
+- Is it redundant? (زائدة)
+
+**With this distinction**:
+1. ما first becomes `LicensedSingularLafz` (licensed, but path ambiguous)
+2. Path resolution (or residualization) produces `WordContract`
+3. **Only then** can syntactic operators apply effects
+4. Operators work on **resolved or bounded-residual identities**, not raw lafz
+
+### 1A.6 PreWord Operators (Exception)
+
+**Rare exception**: Some operators/particles may participate in **forming** the WordContract itself, not in operating on it syntactically.
+
+These are classified as:
+```python
+class PreWordOperator:
+    """
+    Operators that assist in WordContract formation.
+    NOT syntactic operators.
+    """
+```
+
+Examples:
+- Definiteness markers (ال) - part of word formation
+- Certain affixes - part of morphological composition
+
+These are **NOT covered by this constitutional law** - they belong to the lafz formation layer, not the syntactic operator layer.
+
+### 1A.7 Revised Operator Signature
+
+```
+ʿĀmilOpₑ : O × (W ∪ R) × Scope → E ∪ AlgebraicFailure
+
+where:
+  O = OperatorCandidate
+  W = WordContract (NOT LicensedSingularLafz)
+  R = RelationCandidate
+  E = OperatorEffectCandidate
+```
+
+**NOT**:
+```
+❌ ʿĀmilOpₑ : O × L × Scope → E
+   where L = LicensedSingularLafz
+```
 
 ---
 
@@ -483,11 +715,26 @@ Every operator implementation **MUST** pass:
 def test_operator_cannot_accept_raw_word():
     """Operator rejects unlicensed surface token."""
 
+def test_operator_cannot_accept_raw_slot():
+    """Operator rejects bare phonological/graphemic slot."""
+
+def test_operator_cannot_accept_raw_syllable():
+    """Operator rejects bare syllable without license."""
+
 def test_operator_cannot_accept_root_candidate():
     """Operator rejects bare root without WordContract."""
 
 def test_operator_cannot_accept_weight_candidate():
     """Operator rejects bare weight without WordContract."""
+
+def test_operator_cannot_accept_licensed_singular_lafz():
+    """
+    CRITICAL: Operator rejects LicensedSingularLafz.
+
+    Syntactic operators MUST NOT operate on licensed lafz before
+    it becomes a WordContract. This prevents premature operator
+    application before path resolution.
+    """
 ```
 
 ### 8.2 MSL Tests
@@ -567,9 +814,13 @@ def test_operator_requires_word_contract_or_relation_candidate():
 ### 9.1 Architectural Sequence
 
 ```
-U₁₀: WordFormCandidate (WORDFORM_DOMAIN)
+SlotGeometry (U₀-U₄)
   ↓
-U₁₁: RelationCandidate (RelationAlgebraCore: ISNAD/TADMIN/TAQYID/WASF/IDAFAH)
+LicensedSingularLafz (Licensed utterance path)
+  ↓
+WordContract (U₁₀ WORDFORM_DOMAIN) ← OPERATOR INPUT STARTS HERE
+  ↓
+RelationCandidate (U₁₁ RelationAlgebraCore: ISNAD/TADMIN/TAQYID/WASF/IDAFAH)
   ↓
 [Operator Algebra Layer]  ← Licensed structural effects only
   ↓
@@ -584,18 +835,61 @@ U₁₃: IfadahCandidate
 U₁₄: HukmCandidate
 ```
 
-### 9.2 Forbidden Jump
+### 9.2 Identity Preservation Across Paths
+
+**Lafz Path**:
+```python
+LicensedSingularLafz preserves:
+  lafz_anchor_id
+  slot_trace
+  syllable_trace
+  residuals
+```
+
+**Word Path**:
+```python
+WordContract preserves:
+  lafz_anchor_id  # FROM LicensedSingularLafz
+  word_anchor_id  # NEW word-level identity
+  slot_trace      # FROM LicensedSingularLafz
+  path_trace      # NEW path resolution history
+  residuals       # Inherited and new
+```
+
+**Operator Path**:
+```python
+OperatorEffect preserves:
+  target_anchor_id     # FROM WordContract.word_anchor_id
+  word_anchor_id       # FROM WordContract
+  lafz_anchor_id       # Transitively preserved
+  slot_trace           # FROM WordContract
+  relation_anchor_id   # If target is RelationCandidate
+```
+
+**Principle**: Identity never dissolves:
+- Lafz does not dissolve into Word
+- Word does not dissolve into Operator
+- Operator does not dissolve into Hukm
+
+### 9.3 Forbidden Jump
 
 ```
 ❌ Operator → Hukm (FORBIDDEN)
+❌ LicensedSingularLafz → Operator (FORBIDDEN - Article 1A)
 ```
 
-This jump **breaks the entire algebra** because:
+The first jump **breaks the entire algebra** because:
 - It bypasses WordContract validation
 - It bypasses RelationCandidate validation
 - It bypasses RelationClosure
 - It bypasses Ifadah completion
 - It produces judgment without evidence closure
+
+The second jump **breaks operator input contract** because:
+- It operates on unresolved path ambiguity
+- It operates before syntactic readiness
+- It operates before operator eligibility verification
+- It produces premature effects on ambiguous lafz
 
 ---
 
@@ -656,18 +950,46 @@ Operators **MUST** raise construction exceptions for:
 
 ## Article 12: Final Constitutional Statement
 
+### 12.1 Operator Input Law (English)
+
 ```
-Every operator must consume either a WordContract or a RelationCandidate,
-must pass its own Minimal Sufficient License,
-must operate inside an explicit scope,
-must preserve anchor_id and slot_trace,
-must inherit residuals,
-must remain rank-bounded,
-and must output only OperatorEffectCandidate or AlgebraicFailure.
+A syntactic operator may not consume raw slots, raw syllables,
+root candidates, weight candidates, or merely licensed lafẓ.
+
+It may consume only:
+1. WordContract derived from LicensedSingularLafz, OR
+2. RelationCandidate derived from WordContracts.
+
+The operator produces only OperatorEffectCandidate or AlgebraicFailure,
+while preserving anchor_id, slot_trace, residuals, and rank bounds.
+
+Every operator must:
+- Consume WordContract or RelationCandidate (NOT LicensedSingularLafz)
+- Pass its own Minimal Sufficient License
+- Operate inside an explicit scope
+- Preserve anchor_id and slot_trace
+- Inherit residuals
+- Remain rank-bounded (never CERTIFICATE)
+- Output only OperatorEffectCandidate or AlgebraicFailure
+- Never produce Meaning, Ifadah, or Hukm
 ```
 
-**In Arabic**:
+### 12.2 قانون مدخل العامل (Arabic)
+
 ```
+لا يدخل العامل النحوي على الخانة الخام،
+ولا على المقطع الخام،
+ولا على الجذر المرشح،
+ولا على الوزن المرشح،
+ولا على اللفظ المفرد بما هو لفظ فقط.
+
+بل لا يدخل إلا على:
+WordContract ناتج عن LicensedSingularLafz،
+أو RelationCandidate ناتجة عن عقود كلمات.
+
+ولا ينتج إلا OperatorEffectCandidate أو AlgebraicFailure،
+مع حفظ anchor_id و slot_trace وتوريث البقايا وضبط الرتبة.
+
 جبر العوامل العربية جبر آثار مرخّصة، لا جبر أحكام.
 لا يعمل العامل إلا على WordContract أو RelationCandidate،
 ولا يعمل إلا بعد حد أدنى كافٍ،
@@ -677,9 +999,40 @@ and must output only OperatorEffectCandidate or AlgebraicFailure.
 ومنع أي قفز إلى Meaning أو Ifadah أو Hukm.
 ```
 
+### 12.3 The Critical Path Separation
+
+```
+LicensedSingularLafz (لفظ مفرد مرخص)
+  = Phonologically/graphemically licensed utterance
+  = Licensed, but NOT yet a word contract
+  ❌ NOT valid operator input
+
+WordContract (عقد كلمة)
+  = Singular word with syntactic contract
+  = Derived from LicensedSingularLafz after path resolution
+  ✅ VALID operator input
+
+This separation prevents operators from acting on:
+- Ambiguous particles (ما: negation? interrogative? relative?)
+- Unresolved roots/stems
+- Unlicensed morphological forms
+- Syntactically unprepared utterances
+```
+
 ---
 
 ## Version History
+
+- **2026-05-27 (Amendment 1)**: Added Article 1A - LicensedSingularLafz vs WordContract
+  - Defined two distinct algebraic paths (lafz path vs word path)
+  - Established constitutional principle: No syntactic operator before WordContract
+  - Added formal definitions for LicensedSingularLafz and WordContract
+  - Provided example: ما (mā) ambiguity resolution
+  - Updated prohibited targets to include LicensedSingularLafz
+  - Added critical test: test_operator_cannot_accept_licensed_singular_lafz
+  - Updated identity preservation across three paths (lafz, word, operator)
+  - Clarified forbidden jumps: LicensedSingularLafz → Operator
+  - Revised operator signature: W = WordContract (NOT LicensedSingularLafz)
 
 - **2026-05-27**: Initial constitutional law document created
   - Defined 11 constitutional prohibitions
@@ -692,6 +1045,6 @@ and must output only OperatorEffectCandidate or AlgebraicFailure.
 
 ---
 
-**Last Updated**: 2026-05-27
+**Last Updated**: 2026-05-27 (Amendment 1)
 **Status**: CONSTITUTIONAL FOUNDATION - Immutable
 **Authority**: Must be enforced before any Operator Algebra implementation begins
