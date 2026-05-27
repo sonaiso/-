@@ -133,13 +133,14 @@ if dal_contract is not None and dal_claim_scope is None:
 
 ### 4. U₁₀/JUDGMENT Ambiguity
 
-**Status**: DESIGN INCONSISTENCY
+**Status**: ✅ RESOLVED (PR-126)
 **Impact**: MEDIUM
 **Identified In**: PR-122 architectural review
+**Resolved In**: PR-126 (2026-05-27)
 
 **Issue**:
 ```python
-# Current mapping in dal_kernel_validators.py:
+# Old mapping in dal_kernel_validators.py (INCORRECT):
 DalTransitionDomain.JUDGMENT: frozenset({
     ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT,
     ExecutionLayer.U10_WORD_FORM,  # ❌ U₁₀ is NOT judgment
@@ -148,32 +149,56 @@ DalTransitionDomain.JUDGMENT: frozenset({
 
 But:
 ```python
-# DomainType mapping:
-DalTransitionDomain.JUDGMENT: frozenset({
-    DomainType.JUDGMENT_DOMAIN,  # Correct for U₇-C
-})
+# Mapping in domain_registry.py showed:
+DalTransitionDomain.JUDGMENT → DomainType.JUDGMENT_DOMAIN
 ```
 
-**Contradiction**:
-- ExecutionLayer mapping includes U₁₀
-- DomainType mapping excludes U₁₀ (correctly)
-- U₁₀ documented as "NOT final judgment"
+This created a contradiction:
+- Execution map allowed JUDGMENT to reach U10_WORD_FORM
+- Domain map said JUDGMENT = JUDGMENT_DOMAIN
+- But U₁₀ should be WORDFORM_DOMAIN, not JUDGMENT_DOMAIN
 
-**Resolution** (once WORDFORM_DOMAIN exists):
+**Constitutional Violation**:
+- U₁₀ WordForm is NOT judgment (no Ifādah, no Hukm)
+- Mixing U₁₀ with JUDGMENT violates: "WordForm is not Judgment" (لا صورة الكلمة حكمًا)
+
+**Resolution (PR-126)**:
 ```python
-# Remove U10_WORD_FORM from JUDGMENT domain:
-DalTransitionDomain.JUDGMENT: frozenset({
-    ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT,
-    # U10_WORD_FORM removed - moved to WORDFORM domain
+# Added new DalTransitionDomain:
+DalTransitionDomain.WORDFORM = auto()  # D7: صورة الكلمة - Word form candidate (U₁₀)
+
+# Added new DalClaimScope:
+DalClaimScope.WORDFORM_DETERMINED = auto()  # Word form candidate determined (U₁₀)
+
+# Corrected execution mapping:
+DalTransitionDomain.WORDFORM: frozenset({
+    ExecutionLayer.U10_WORD_FORM,  # ✅ Correctly maps to U₁₀
 })
 
-# Add new domain for U₁₀:
+DalTransitionDomain.JUDGMENT: frozenset({
+    ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT,  # ✅ U₁₀ removed
+})
+
+# Added domain mapping:
 DalTransitionDomain.WORDFORM: frozenset({
-    ExecutionLayer.U10_WORD_FORM,
+    DomainType.WORDFORM_DOMAIN,
+})
+
+# Added claim scope mapping:
+DalTransitionDomain.WORDFORM: frozenset({
+    DalClaimScope.WORDFORM_DETERMINED,
 })
 ```
 
-**Priority**: Fix when adding WORDFORM_DOMAIN
+**Tests Added** (6 tests in PR-126):
+- `test_wordform_domain_with_u10_passes`
+- `test_u10_with_judgment_domain_fails`
+- `test_judgment_domain_does_not_include_u10`
+- `test_wordform_domain_maps_to_u10`
+- `test_wordform_domain_maps_to_wordform_domain_type`
+- `test_wordform_claim_scope_exists`
+
+**Priority**: ✅ COMPLETE
 
 ---
 

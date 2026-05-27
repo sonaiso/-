@@ -38,7 +38,7 @@ from types import MappingProxyType
 
 
 class DalTransitionDomain(Enum):
-    """8-layer transition domain architecture (D0-D7).
+    """9-layer transition domain architecture (D0-D8).
 
     This is a partial transition network (شبكة انتقالات جزئية),
     not a single pipeline. Different words follow different paths.
@@ -50,7 +50,8 @@ class DalTransitionDomain(Enum):
     TEMPLATE = auto()            # D4: وزن - Pattern matching
     IDENTITY_AXIS = auto()       # D5: محور الهوية - Ism/Fi'l/Harf classification
     DIRECTIONAL_ANALYSIS = auto() # D6: تحليل اتجاهي - Bidirectional form analysis
-    JUDGMENT = auto()            # D7: حكم صرفي - Morphological judgment
+    WORDFORM = auto()            # D7: صورة الكلمة - Word form candidate (U₁₀)
+    JUDGMENT = auto()            # D8: حكم صرفي - Morphological judgment
 
 
 class DalClaimScope(Enum):
@@ -65,6 +66,7 @@ class DalClaimScope(Enum):
     TEMPLATE_MATCHED = auto()        # Template pattern matched
     IDENTITY_DETERMINED = auto()     # Identity axis determined (Ism/Fi'l/Harf)
     FORM_ANALYZED = auto()           # Form analysis complete
+    WORDFORM_DETERMINED = auto()     # Word form candidate determined (U₁₀)
     JUDGMENT_ISSUED = auto()         # Morphological judgment issued
     # Composition claims (dal-murakkab)
     FRAME_STRUCTURE_VALID = auto()   # Sentence frame structure valid

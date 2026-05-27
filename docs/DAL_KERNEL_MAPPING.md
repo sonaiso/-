@@ -34,16 +34,21 @@ This document defines the **canonical mapping** between three foundational regis
 | `TEMPLATE` | U₉ | Pattern/weight matching (وزن) |
 | `IDENTITY_AXIS` | U₅, U₆ | Ism/Fi'l/Harf classification (محور الهوية) |
 | `DIRECTIONAL_ANALYSIS` | U₇-A, U₇-B | Bidirectional form analysis (تحليل اتجاهي) |
-| `JUDGMENT` | U₇-C, U₁₀ | Morphological judgment (حكم صرفي) |
+| `WORDFORM` | U₁₀ | Word form candidate (صورة الكلمة) |
+| `JUDGMENT` | U₇-C | Morphological judgment (حكم صرفي) |
 
 **Key Principles**:
 1. **One-to-Many**: One DalTransitionDomain may map to multiple ExecutionLayers
 2. **Non-Overlapping**: Each ExecutionLayer belongs to exactly one DalTransitionDomain
 3. **Sequential Preservation**: ExecutionLayer order (U₀→U₁₅) preserved within each domain
 
+**Critical Correction (PR-126)**:
+- ✅ **U₁₀ separated from JUDGMENT**: U10_WORD_FORM now maps to WORDFORM domain, NOT JUDGMENT
+- ✅ **Constitutional law enforced**: WordForm is not Judgment (لا صورة الكلمة حكمًا)
+
 ### Map 2: DalTransitionDomain → DomainType
 
-✅ **STATUS**: COMPLETE MAPPING (Updated 2026-05-27, PR-125)
+✅ **STATUS**: COMPLETE MAPPING (Updated 2026-05-27, PR-126)
 
 | DalTransitionDomain | DomainType(s) | Description | Status |
 |---------------------|---------------|-------------|--------|
@@ -54,17 +59,22 @@ This document defines the **canonical mapping** between three foundational regis
 | `TEMPLATE` | `WEIGHT_DOMAIN` | Weight determination (U₉) | ✅ Verified |
 | `IDENTITY_AXIS` | `IDENTITY_DOMAIN` | Identity axis classification (Ism/Fi'l/Harf) | ✅ ADDED (PR-125) |
 | `DIRECTIONAL_ANALYSIS` | `MARKER_PROTECTION_DOMAIN`, `CLAUSE_AGREEMENT_DOMAIN` | Surface protection (U₇-A, U₇-B, U₇-C) | ⚠️ Tentative |
-| `JUDGMENT` | `JUDGMENT_DOMAIN` | Final judgment (NOT U₁₀ WordForm) | ✅ Verified |
+| `WORDFORM` | `WORDFORM_DOMAIN` | Word form candidate (U₁₀) | ✅ ADDED (PR-126) |
+| `JUDGMENT` | `JUDGMENT_DOMAIN` | Final judgment (U₇-C ONLY) | ✅ CORRECTED (PR-126) |
 
 **Critical Notes**:
 1. ✅ **IDENTITY_AXIS → IDENTITY_DOMAIN**: Added in PR-125. Maps to محور الهوية (Ism/Fi'l/Harf classification).
-2. ✅ **JUDGMENT ≠ U₁₀ WordForm**: Confirmed. U₁₀ WordFormCandidate is NOT final judgment. It's a word contract/form holder.
-3. **Derivational forms**: `SOURCE_FORM_DOMAIN`, `ATTRIBUTE_FORM_DOMAIN`, `FUNCTIONAL_FORM_DOMAIN`, `WORDFORM_DOMAIN` exist but have no DalTransitionDomain mapping yet (future U₁₀+ architecture).
-4. **Syntax/Semantics domains**: `AMIL_RELATION_DOMAIN`, `I3RAB_SURFACE_DOMAIN`, `SYNTAX_DOMAIN`, `SEMANTICS_DOMAIN`, `PRAGMATICS_DOMAIN` exist for future U₁₁-U₁₅ layers.
+2. ✅ **WORDFORM → WORDFORM_DOMAIN**: Added in PR-126. Maps to صورة الكلمة المرشحة (Word form candidate).
+3. ✅ **JUDGMENT ≠ U₁₀ WordForm**: Confirmed and enforced (PR-126). U₁₀ WordFormCandidate is NOT final judgment. It's a word contract/form holder.
+4. **Derivational forms**: `SOURCE_FORM_DOMAIN`, `ATTRIBUTE_FORM_DOMAIN`, `FUNCTIONAL_FORM_DOMAIN` exist for future architecture.
+5. **Syntax/Semantics domains**: `AMIL_RELATION_DOMAIN`, `I3RAB_SURFACE_DOMAIN`, `SYNTAX_DOMAIN`, `SEMANTICS_DOMAIN`, `PRAGMATICS_DOMAIN` exist for future U₁₁-U₁₅ layers.
 
-**Previously Non-Existent DomainTypes** (Now added in PR-125):
+**Previously Non-Existent DomainTypes** (Now added):
 - ✅ `IDENTITY_DOMAIN` - ADDED (PR-125) - محور الهوية
 - ✅ `WORDFORM_DOMAIN` - ADDED (PR-125) - صورة الكلمة المرشحة
+
+**Previously Non-Existent DalTransitionDomain** (Now added):
+- ✅ `WORDFORM` - ADDED (PR-126) - صورة الكلمة (U₁₀)
 
 **Still Non-Existent DomainTypes** (Previously hallucinated):
 - ❌ `PHONEME_DOMAIN` - does NOT exist (use `SOUND_DOMAIN`)
@@ -74,7 +84,7 @@ This document defines the **canonical mapping** between three foundational regis
 
 ### Map 3: D_mufrad Pipeline → Dal Architecture
 
-✅ **STATUS**: RESOLVED (Updated 2026-05-27, PR-125)
+✅ **STATUS**: RESOLVED (Updated 2026-05-27, PR-126)
 
 **Decision**: Option B - Map to existing DalTransitionDomain (APPROVED with corrections)
 
@@ -83,22 +93,20 @@ This document defines the **canonical mapping** between three foundational regis
 | atoms → DForm | `d_form.py` | `PRE_MORPH` | U₃, U₄ | `BOUNDARY_DOMAIN`, `LAFZ_DOMAIN` | ⚠️ Tentative |
 | DForm → DLugha | `d_lugha.py` | `ORIGIN` | U₈ | `ROOT_STEM_DOMAIN` | ✅ Likely correct |
 | DLugha → DType | `d_type.py` | `IDENTITY_AXIS` | U₅, U₆ | `IDENTITY_DOMAIN` | ✅ RESOLVED (PR-125) |
-| DType → DMufrad | `d_mufrad.py` | *Future* | U₁₀ | `WORDFORM_DOMAIN` | ✅ RESOLVED (PR-125) |
+| DType → DMufrad | `d_mufrad.py` | `WORDFORM` | U₁₀ | `WORDFORM_DOMAIN` | ✅ RESOLVED (PR-126) |
 
-**Resolved Issues** (PR-125):
-1. ✅ **IDENTITY_DOMAIN added**: DType (Ism/Fi'l/Harf classification) now has corresponding DomainType.
-2. ✅ **WORDFORM_DOMAIN added**: U₁₀ WordFormCandidate now has its own domain.
-3. ✅ **DMufrad ≠ JUDGMENT**: Clarified. DMufrad is NOT final judgment (no Ifādah, no Hukm). It's a closed lexical form/word contract.
-
-**Remaining Note**:
-- DMufrad does NOT have a specific `DalTransitionDomain` mapping yet (marked as *Future*)
-- This is acceptable because U₁₀ is a transitional layer before composition (U₁₁+)
-- Future work may add `WORDFORM` or `PRE_COMPOSITION` to `DalTransitionDomain` enum
+**Resolved Issues**:
+1. ✅ **IDENTITY_DOMAIN added** (PR-125): DType (Ism/Fi'l/Harf classification) now has corresponding DomainType.
+2. ✅ **WORDFORM_DOMAIN added** (PR-125): U₁₀ WordFormCandidate now has its own domain.
+3. ✅ **WORDFORM DalTransitionDomain added** (PR-126): U₁₀ now has its own transition domain.
+4. ✅ **DMufrad ≠ JUDGMENT**: Clarified and enforced. DMufrad is NOT final judgment (no Ifādah, no Hukm). It's a closed lexical form/word contract.
+5. ✅ **U₁₀ mapping corrected**: U10_WORD_FORM removed from JUDGMENT, now properly mapped to WORDFORM.
 
 **Previously Identified Gaps** (Now RESOLVED):
 - ~~Missing IDENTITY_DOMAIN~~: ✅ ADDED (PR-125)
 - ~~Missing WORDFORM_DOMAIN~~: ✅ ADDED (PR-125)
-- ~~U₁₀ incorrectly mapped to JUDGMENT_DOMAIN~~: ✅ CORRECTED (PR-125)
+- ~~U₁₀ incorrectly mapped to JUDGMENT_DOMAIN~~: ✅ CORRECTED (PR-126)
+- ~~Missing WORDFORM DalTransitionDomain~~: ✅ ADDED (PR-126)
 
 **Rejected Options**:
 - **Option A** (Extend DalTransitionDomain): Would create parallel D_mufrad-specific domains
@@ -462,10 +470,20 @@ Where:
    - [x] Add 5 tests for IDENTITY_DOMAIN and WORDFORM_DOMAIN ✅ DONE
    - [x] Update BACKLOG.md (items #1, #2 resolved) ✅ DONE
    - [x] Update DAL_KERNEL_MAPPING.md (maps 2 and 3 complete) ✅ DONE
-6. 🔵 **PR-2**: READY to proceed (all foundational gaps closed)
+6. ✅ **PR-126**: Complete - U10/JUDGMENT/WORDFORM mapping corrected
+   - [x] Add WORDFORM to DalTransitionDomain (dal_algebra.py) ✅ DONE
+   - [x] Add WORDFORM_DETERMINED to DalClaimScope (dal_algebra.py) ✅ DONE
+   - [x] Remove U10_WORD_FORM from JUDGMENT execution mapping ✅ DONE
+   - [x] Add WORDFORM → U10_WORD_FORM execution mapping ✅ DONE
+   - [x] Add WORDFORM → WORDFORM_DOMAIN domain mapping ✅ DONE
+   - [x] Add WORDFORM → WORDFORM_DETERMINED claim scope mapping ✅ DONE
+   - [x] Add 6 tests for WORDFORM domain mapping ✅ DONE
+   - [x] Update DAL_KERNEL_MAPPING.md (all maps corrected) ✅ DONE
+   - [x] Update BACKLOG.md (item #4 resolved) ✅ PENDING
+7. 🔵 **PR-2**: READY to proceed (all foundational gaps closed)
 
 ---
 
-**Last Updated**: 2026-05-27 (PR-125: Domain gaps resolved)
-**Status**: PR-1B complete, PR-122 complete, PR-1C complete, PR-125 complete
-**Achievement**: Dal kernel mapping fully validated and enforced, hybrid failure semantics implemented, all critical domain gaps closed
+**Last Updated**: 2026-05-27 (PR-126: U10/JUDGMENT/WORDFORM mapping corrected)
+**Status**: PR-1B complete, PR-122 complete, PR-1C complete, PR-125 complete, PR-126 complete
+**Achievement**: Dal kernel mapping fully validated and enforced, hybrid failure semantics implemented, all critical domain gaps closed, U₁₀ architectural violation corrected
