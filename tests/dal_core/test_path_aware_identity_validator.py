@@ -39,6 +39,7 @@ from dal_core.path_aware_identity_validator import (
 from dal_core.dal_algebra import AlgebraicFailure
 from dal_core.domain_registry import DomainType
 from dal_core.identity_registry import IdentityType
+from dal_core.pipeline import Rank
 
 
 class TestPathAwareIdentityValidator:
@@ -585,6 +586,273 @@ class TestIntegration:
                 f"Path {path_type} should succeed with proper evidence"
             )
             assert result.path_evidence.path_type == path_type
+
+
+class TestForbiddenTargetIdentities:
+    """Test that forbidden target identities are rejected (PR-128 fix)."""
+
+    def test_tool_path_cannot_target_semantic_identity(self):
+        """
+        Tool path must REJECT SEMANTIC_IDENTITY as target.
+
+        Constitutional law: Identity path validation cannot target semantic layer.
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.LAFZ_DOMAIN,
+            target_identity=IdentityType.SEMANTIC_IDENTITY,  # FORBIDDEN
+            path_type=IdentityPathType.TOOL_PATH,
+            evidence={
+                "particle_type": "حرف جر"
+            }
+        )
+
+        # Must be AlgebraicFailure
+        assert isinstance(result, AlgebraicFailure)
+        assert "forbidden" in result.reason.lower()
+        assert result.gate == "forbidden_target_identity_gate"
+
+    def test_weight_path_cannot_target_hukm_identity(self):
+        """
+        Weight path must REJECT HUKM_IDENTITY as target.
+
+        Constitutional law: Identity path validation cannot target judgment layer.
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.WEIGHT_DOMAIN,
+            target_identity=IdentityType.HUKM_IDENTITY,  # FORBIDDEN
+            path_type=IdentityPathType.WEIGHT_PATH,
+            evidence={
+                "weight_pattern": "فاعل",
+                "root_or_stem": "كتب"
+            }
+        )
+
+        # Must be AlgebraicFailure
+        assert isinstance(result, AlgebraicFailure)
+        assert "forbidden" in result.reason.lower()
+        assert result.gate == "forbidden_target_identity_gate"
+
+    def test_mabni_path_cannot_target_ifadah_identity(self):
+        """
+        Mabni path must REJECT IFADAH_IDENTITY as target.
+
+        Constitutional law: Identity path validation cannot target ifādah layer.
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.LAFZ_DOMAIN,
+            target_identity=IdentityType.IFADAH_IDENTITY,  # FORBIDDEN
+            path_type=IdentityPathType.MABNI_PATH,
+            evidence={
+                "closed_class_marker": "مبني"
+            }
+        )
+
+        # Must be AlgebraicFailure
+        assert isinstance(result, AlgebraicFailure)
+        assert "forbidden" in result.reason.lower()
+        assert result.gate == "forbidden_target_identity_gate"
+
+    def test_pronoun_path_cannot_target_functional_relation_identity(self):
+        """
+        Pronoun path must REJECT FUNCTIONAL_RELATION_IDENTITY as target.
+
+        Constitutional law: Identity path validation cannot target functional relation layer.
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.LAFZ_DOMAIN,
+            target_identity=IdentityType.FUNCTIONAL_RELATION_IDENTITY,  # FORBIDDEN
+            path_type=IdentityPathType.PRONOUN_PATH,
+            evidence={
+                "pronoun_class": "ضمير منفصل"
+            }
+        )
+
+        # Must be AlgebraicFailure
+        assert isinstance(result, AlgebraicFailure)
+        assert "forbidden" in result.reason.lower()
+        assert result.gate == "forbidden_target_identity_gate"
+
+    def test_jamid_path_cannot_target_amil_identity(self):
+        """
+        Jāmid path must REJECT AMIL_IDENTITY as target.
+
+        Constitutional law: Identity path validation cannot target operator identities.
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.LAFZ_DOMAIN,
+            target_identity=IdentityType.AMIL_IDENTITY,  # FORBIDDEN
+            path_type=IdentityPathType.JAMID_PATH,
+            evidence={
+                "jamid_marker": "جامد"
+            }
+        )
+
+        # Must be AlgebraicFailure
+        assert isinstance(result, AlgebraicFailure)
+        assert "forbidden" in result.reason.lower()
+        assert result.gate == "forbidden_target_identity_gate"
+
+    def test_weight_path_cannot_target_maamul_identity(self):
+        """
+        Weight path must REJECT MAAMUL_IDENTITY as target.
+
+        Constitutional law: Identity path validation cannot target operator identities.
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.WEIGHT_DOMAIN,
+            target_identity=IdentityType.MAAMUL_IDENTITY,  # FORBIDDEN
+            path_type=IdentityPathType.WEIGHT_PATH,
+            evidence={
+                "weight_pattern": "مفعول",
+                "root_or_stem": "كتب"
+            }
+        )
+
+        # Must be AlgebraicFailure
+        assert isinstance(result, AlgebraicFailure)
+        assert "forbidden" in result.reason.lower()
+        assert result.gate == "forbidden_target_identity_gate"
+
+    def test_identity_validator_rejects_forbidden_target_even_with_valid_evidence(self):
+        """
+        Validator must reject forbidden target identity EVEN with valid evidence.
+
+        This is critical: evidence quality doesn't matter if target is forbidden.
+        """
+        validator = PathAwareIdentityValidator()
+
+        # Perfect evidence, but forbidden target
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.WEIGHT_DOMAIN,
+            target_identity=IdentityType.SEMANTIC_IDENTITY,  # FORBIDDEN
+            path_type=IdentityPathType.WEIGHT_PATH,
+            evidence={
+                "weight_pattern": "فاعل",
+                "root_or_stem": "كتب",
+                "confidence": 0.99,  # High confidence
+                "rank": "TAWATUR"  # Strong rank
+            }
+        )
+
+        # Must STILL be AlgebraicFailure (target is forbidden)
+        assert isinstance(result, AlgebraicFailure)
+        assert "forbidden" in result.reason.lower()
+        assert result.gate == "forbidden_target_identity_gate"
+
+
+class TestRankAndConfidence:
+    """Test Rank enum and confidence float usage (PR-128 fix)."""
+
+    def test_identity_candidate_uses_rank_enum(self):
+        """
+        IdentityCandidate must use Rank enum (NOT float).
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.WEIGHT_DOMAIN,
+            target_identity=IdentityType.WORDFORM_IDENTITY,
+            path_type=IdentityPathType.WEIGHT_PATH,
+            evidence={
+                "weight_pattern": "فاعل",
+                "root_or_stem": "كتب"
+            }
+        )
+
+        assert isinstance(result, IdentityCandidate)
+        assert isinstance(result.rank, Rank)
+        assert result.rank != Rank.CERT  # Must NOT be CERT
+
+    def test_identity_candidate_has_confidence_float(self):
+        """
+        IdentityCandidate must have separate confidence float [0.0, 1.0).
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.WEIGHT_DOMAIN,
+            target_identity=IdentityType.WORDFORM_IDENTITY,
+            path_type=IdentityPathType.WEIGHT_PATH,
+            evidence={
+                "weight_pattern": "فاعل",
+                "root_or_stem": "كتب",
+                "confidence": 0.85
+            }
+        )
+
+        assert isinstance(result, IdentityCandidate)
+        assert isinstance(result.confidence, float)
+        assert 0.0 <= result.confidence < 1.0
+
+    def test_identity_candidate_rejects_rank_cert(self):
+        """
+        IdentityCandidate must REJECT Rank.CERT (certificate forbidden).
+        """
+        from dal_core.path_aware_identity_validator import PathEvidence
+
+        # Try to create IdentityCandidate with Rank.CERT (should fail)
+        with pytest.raises(ValueError, match="CERT.*forbidden"):
+            IdentityCandidate(
+                identity_type=IdentityType.WORDFORM_IDENTITY,
+                path_evidence=PathEvidence(
+                    path_type=IdentityPathType.WEIGHT_PATH,
+                    source_domain=DomainType.WEIGHT_DOMAIN,
+                    evidence_present=True
+                ),
+                rank=Rank.CERT,  # FORBIDDEN
+                confidence=0.9
+            )
+
+    def test_identity_candidate_accepts_form_rank(self):
+        """
+        IdentityCandidate must ACCEPT Rank.FORM (candidate rank).
+        """
+        from dal_core.path_aware_identity_validator import PathEvidence
+
+        candidate = IdentityCandidate(
+            identity_type=IdentityType.WORDFORM_IDENTITY,
+            path_evidence=PathEvidence(
+                path_type=IdentityPathType.WEIGHT_PATH,
+                source_domain=DomainType.WEIGHT_DOMAIN,
+                evidence_present=True
+            ),
+            rank=Rank.FORM,  # OK
+            confidence=0.8
+        )
+
+        assert candidate.rank == Rank.FORM
+
+    def test_validator_respects_evidence_rank(self):
+        """
+        Validator must respect rank suggestion from evidence (if not CERT).
+        """
+        validator = PathAwareIdentityValidator()
+
+        result = validator.validate_identity_transition(
+            source_domain=DomainType.WEIGHT_DOMAIN,
+            target_identity=IdentityType.WORDFORM_IDENTITY,
+            path_type=IdentityPathType.WEIGHT_PATH,
+            evidence={
+                "weight_pattern": "فاعل",
+                "root_or_stem": "كتب",
+                "rank": "QIYAS"  # Suggest QIYAS rank
+            }
+        )
+
+        assert isinstance(result, IdentityCandidate)
+        assert result.rank == Rank.QIYAS
 
 
 if __name__ == "__main__":

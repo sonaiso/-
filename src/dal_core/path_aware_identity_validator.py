@@ -10,6 +10,20 @@ Constitutional Law:
 PR-127 correctly removed unconditional WEIGHT_DOMAIN requirement from IDENTITY_DOMAIN.
 PR-128 adds path-aware validation at transition time to prevent permissive holes.
 
+**Implementation Status: FOUNDATION-ONLY (2026-05-27)**
+
+This module provides the foundation for path-aware identity validation.
+Integration with AlgebraicDecisionCore and ApprovedTransitionContext is pending.
+
+Current status:
+- ✅ PathAwareIdentityValidator class implemented
+- ✅ 6 licensed paths defined and validated
+- ✅ Target identity whitelist/blacklist enforced
+- ✅ Rank enum + confidence float separation
+- ✅ AlgebraicFailure returns for operation failures
+- ✅ 30+ tests covering all paths + forbidden targets
+- ⚠️  Integration with core pipeline pending (future work)
+
 Licensed Identity Paths:
 1. Weight path: ROOT/STEM → WEIGHT → IDENTITY
 2. Mabni/closed-class path: LAFZ → MABNI → IDENTITY
@@ -25,6 +39,7 @@ Algebraic Properties:
 - Validates at transition time, not structure time
 
 Created: 2026-05-27 (PR-128)
+Updated: 2026-05-27 (PR-128 fixes: whitelist, rank enum, tests)
 """
 
 from dataclasses import dataclass
@@ -35,6 +50,7 @@ from types import MappingProxyType
 from dal_core.dal_algebra import AlgebraicFailure
 from dal_core.domain_registry import DomainType, DomainRegistry
 from dal_core.identity_registry import IdentityType, IdentityRegistry
+from dal_core.pipeline import Rank
 
 
 # ============================================================================
@@ -86,26 +102,37 @@ class IdentityCandidate:
     Attributes:
         identity_type: The identity being claimed (e.g., WORDFORM_IDENTITY)
         path_evidence: Evidence for the licensed path used
-        rank: Candidate rank (NOT CERTIFICATE)
+        rank: Epistemic rank (from Rank enum, NOT Rank.CERT)
+        confidence: Confidence score [0.0, 1.0) for this candidate
         residuals: Unresolved residuals from transition
         lafz_anchor_id: Preserved lafz anchor ID
         slot_trace: Preserved slot trace
     """
     identity_type: IdentityType
     path_evidence: PathEvidence
-    rank: float  # Candidate rank, not certificate
+    rank: Rank  # Epistemic rank enum (FORM, QIYAS, AHAD, TAWATUR - NOT CERT)
+    confidence: float  # Confidence score [0.0, 1.0)
     residuals: Tuple[str, ...] = ()
     lafz_anchor_id: Optional[str] = None
     slot_trace: Optional[Tuple[int, ...]] = None
 
     def __post_init__(self):
         """Validate identity candidate invariants."""
-        if self.rank < 0.0:
-            raise ValueError(f"Rank must be non-negative, got {self.rank}")
-        if self.rank >= 1.0:
+        # Rank must NOT be CERT (certificate)
+        if self.rank == Rank.CERT:
             raise ValueError(
-                f"Rank must be < 1.0 (CERTIFICATE forbidden), got {self.rank}"
+                f"Rank.CERT (CERTIFICATE) forbidden in IdentityCandidate, got {self.rank}"
             )
+
+        # Confidence must be in [0.0, 1.0)
+        if self.confidence < 0.0:
+            raise ValueError(f"Confidence must be non-negative, got {self.confidence}")
+        if self.confidence >= 1.0:
+            raise ValueError(
+                f"Confidence must be < 1.0 (certainty forbidden), got {self.confidence}"
+            )
+
+        # Coerce to immutable types
         if not isinstance(self.residuals, tuple):
             object.__setattr__(self, "residuals", tuple(self.residuals))
         if not isinstance(self.slot_trace, tuple) and self.slot_trace is not None:
@@ -156,6 +183,84 @@ class PathAwareIdentityValidator:
 
         # Build licensed path mapping (immutable)
         self._licensed_paths = self._build_licensed_paths()
+
+        # Build allowed target identities whitelist (immutable)
+        self._allowed_target_identities = self._build_allowed_target_identities()
+
+        # Build forbidden target identities blacklist (immutable)
+        self._forbidden_target_identities = self._build_forbidden_target_identities()
+
+    def _build_allowed_target_identities(self) -> FrozenSet[IdentityType]:
+        """Build whitelist of allowed target identities.
+
+        Constitutional Law:
+            Identity path validation targets IDENTITY_AXIS candidates and
+            WORDFORM_IDENTITY, NOT semantic/judgment/functional layers.
+
+        Returns:
+            Immutable set of allowed target identity types
+        """
+        allowed = {
+            # Layer 4: Lafz identities
+            IdentityType.LAFZ_IDENTITY,
+
+            # Layer 8: Root/Stem candidates (NOT certificates)
+            IdentityType.ROOT_MATERIAL_IDENTITY,
+            IdentityType.STEM_IDENTITY,
+
+            # Layer 9: Weight identities
+            IdentityType.WEIGHT_IDENTITY,
+
+            # Layer 10: Word form identities
+            IdentityType.WORDFORM_IDENTITY,
+            IdentityType.FORM_IDENTITY,
+
+            # Closed class identities
+            IdentityType.CLOSED_CLASS_IDENTITY,
+
+            # Derivational identities (if licensed)
+            IdentityType.SOURCE_IDENTITY,
+            IdentityType.ATTRIBUTE_IDENTITY,
+        }
+        return frozenset(allowed)
+
+    def _build_forbidden_target_identities(self) -> FrozenSet[IdentityType]:
+        """Build blacklist of forbidden target identities.
+
+        Constitutional Law:
+            Identity path validation MUST NOT target:
+            - Semantic identities (meaning layer)
+            - Judgment identities (hukm layer)
+            - Ifādah identities (pragmatic closure)
+            - Functional relation identities (syntax layer)
+            - Operator identities (ʿāmil/maʿmūl)
+
+        These identities arise AFTER identity determination, not during it.
+
+        Returns:
+            Immutable set of forbidden target identity types
+        """
+        forbidden = {
+            # Semantic layer (FORBIDDEN)
+            IdentityType.SEMANTIC_IDENTITY,
+
+            # Ifādah layer (FORBIDDEN)
+            IdentityType.IFADAH_IDENTITY,
+
+            # Judgment layer (FORBIDDEN)
+            IdentityType.HUKM_IDENTITY,
+
+            # Functional relation layer (FORBIDDEN)
+            IdentityType.FUNCTIONAL_RELATION_IDENTITY,
+
+            # Operator identities (FORBIDDEN)
+            IdentityType.AMIL_IDENTITY,
+            IdentityType.MAAMUL_IDENTITY,
+
+            # Relation composition (FORBIDDEN at identity stage)
+            IdentityType.RELATION_COMPOSITION_IDENTITY,
+        }
+        return frozenset(forbidden)
 
     def _build_licensed_paths(self) -> MappingProxyType:
         """Build mapping of licensed identity paths.
@@ -258,9 +363,30 @@ class PathAwareIdentityValidator:
                 gate="evidence_gate"
             )
 
-        # Step 4: Check target_identity is allowed from source_domain
-        # (This is a basic check; full validation would check IdentityRegistry)
-        # For now, just ensure target_identity is in the registry
+        # Step 4: Check target_identity is whitelisted (NOT forbidden)
+        # CRITICAL: Prevent semantic/judgment/functional identities
+        if target_identity in self._forbidden_target_identities:
+            return AlgebraicFailure(
+                reason=(
+                    f"Target identity {target_identity} is FORBIDDEN. "
+                    f"Identity path validation cannot target semantic/judgment/functional layers. "
+                    f"Forbidden identities: {self._forbidden_target_identities}"
+                ),
+                forbidden_path=f"path → {target_identity}",
+                gate="forbidden_target_identity_gate"
+            )
+
+        # Check target_identity is in allowed whitelist
+        if target_identity not in self._allowed_target_identities:
+            return AlgebraicFailure(
+                reason=(
+                    f"Target identity {target_identity} not in allowed whitelist. "
+                    f"Allowed identities: {self._allowed_target_identities}"
+                ),
+                gate="allowed_target_identity_gate"
+            )
+
+        # Verify target_identity exists in registry
         try:
             identity_spec = self.identity_registry.get_spec(target_identity)
         except KeyError:
@@ -273,12 +399,28 @@ class PathAwareIdentityValidator:
         # (This is enforced by NOT including those fields in IdentityCandidate)
         # Validator itself does NOT produce meaning/syntax/iʿrab/ifādah/hukm
 
-        # Step 6: Compute rank (always < 1.0)
-        # Simple rank calculation based on evidence quality
-        # (In production, this would be more sophisticated)
-        rank = 0.8  # Default candidate rank (< 1.0, not certificate)
+        # Step 6: Compute rank and confidence
+        # Use Rank enum (FORM/QIYAS/AHAD/TAWATUR), NOT Rank.CERT
+        # Confidence is separate float [0.0, 1.0)
+        rank = Rank.FORM  # Default: candidate rank (form-based)
+        confidence = 0.8  # Default confidence
+
         if "confidence" in evidence:
-            rank = min(0.99, float(evidence["confidence"]))
+            confidence = min(0.99, float(evidence["confidence"]))
+
+        if "rank" in evidence:
+            # Allow evidence to suggest rank (but validate it)
+            suggested_rank = evidence["rank"]
+            if isinstance(suggested_rank, Rank) and suggested_rank != Rank.CERT:
+                rank = suggested_rank
+            elif isinstance(suggested_rank, str):
+                # Map string to Rank (e.g., "QIYAS" → Rank.QIYAS)
+                try:
+                    rank_candidate = Rank[suggested_rank.upper()]
+                    if rank_candidate != Rank.CERT:
+                        rank = rank_candidate
+                except (KeyError, AttributeError):
+                    pass  # Keep default FORM rank
 
         # Step 7: Build path evidence
         path_evidence = PathEvidence(
@@ -295,6 +437,7 @@ class PathAwareIdentityValidator:
             identity_type=target_identity,
             path_evidence=path_evidence,
             rank=rank,
+            confidence=confidence,
             residuals=residuals,
             lafz_anchor_id=lafz_anchor_id,
             slot_trace=slot_trace
