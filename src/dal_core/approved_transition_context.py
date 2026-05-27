@@ -39,7 +39,7 @@ Created: 2026-05-26
 """
 
 from dataclasses import dataclass, field
-from typing import Tuple, FrozenSet
+from typing import Tuple, FrozenSet, Optional
 
 from dal_core.algebraic_decision_core import DecisionAudit, CPBStatus
 from dal_core.execution_layer_registry import ExecutionLayer
@@ -47,6 +47,9 @@ from dal_core.identity_registry import IdentityType
 from dal_core.domain_registry import DomainType
 from dal_core.foundation import Rank
 from dal_core.residuals import Residual
+
+# PR-1B: Kernel integration - import dal_algebra types
+from dal_core.dal_algebra import DalTransitionContract, DalTransitionDomain, DalClaimScope
 
 
 # Private sentinel token - prevents forgery through direct construction
@@ -86,6 +89,9 @@ class ApprovedTransitionContext:
         allowed_determination: What the layer may determine
         trace: Execution trace (verified)
         existing_identities: All established identities up to this point
+        dal_contract: Optional DalTransitionContract (PR-1B kernel integration)
+        dal_domain: Optional DalTransitionDomain (PR-1B kernel mapping)
+        dal_claim_scope: Optional DalClaimScope (PR-1B kernel claim scope)
     """
     audit: DecisionAudit
     from_layer: ExecutionLayer
@@ -96,6 +102,10 @@ class ApprovedTransitionContext:
     allowed_determination: str
     trace: Tuple[str, ...]
     existing_identities: FrozenSet[IdentityType]
+    # PR-1B: Kernel integration fields
+    dal_contract: Optional[DalTransitionContract] = None
+    dal_domain: Optional[DalTransitionDomain] = None
+    dal_claim_scope: Optional[DalClaimScope] = None
     _token: object = field(repr=False, compare=False, default=None)
 
     def __post_init__(self):
@@ -294,6 +304,10 @@ def create_approved_context(
         allowed_determination=audit.function,
         trace=audit.trace,
         existing_identities=existing_identities,
+        # PR-1B: Pass through dal_algebra fields from audit
+        dal_contract=audit.dal_contract,
+        dal_domain=audit.dal_domain,
+        dal_claim_scope=audit.dal_claim_scope,
         _token=_APPROVED_CONTEXT_TOKEN,  # Pass sentinel token (anti-forgery)
     )
 

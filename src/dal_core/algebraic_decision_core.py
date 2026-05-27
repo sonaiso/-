@@ -87,6 +87,14 @@ from dal_core.domain_registry import (
 from dal_core.foundation import Rank, ResidualSet
 from dal_core.residuals import Residual
 
+# PR-1B: Kernel integration - dal_algebra is the constitutional foundation
+# AlgebraicDecisionCore is the governance executor
+from dal_core.dal_algebra import (
+    DalTransitionDomain,
+    DalTransitionContract,
+    DalClaimScope,
+)
+
 
 # ============================================================================
 # CPB Status
@@ -138,6 +146,9 @@ class DecisionAudit:
         allowed: Whether transition is allowed
         violations: List of violations (empty if allowed)
         timestamp: When decision was made
+        dal_contract: Optional DalTransitionContract (PR-1B kernel integration)
+        dal_domain: Optional DalTransitionDomain (PR-1B kernel mapping)
+        dal_claim_scope: Optional DalClaimScope (PR-1B kernel claim scope)
     """
     decision_id: str
     transition_id: str
@@ -156,6 +167,10 @@ class DecisionAudit:
     allowed: bool
     violations: Tuple[str, ...] = tuple()
     timestamp: Optional[str] = None
+    # PR-1B: Kernel integration fields
+    dal_contract: Optional[DalTransitionContract] = None
+    dal_domain: Optional[DalTransitionDomain] = None
+    dal_claim_scope: Optional[DalClaimScope] = None
 
     def is_approved(self) -> bool:
         """Check if decision was approved."""
