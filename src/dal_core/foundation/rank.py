@@ -69,6 +69,11 @@ class Rank(Enum):
             - Cannot progress from BLOCKED
             - Cannot progress to ZERO (regression)
             - Cannot skip levels (must go through intermediate ranks)
+
+        Constitutional Law:
+            لا قفز رتبي - No rank skipping
+            ZERO → CANDIDATE → HYPOTHESIS → STRONG_HYPOTHESIS → CERTIFICATE
+            Each step requires evidence; no direct ZERO → CERTIFICATE
         """
         if self == Rank.BLOCKED:
             return False
@@ -85,8 +90,22 @@ class Rank(Enum):
         try:
             current_idx = order.index(self)
             target_idx = order.index(target)
-            # Can only progress forward
-            return target_idx >= current_idx
+
+            # Can only progress forward, but no skipping
+            # Must be same rank (allowed) or next rank only (progression by one step)
+            if target_idx < current_idx:
+                return False  # Cannot regress
+
+            # Allow staying at same rank
+            if target_idx == current_idx:
+                return True
+
+            # Allow progression to next rank only (no skipping)
+            if target_idx == current_idx + 1:
+                return True
+
+            # Skipping ranks is forbidden
+            return False
         except ValueError:
             return False
 

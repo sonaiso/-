@@ -213,6 +213,41 @@ from .d1_rank_policy import (
     rank_is_not_certificate,
     confidence_is_not_certificate,
 )
+from .algebraic_decision_core import (
+    CPBStatus,
+    DecisionAudit,
+    CPBIdentityGuardian,
+    AlgebraicDecisionCore,
+)
+from .approved_transition_context import (
+    ApprovedTransitionContext,
+    create_approved_context,
+)
+from .identity_registry import (
+    IdentityType,
+    IdentityLayer,
+    IdentitySpec,
+    IdentityRegistry,
+    verify_identity_preserved,
+)
+from .domain_registry import (
+    DomainType,
+    DomainLayer,
+    DomainSpec,
+    DomainRegistry,
+    verify_domain_boundary,
+)
+from .u9_weight_candidate_carrier import (
+    WeightCandidateResult,
+    weight_candidate_carrier_9,
+    validate_approved_context_for_u9,
+)
+from .u10_word_form_candidate_carrier import (
+    WordFormCandidateUnit,
+    WordFormCandidateResult,
+    word_form_candidate_carrier_10,
+    validate_approved_context_for_u10,
+)
 
 __all__ = [
     "Rank",
@@ -347,4 +382,30 @@ __all__ = [
     "generate_syllable_candidate",
     "generate_syllable_candidates",
     "syllabify_word",
+    # AlgebraicDecisionCore (Governance Layer)
+    "CPBStatus",
+    "DecisionAudit",
+    "CPBIdentityGuardian",
+    "AlgebraicDecisionCore",
+    "ApprovedTransitionContext",
+    "create_approved_context",
+    "IdentityType",
+    "IdentityLayer",
+    "IdentitySpec",
+    "IdentityRegistry",
+    "verify_identity_preserved",
+    "DomainType",
+    "DomainLayer",
+    "DomainSpec",
+    "DomainRegistry",
+    "verify_domain_boundary",
+    # U₉ WeightCandidateCarrier (Official Implementation)
+    "WeightCandidateResult",
+    "weight_candidate_carrier_9",
+    "validate_approved_context_for_u9",
+    # U₁₀ WordFormCandidateCarrier (Design Layer - Tests before implementation)
+    "WordFormCandidateUnit",
+    "WordFormCandidateResult",
+    "word_form_candidate_carrier_10",
+    "validate_approved_context_for_u10",
 ]

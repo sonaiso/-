@@ -21,7 +21,8 @@ from dal_core.foundation.residual_set import (
     ResidualSet,
     merge_residuals,
     discharge_residual,
-    has_blocking_residuals
+    has_blocking_residuals,
+    create_residual_set
 )
 from dal_core.foundation.potential_path import (
     PotentialPath,
@@ -55,6 +56,7 @@ __all__ = [
     "merge_residuals",
     "discharge_residual",
     "has_blocking_residuals",
+    "create_residual_set",
     "PotentialPath",
     "PotentialPathStatus",
     "certify_path",

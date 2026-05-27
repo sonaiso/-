@@ -13,15 +13,17 @@ Execution Core (U₀-U₉): Closed, implemented, operational layers
     U₃ BoundaryAndAttachment → U₄ TrueSingularLafẓ
     U₄ TrueSingularLafẓ → U₅ FunctionalRole
     U₅ FunctionalRole   → U₆ MabniClosedClass
-    U₆ MabniClosedClass → U₇ PreWeightContract
-    U₇ PreWeightContract → U₈ RootStem
+    U₆ MabniClosedClass → U₇-A PreWeightContract
+    U₇-A PreWeightContract → U₇-B WordSurfaceGuard
+    U₇-B WordSurfaceGuard → U₇-C ClauseSurfaceAgreementContract
+    U₇-C ClauseSurfaceAgreementContract → U₈ RootStem
     U₈ RootStem         → U₉ Weight
 
 Design Layers (U₁₀-U₁₅): Future design, not closed execution layers
     U₁₀ WordForm
-    U₁₁ LexicalEntry
-    U₁₂ MorphosyntacticFeature
-    U₁₃ PhraseRelation
+    U₁₁ RelationComposition
+    U₁₂ Ifadah
+    U₁₃ Hukm
     U₁₄ SentenceStructure
     U₁₅ Dalālah
 
@@ -60,15 +62,17 @@ class ExecutionLayer(Enum):
     U4_TRUE_SINGULAR_LAFZ = "u4_true_singular_lafz"
     U5_FUNCTIONAL_ROLE = "u5_functional_role"
     U6_MABNI_CLOSED_CLASS = "u6_mabni_closed_class"
-    U7_PRE_WEIGHT_CONTRACT = "u7_pre_weight_contract"
+    U7A_PRE_WEIGHT_CONTRACT = "u7a_pre_weight_contract"
+    U7B_INFLECTIONAL_SURFACE_CONTRACT = "u7b_inflectional_surface_contract"
+    U7C_CLAUSE_SURFACE_AGREEMENT = "u7c_clause_surface_agreement"
     U8_ROOT_STEM = "u8_root_stem"
     U9_WEIGHT = "u9_weight"
 
     # Higher layers (design phase)
     U10_WORD_FORM = "u10_word_form"
-    U11_LEXICAL_ENTRY = "u11_lexical_entry"
-    U12_MORPHOSYNTACTIC_FEATURE = "u12_morphosyntactic_feature"
-    U13_PHRASE_RELATION = "u13_phrase_relation"
+    U11_RELATION_COMPOSITION = "u11_relation_composition"
+    U12_IFADAH = "u12_ifadah"
+    U13_HUKM = "u13_hukm"
     U14_SENTENCE_STRUCTURE = "u14_sentence_structure"
     U15_DALALAH = "u15_dalalah"
 
@@ -104,7 +108,9 @@ EXECUTION_CORE_LAYERS = [
     ExecutionLayer.U4_TRUE_SINGULAR_LAFZ,
     ExecutionLayer.U5_FUNCTIONAL_ROLE,
     ExecutionLayer.U6_MABNI_CLOSED_CLASS,
-    ExecutionLayer.U7_PRE_WEIGHT_CONTRACT,
+    ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT,
+    ExecutionLayer.U7B_INFLECTIONAL_SURFACE_CONTRACT,
+    ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT,
     ExecutionLayer.U8_ROOT_STEM,
     ExecutionLayer.U9_WEIGHT,
 ]
@@ -112,9 +118,9 @@ EXECUTION_CORE_LAYERS = [
 # Design Layers (U₁₀-U₁₅): Future design, not closed execution layers
 DESIGN_LAYERS = [
     ExecutionLayer.U10_WORD_FORM,
-    ExecutionLayer.U11_LEXICAL_ENTRY,
-    ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE,
-    ExecutionLayer.U13_PHRASE_RELATION,
+    ExecutionLayer.U11_RELATION_COMPOSITION,
+    ExecutionLayer.U12_IFADAH,
+    ExecutionLayer.U13_HUKM,
     ExecutionLayer.U14_SENTENCE_STRUCTURE,
     ExecutionLayer.U15_DALALAH,
 ]
@@ -143,10 +149,19 @@ CORE_ALLOWED_TRANSITIONS = {
 
     # Morphological layers
     ExecutionLayer.U5_FUNCTIONAL_ROLE: {ExecutionLayer.U6_MABNI_CLOSED_CLASS},
-    ExecutionLayer.U6_MABNI_CLOSED_CLASS: {ExecutionLayer.U7_PRE_WEIGHT_CONTRACT},
-    ExecutionLayer.U7_PRE_WEIGHT_CONTRACT: {ExecutionLayer.U8_ROOT_STEM},
+    ExecutionLayer.U6_MABNI_CLOSED_CLASS: {ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT},
+
+    # Surface protection layers (U₇-A → U₇-B → U₇-C → U₈)
+    ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT: {ExecutionLayer.U7B_INFLECTIONAL_SURFACE_CONTRACT},
+    ExecutionLayer.U7B_INFLECTIONAL_SURFACE_CONTRACT: {ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT},
+    ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT: {ExecutionLayer.U8_ROOT_STEM},
+
+    # Root and weight
     ExecutionLayer.U8_ROOT_STEM: {ExecutionLayer.U9_WEIGHT},
 }
+
+# NOTE: U₈ ROOT_STEM is now IMPLEMENTED and registered.
+# U₈ is closed over real U₇ pre-weight contract output.
 
 # Design layer transitions (U₁₀-U₁₅) - Future design, not closed execution
 DESIGN_ALLOWED_TRANSITIONS = {
@@ -154,10 +169,10 @@ DESIGN_ALLOWED_TRANSITIONS = {
     ExecutionLayer.U9_WEIGHT: {ExecutionLayer.U10_WORD_FORM},
 
     # Design layer internal transitions (not yet closed)
-    ExecutionLayer.U10_WORD_FORM: {ExecutionLayer.U11_LEXICAL_ENTRY},
-    ExecutionLayer.U11_LEXICAL_ENTRY: {ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE},
-    ExecutionLayer.U12_MORPHOSYNTACTIC_FEATURE: {ExecutionLayer.U13_PHRASE_RELATION},
-    ExecutionLayer.U13_PHRASE_RELATION: {ExecutionLayer.U14_SENTENCE_STRUCTURE},
+    ExecutionLayer.U10_WORD_FORM: {ExecutionLayer.U11_RELATION_COMPOSITION},
+    ExecutionLayer.U11_RELATION_COMPOSITION: {ExecutionLayer.U12_IFADAH},
+    ExecutionLayer.U12_IFADAH: {ExecutionLayer.U13_HUKM},
+    ExecutionLayer.U13_HUKM: {ExecutionLayer.U14_SENTENCE_STRUCTURE},
     ExecutionLayer.U14_SENTENCE_STRUCTURE: {ExecutionLayer.U15_DALALAH},
 }
 
@@ -186,6 +201,24 @@ FORBIDDEN_JUMPS = {
 
     (ExecutionLayer.U5_FUNCTIONAL_ROLE, ExecutionLayer.U8_ROOT_STEM):
         "Missing U₆ MabniClosedClass and U₇ PreWeightContract",
+
+    # Critical U₉→U₁₁ forbidden jump (no direct weight→composition)
+    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U11_RELATION_COMPOSITION):
+        "Missing U₁₀ WordFormCandidate - لا انتقال من الوزن إلى التركيب مباشرة",
+
+    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U12_IFADAH):
+        "Missing U₁₀ WordFormCandidate and U₁₁ RelationComposition",
+
+    # Critical U₁₀→U₁₂ forbidden jump (no direct wordform→ifadah)
+    (ExecutionLayer.U10_WORD_FORM, ExecutionLayer.U12_IFADAH):
+        "Missing U₁₁ RelationComposition - لا إفادة بلا تركيب علائقي",
+
+    # Critical U₁₀→U₁₃ forbidden jump (no direct wordform→hukm)
+    (ExecutionLayer.U10_WORD_FORM, ExecutionLayer.U13_HUKM):
+        "Missing U₁₁ RelationComposition and U₁₂ Ifadah - لا حكم بلا إفادة",
+
+    (ExecutionLayer.U9_WEIGHT, ExecutionLayer.U15_DALALAH):
+        "Missing U₁₀ WordFormCandidate - no direct weight→semantic jump",
 }
 
 
@@ -360,6 +393,7 @@ LEGACY_LAYER_MAPPING = {
     "legacy_u4_morpheme": ExecutionLayer.U6_MABNI_CLOSED_CLASS,
     "legacy_u5_stemroot": ExecutionLayer.U8_ROOT_STEM,
     "legacy_u6_pattern": ExecutionLayer.U9_WEIGHT,
+    "u7_pre_weight_contract": ExecutionLayer.U7A_PRE_WEIGHT_CONTRACT,  # U₇ split into U₇-A and U₇-B
 }
 
 
