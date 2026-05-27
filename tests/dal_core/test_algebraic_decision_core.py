@@ -582,3 +582,296 @@ class TestAlgebraicDecisionCoreIntegration:
         )
 
         assert audit4.is_approved()
+
+
+# ============================================================================
+# PR-129: Path-Aware Identity Validation Integration Tests
+# ============================================================================
+
+class TestPathAwareIdentityIntegration:
+    """
+    Test integration of PathAwareIdentityValidator with AlgebraicDecisionCore.
+
+    Constitutional Law:
+        لا هوية بلا مسار مرخّص
+        No identity without licensed path.
+
+    PR-129 integrates PathAwareIdentityValidator into audit_decision() to enforce
+    path-aware identity validation for IDENTITY_DOMAIN transitions.
+    """
+
+    def test_identity_domain_requires_path_evidence(self):
+        """
+        IDENTITY_DOMAIN transition without path evidence must be REJECTED.
+
+        Constitutional Law: لا هوية بلا مسار مرخّص
+        """
+        core = AlgebraicDecisionCore()
+
+        existing = frozenset({
+            IdentityType.RAW_SURFACE_IDENTITY,
+            IdentityType.ORTHOGRAPHIC_IDENTITY,
+            IdentityType.WEIGHT_IDENTITY,
+        })
+
+        # Attempt IDENTITY_DOMAIN transition WITHOUT path evidence
+        audit = core.decide_transition(
+            transition_id="U9_to_U10_no_path",
+            from_layer=ExecutionLayer.U9_WEIGHT,
+            to_layer=ExecutionLayer.U10_WORD_FORM,
+            input_identity=IdentityType.WEIGHT_IDENTITY,
+            output_identity=IdentityType.WORDFORM_IDENTITY,
+            existing_identities=existing,
+            domain=DomainType.IDENTITY_DOMAIN,  # IDENTITY_DOMAIN trigger
+            attempted_determination="wordform_identity",
+            gate_name="WordFormGate",
+            gate_passed=True,
+            evidence=("generic_evidence",),  # NO path evidence markers
+            required_evidence=frozenset({"generic_evidence"}),
+            input_rank=Rank.CANDIDATE,
+            output_rank=Rank.CANDIDATE,
+            residual_set=create_residual_set(frozenset()),
+            trace=("U9",)
+        )
+
+        # Must be REJECTED with PATH_IDENTITY_VIOLATION
+        assert not audit.is_approved()
+        assert audit.cpb_status == CPBStatus.PATH_IDENTITY_VIOLATION
+        assert any("Path Identity" in v for v in audit.violations)
+        assert any("لا هوية بلا مسار مرخّص" in v for v in audit.violations)
+
+    def test_identity_domain_accepts_weight_path_evidence(self):
+        """
+        IDENTITY_DOMAIN transition WITH weight path evidence must be ACCEPTED.
+
+        Path: WEIGHT_PATH (weight_pattern, root_or_stem)
+        """
+        core = AlgebraicDecisionCore()
+
+        existing = frozenset({
+            IdentityType.RAW_SURFACE_IDENTITY,
+            IdentityType.ORTHOGRAPHIC_IDENTITY,
+            IdentityType.WEIGHT_IDENTITY,
+        })
+
+        # IDENTITY_DOMAIN transition WITH weight path evidence
+        audit = core.decide_transition(
+            transition_id="U9_to_U10_weight_path",
+            from_layer=ExecutionLayer.U9_WEIGHT,
+            to_layer=ExecutionLayer.U10_WORD_FORM,
+            input_identity=IdentityType.WEIGHT_IDENTITY,
+            output_identity=IdentityType.WORDFORM_IDENTITY,
+            existing_identities=existing,
+            domain=DomainType.IDENTITY_DOMAIN,
+            attempted_determination="wordform_identity",
+            gate_name="WordFormGate",
+            gate_passed=True,
+            evidence=("weight_pattern", "root_or_stem"),  # WEIGHT_PATH evidence
+            required_evidence=frozenset({"weight_pattern", "root_or_stem"}),
+            input_rank=Rank.CANDIDATE,
+            output_rank=Rank.CANDIDATE,
+            residual_set=create_residual_set(frozenset()),
+            trace=("U9",)
+        )
+
+        # Must be APPROVED
+        assert audit.is_approved()
+        assert audit.cpb_status == CPBStatus.APPROVED
+        assert len(audit.violations) == 0
+
+    def test_identity_domain_accepts_mabni_path_evidence(self):
+        """
+        IDENTITY_DOMAIN transition WITH mabni path evidence must be ACCEPTED.
+
+        Path: MABNI_PATH (closed_class_marker)
+        Examples: ما، هل، إن...
+        """
+        core = AlgebraicDecisionCore()
+
+        existing = frozenset({
+            IdentityType.RAW_SURFACE_IDENTITY,
+            IdentityType.ORTHOGRAPHIC_IDENTITY,
+            IdentityType.LAFZ_IDENTITY,
+        })
+
+        # IDENTITY_DOMAIN transition WITH mabni path evidence
+        audit = core.decide_transition(
+            transition_id="U4_to_U10_mabni_path",
+            from_layer=ExecutionLayer.U4_MSL,
+            to_layer=ExecutionLayer.U10_WORD_FORM,
+            input_identity=IdentityType.LAFZ_IDENTITY,
+            output_identity=IdentityType.WORDFORM_IDENTITY,
+            existing_identities=existing,
+            domain=DomainType.IDENTITY_DOMAIN,
+            attempted_determination="wordform_identity_mabni",
+            gate_name="MabniGate",
+            gate_passed=True,
+            evidence=("closed_class_marker",),  # MABNI_PATH evidence
+            required_evidence=frozenset({"closed_class_marker"}),
+            input_rank=Rank.CANDIDATE,
+            output_rank=Rank.CANDIDATE,
+            residual_set=create_residual_set(frozenset()),
+            trace=("U4",)
+        )
+
+        # Must be APPROVED
+        assert audit.is_approved()
+        assert audit.cpb_status == CPBStatus.APPROVED
+        assert len(audit.violations) == 0
+
+    def test_identity_domain_accepts_tool_path_evidence(self):
+        """
+        IDENTITY_DOMAIN transition WITH tool/particle path evidence must be ACCEPTED.
+
+        Path: TOOL_PATH (particle_type)
+        Examples: في، على، من...
+        """
+        core = AlgebraicDecisionCore()
+
+        existing = frozenset({
+            IdentityType.RAW_SURFACE_IDENTITY,
+            IdentityType.LAFZ_IDENTITY,
+        })
+
+        # IDENTITY_DOMAIN transition WITH tool path evidence
+        audit = core.decide_transition(
+            transition_id="U4_to_U10_tool_path",
+            from_layer=ExecutionLayer.U4_MSL,
+            to_layer=ExecutionLayer.U10_WORD_FORM,
+            input_identity=IdentityType.LAFZ_IDENTITY,
+            output_identity=IdentityType.WORDFORM_IDENTITY,
+            existing_identities=existing,
+            domain=DomainType.IDENTITY_DOMAIN,
+            attempted_determination="wordform_identity_particle",
+            gate_name="ParticleGate",
+            gate_passed=True,
+            evidence=("particle_type",),  # TOOL_PATH evidence
+            required_evidence=frozenset({"particle_type"}),
+            input_rank=Rank.CANDIDATE,
+            output_rank=Rank.CANDIDATE,
+            residual_set=create_residual_set(frozenset()),
+            trace=("U4",)
+        )
+
+        # Must be APPROVED
+        assert audit.is_approved()
+        assert audit.cpb_status == CPBStatus.APPROVED
+        assert len(audit.violations) == 0
+
+    def test_identity_domain_accepts_pronoun_path_evidence(self):
+        """
+        IDENTITY_DOMAIN transition WITH pronoun path evidence must be ACCEPTED.
+
+        Path: PRONOUN_PATH (pronoun_class)
+        Examples: هو، أنت...
+        """
+        core = AlgebraicDecisionCore()
+
+        existing = frozenset({
+            IdentityType.RAW_SURFACE_IDENTITY,
+            IdentityType.LAFZ_IDENTITY,
+        })
+
+        # IDENTITY_DOMAIN transition WITH pronoun path evidence
+        audit = core.decide_transition(
+            transition_id="U4_to_U10_pronoun_path",
+            from_layer=ExecutionLayer.U4_MSL,
+            to_layer=ExecutionLayer.U10_WORD_FORM,
+            input_identity=IdentityType.LAFZ_IDENTITY,
+            output_identity=IdentityType.WORDFORM_IDENTITY,
+            existing_identities=existing,
+            domain=DomainType.IDENTITY_DOMAIN,
+            attempted_determination="wordform_identity_pronoun",
+            gate_name="PronounGate",
+            gate_passed=True,
+            evidence=("pronoun_class",),  # PRONOUN_PATH evidence
+            required_evidence=frozenset({"pronoun_class"}),
+            input_rank=Rank.CANDIDATE,
+            output_rank=Rank.CANDIDATE,
+            residual_set=create_residual_set(frozenset()),
+            trace=("U4",)
+        )
+
+        # Must be APPROVED
+        assert audit.is_approved()
+        assert audit.cpb_status == CPBStatus.APPROVED
+        assert len(audit.violations) == 0
+
+    def test_identity_domain_accepts_jamid_path_evidence(self):
+        """
+        IDENTITY_DOMAIN transition WITH jāmid path evidence must be ACCEPTED.
+
+        Path: JAMID_PATH (jamid_marker)
+        Examples: frozen nouns, non-derived forms
+        """
+        core = AlgebraicDecisionCore()
+
+        existing = frozenset({
+            IdentityType.RAW_SURFACE_IDENTITY,
+            IdentityType.LAFZ_IDENTITY,
+        })
+
+        # IDENTITY_DOMAIN transition WITH jamid path evidence
+        audit = core.decide_transition(
+            transition_id="U4_to_U10_jamid_path",
+            from_layer=ExecutionLayer.U4_MSL,
+            to_layer=ExecutionLayer.U10_WORD_FORM,
+            input_identity=IdentityType.LAFZ_IDENTITY,
+            output_identity=IdentityType.WORDFORM_IDENTITY,
+            existing_identities=existing,
+            domain=DomainType.IDENTITY_DOMAIN,
+            attempted_determination="wordform_identity_jamid",
+            gate_name="JamidGate",
+            gate_passed=True,
+            evidence=("jamid_marker",),  # JAMID_PATH evidence
+            required_evidence=frozenset({"jamid_marker"}),
+            input_rank=Rank.CANDIDATE,
+            output_rank=Rank.CANDIDATE,
+            residual_set=create_residual_set(frozenset()),
+            trace=("U4",)
+        )
+
+        # Must be APPROVED
+        assert audit.is_approved()
+        assert audit.cpb_status == CPBStatus.APPROVED
+        assert len(audit.violations) == 0
+
+    def test_non_identity_domain_not_affected(self):
+        """
+        Path identity validation should NOT affect non-IDENTITY_DOMAIN transitions.
+
+        Transitions in other domains (WEIGHT_DOMAIN, LAFZ_DOMAIN, etc.) should
+        proceed normally without path evidence requirements.
+        """
+        core = AlgebraicDecisionCore()
+
+        existing = frozenset({
+            IdentityType.RAW_SURFACE_IDENTITY,
+            IdentityType.ORTHOGRAPHIC_IDENTITY,
+        })
+
+        # WEIGHT_DOMAIN transition (NOT IDENTITY_DOMAIN)
+        # Should NOT require path evidence
+        audit = core.decide_transition(
+            transition_id="U8_to_U9_weight_domain",
+            from_layer=ExecutionLayer.U8_ROOT_STEM,
+            to_layer=ExecutionLayer.U9_WEIGHT,
+            input_identity=IdentityType.ROOT_MATERIAL_IDENTITY,
+            output_identity=IdentityType.WEIGHT_IDENTITY,
+            existing_identities=existing,
+            domain=DomainType.WEIGHT_DOMAIN,  # NOT IDENTITY_DOMAIN
+            attempted_determination="weight_pattern",
+            gate_name="WeightGate",
+            gate_passed=True,
+            evidence=("pattern_evidence",),  # Generic evidence OK for non-identity domain
+            required_evidence=frozenset({"pattern_evidence"}),
+            input_rank=Rank.CANDIDATE,
+            output_rank=Rank.CANDIDATE,
+            residual_set=create_residual_set(frozenset()),
+            trace=("U8",)
+        )
+
+        # Must be APPROVED (path evidence NOT required for WEIGHT_DOMAIN)
+        assert audit.is_approved()
+        assert audit.cpb_status == CPBStatus.APPROVED
+        assert len(audit.violations) == 0
