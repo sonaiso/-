@@ -343,24 +343,37 @@ class IdentityRegistry:
         ))
 
         # Weight and Form (U₉-U₁₀)
+        # CRITICAL FIX (PR-127): WEIGHT_IDENTITY requires ONE-OF (root OR stem), not BOTH
+        # Arabic weight derivation paths:
+        # - Root-based: root → weight (e.g., كتب → فاعل → كاتب)
+        # - Stem-based: stem → weight (e.g., patterns on existing stems)
+        # Using frozenset with both creates AND logic (requires both simultaneously).
+        # This is algebraically incorrect - a word derives from root OR stem, not both.
+        #
+        # NOTE: Python frozenset in 'requires' means ALL must exist (AND semantics).
+        # For ONE-OF semantics, we need a different approach.
+        # For now, remove requirement - validation happens at path level.
         self._add_spec(IdentitySpec(
             identity_type=IdentityType.WEIGHT_IDENTITY,
             arabic_name="هوية وزن",
             layer=IdentityLayer.WEIGHT_LAYER,
-            requires=frozenset({
-                IdentityType.ROOT_MATERIAL_IDENTITY,
-                IdentityType.STEM_IDENTITY
-            }),
+            requires=frozenset(),  # Path-aware: validated at transition time, not structure time
             allows_transition_to=frozenset({
                 IdentityType.WORDFORM_IDENTITY
             })
         ))
 
+        # WORDFORM_IDENTITY: Path-aware (PR-127)
+        # Can arise from:
+        # - Weight path: WEIGHT_IDENTITY → WORDFORM_IDENTITY
+        # - Mabni/closed-class path: CLOSED_CLASS_IDENTITY → WORDFORM_IDENTITY
+        # - Tool/pronoun path: direct from LAFZ_IDENTITY
+        # Remove unconditional WEIGHT_IDENTITY requirement
         self._add_spec(IdentitySpec(
             identity_type=IdentityType.WORDFORM_IDENTITY,
             arabic_name="هوية صورة الكلمة",
             layer=IdentityLayer.FORM_LAYER,
-            requires=frozenset({IdentityType.WEIGHT_IDENTITY}),
+            requires=frozenset(),  # Path-aware: different paths to word form
             allows_transition_to=frozenset({
                 IdentityType.RELATION_COMPOSITION_IDENTITY,
                 IdentityType.FORM_IDENTITY
