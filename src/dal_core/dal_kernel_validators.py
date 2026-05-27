@@ -62,9 +62,11 @@ _DAL_DOMAIN_TO_EXECUTION_LAYER: Dict[DalTransitionDomain, FrozenSet[ExecutionLay
         ExecutionLayer.U7B_INFLECTIONAL_SURFACE_CONTRACT,
         ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT,
     }),
+    DalTransitionDomain.WORDFORM: frozenset({
+        ExecutionLayer.U10_WORD_FORM,
+    }),
     DalTransitionDomain.JUDGMENT: frozenset({
         ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT,
-        ExecutionLayer.U10_WORD_FORM,
     }),
 }
 
@@ -98,6 +100,10 @@ _DAL_DOMAIN_TO_DOMAIN_TYPE: Dict[DalTransitionDomain, FrozenSet[DomainType]] = {
     DalTransitionDomain.DIRECTIONAL_ANALYSIS: frozenset({
         DomainType.MARKER_PROTECTION_DOMAIN,
         DomainType.CLAUSE_AGREEMENT_DOMAIN,
+    }),
+    # WORDFORM maps to WORDFORM_DOMAIN (U₁₀)
+    DalTransitionDomain.WORDFORM: frozenset({
+        DomainType.WORDFORM_DOMAIN,
     }),
     # JUDGMENT maps to JUDGMENT_DOMAIN (U₇-C), NOT U₁₀ WordForm
     DalTransitionDomain.JUDGMENT: frozenset({
@@ -134,6 +140,9 @@ _DAL_DOMAIN_TO_CLAIM_SCOPE: Dict[DalTransitionDomain, FrozenSet[DalClaimScope]] 
     }),
     DalTransitionDomain.DIRECTIONAL_ANALYSIS: frozenset({
         DalClaimScope.FORM_ANALYZED,
+    }),
+    DalTransitionDomain.WORDFORM: frozenset({
+        DalClaimScope.WORDFORM_DETERMINED,
     }),
     DalTransitionDomain.JUDGMENT: frozenset({
         DalClaimScope.JUDGMENT_ISSUED,

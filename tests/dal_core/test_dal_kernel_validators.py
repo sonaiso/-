@@ -748,3 +748,69 @@ def test_identity_domain_exists_in_domain_registry():
     assert hasattr(DomainType, 'IDENTITY_DOMAIN')
     identity_domain = DomainType.IDENTITY_DOMAIN
     assert identity_domain is not None
+
+
+# ============================================================================
+# Test PR-126: WORDFORM Domain Mapping (U₁₀)
+# ============================================================================
+
+def test_wordform_domain_with_u10_passes():
+    """Test that WORDFORM domain with U₁₀ layer passes validation."""
+    violations = validate_dal_kernel_mapping(
+        dal_domain=DalTransitionDomain.WORDFORM,
+        dal_claim_scope=DalClaimScope.WORDFORM_DETERMINED,
+        dal_contract=None,
+        from_layer=ExecutionLayer.U9_WEIGHT,
+        to_layer=ExecutionLayer.U10_WORD_FORM,
+        domain=DomainType.WORDFORM_DOMAIN
+    )
+    assert len(violations) == 0, f"Expected no violations, got: {violations}"
+
+
+def test_u10_with_judgment_domain_fails():
+    """Test that U₁₀ with JUDGMENT_DOMAIN fails validation.
+
+    Constitutional law: WordForm is not Judgment.
+    U₁₀ must use WORDFORM_DOMAIN, not JUDGMENT_DOMAIN.
+    """
+    violations = validate_dal_kernel_mapping(
+        dal_domain=DalTransitionDomain.JUDGMENT,
+        dal_claim_scope=DalClaimScope.JUDGMENT_ISSUED,
+        dal_contract=None,
+        from_layer=ExecutionLayer.U9_WEIGHT,
+        to_layer=ExecutionLayer.U10_WORD_FORM,
+        domain=DomainType.JUDGMENT_DOMAIN
+    )
+    # Should fail because JUDGMENT does not map to U10_WORD_FORM
+    assert len(violations) > 0
+    assert any("JUDGMENT" in v and "U10_WORD_FORM" in v for v in violations)
+
+
+def test_judgment_domain_does_not_include_u10():
+    """Test that JUDGMENT domain mapping does NOT include U10_WORD_FORM."""
+    judgment_layers = DAL_DOMAIN_TO_EXECUTION_LAYER_MAP.get(DalTransitionDomain.JUDGMENT)
+    assert judgment_layers is not None
+    assert ExecutionLayer.U10_WORD_FORM not in judgment_layers
+    # JUDGMENT should only map to U7C
+    assert ExecutionLayer.U7C_CLAUSE_SURFACE_AGREEMENT in judgment_layers
+
+
+def test_wordform_domain_maps_to_u10():
+    """Test that WORDFORM domain maps to U10_WORD_FORM execution layer."""
+    wordform_layers = DAL_DOMAIN_TO_EXECUTION_LAYER_MAP.get(DalTransitionDomain.WORDFORM)
+    assert wordform_layers is not None
+    assert ExecutionLayer.U10_WORD_FORM in wordform_layers
+
+
+def test_wordform_domain_maps_to_wordform_domain_type():
+    """Test that WORDFORM maps to WORDFORM_DOMAIN type."""
+    wordform_domains = DAL_DOMAIN_TO_DOMAIN_TYPE_MAP.get(DalTransitionDomain.WORDFORM)
+    assert wordform_domains is not None
+    assert DomainType.WORDFORM_DOMAIN in wordform_domains
+
+
+def test_wordform_claim_scope_exists():
+    """Test that WORDFORM_DETERMINED claim scope exists and maps correctly."""
+    wordform_scopes = DAL_DOMAIN_TO_CLAIM_SCOPE_MAP.get(DalTransitionDomain.WORDFORM)
+    assert wordform_scopes is not None
+    assert DalClaimScope.WORDFORM_DETERMINED in wordform_scopes
