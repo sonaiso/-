@@ -101,9 +101,9 @@ This document defines the **canonical mapping** between three foundational regis
 
 **Current Reality**: D_mufrad pipeline exists and works, but dal_algebra mapping is incomplete due to missing DomainType entries.
 
-## PR-1B Status: Incomplete - Metadata Only
+## PR-1B Status: Complete - Metadata Added
 
-⚠️ **CRITICAL**: PR-1B added dal_* fields but **WITHOUT validators**.
+✅ **COMPLETE**: PR-1B added dal_* fields with metadata integration.
 
 ### What PR-1B Added
 
@@ -118,95 +118,77 @@ This document defines the **canonical mapping** between three foundational regis
 
 3. **DAL_KERNEL_MAPPING.md** created (this document)
 
-### What PR-1B Did NOT Add (GAPS)
+### Current Status: Transitional Metadata (Validation Added in PR-122)
 
-1. ❌ **No validators** for dal_* fields consistency
-2. ❌ **No tests** for kernel integration
-3. ❌ **No enforcement** that dal_domain matches ExecutionLayer
-4. ❌ **No enforcement** that dal_domain matches DomainType
-5. ❌ **No enforcement** that dal_claim_scope matches dal_domain
-6. ❌ **No enforcement** that dal_contract is preserved correctly
+The dal_* fields were initially **transitional metadata**. PR-122 added full validation.
 
-### Current Status: Transitional Metadata
+## PR-122 Status: Complete - Validators Implemented
 
-The dal_* fields are currently **transitional metadata**, NOT enforced governance.
+✅ **COMPLETE**: PR-122 added dal_kernel mapping validators and enforcement.
 
-They can be:
-- Set to any value without validation
-- Inconsistent with from_layer/to_layer
-- Inconsistent with domain
-- Passed through without checks
+### What PR-122 Added
 
-This means PR-1B is **NOT "kernel integration complete"** - it's a **foundation for future integration**.
+1. ✅ **dal_kernel_validators.py module** with validation functions
+2. ✅ **Canonical mapping tables** (immutable):
+   - `DAL_DOMAIN_TO_EXECUTION_LAYER_MAP`
+   - `DAL_DOMAIN_TO_DOMAIN_TYPE_MAP`
+   - `DAL_DOMAIN_TO_CLAIM_SCOPE_MAP`
+3. ✅ **validate_dal_kernel_mapping()** function
+4. ✅ **AlgebraicDecisionCore integration** - validates dal_* fields in audit_decision()
+5. ✅ **ApprovedTransitionContext enforcement** - blocks creation with invalid dal_* metadata
+6. ✅ **CPBStatus.DAL_KERNEL_INCONSISTENCY** - new status for kernel violations
+7. ✅ **Comprehensive tests** - 22 tests covering all validation rules
 
-### Required Next Steps (Before PR-1C)
+### Validation Enforcement
 
-**TODO: Add validate_dal_kernel_mapping()**
+The dal_* fields are now **validated governance metadata**.
 
+Enforcement points:
+1. **AlgebraicDecisionCore.audit_decision()** validates dal_* consistency
+2. **ApprovedTransitionContext.__post_init__()** validates dal_* before creation
+3. Invalid dal_* combinations are **BLOCKED** with clear violation messages
+
+### Validation Rules (Enforced)
+
+1. ✅ dal_domain ↔ from_layer/to_layer consistency
+2. ✅ dal_domain ↔ domain consistency
+3. ✅ dal_claim_scope ↔ dal_domain consistency
+4. ✅ dal_contract ↔ dal_domain/dal_claim_scope consistency
+5. ✅ Legacy mode (dal_domain=None) allowed for backward compatibility
+
+### Implementation Details (PR-122)
+
+**Location**: `src/dal_core/dal_kernel_validators.py`
+
+**Main Function**:
 ```python
-def validate_dal_kernel_mapping(audit: DecisionAudit) -> List[str]:
+def validate_dal_kernel_mapping(
+    dal_domain: DalTransitionDomain | None,
+    dal_claim_scope: DalClaimScope | None,
+    dal_contract: DalTransitionContract | None,
+    from_layer: ExecutionLayer,
+    to_layer: ExecutionLayer,
+    domain: DomainType
+) -> Tuple[str, ...]:
     """
-    Validate that dal_* fields are consistent with ExecutionLayer and DomainType.
+    Validate consistency between dal_* fields and ExecutionLayer/DomainType.
 
-    Returns list of validation errors (empty if valid).
+    Returns tuple of validation error messages (empty if valid).
 
-    Checks:
-    1. dal_domain ↔ from_layer/to_layer consistency
-    2. dal_domain ↔ domain consistency
-    3. dal_claim_scope ↔ dal_domain consistency
-    4. dal_contract (if present) ↔ dal_domain/dal_claim_scope consistency
+    Validation Rules:
+        1. If dal_domain is None: allow legacy mode (no validation)
+        2. If dal_domain present: must match from_layer/to_layer
+        3. If dal_claim_scope present: must be allowed for dal_domain
+        4. If dal_contract present: must match dal_domain/dal_claim_scope
+        5. Domain mapping must be consistent (or documented GAP)
     """
-    errors = []
-
-    if audit.dal_domain is None:
-        return errors  # Optional field, no validation if absent
-
-    # Check 1: dal_domain ↔ ExecutionLayer mapping
-    expected_layers = DAL_DOMAIN_TO_EXECUTION_LAYER_MAP.get(audit.dal_domain, set())
-    if audit.from_layer not in expected_layers and audit.to_layer not in expected_layers:
-        errors.append(
-            f"dal_domain {audit.dal_domain} inconsistent with "
-            f"{audit.from_layer}→{audit.to_layer}"
-        )
-
-    # Check 2: dal_domain ↔ DomainType mapping
-    expected_domains = DAL_DOMAIN_TO_DOMAIN_TYPE_MAP.get(audit.dal_domain, set())
-    if audit.domain not in expected_domains:
-        errors.append(
-            f"dal_domain {audit.dal_domain} inconsistent with "
-            f"DomainType {audit.domain}"
-        )
-
-    # Check 3: dal_claim_scope ↔ dal_domain consistency
-    if audit.dal_claim_scope is not None:
-        expected_scopes = DAL_DOMAIN_TO_CLAIM_SCOPE_MAP.get(audit.dal_domain, set())
-        if audit.dal_claim_scope not in expected_scopes:
-            errors.append(
-                f"dal_claim_scope {audit.dal_claim_scope} inconsistent with "
-                f"dal_domain {audit.dal_domain}"
-            )
-
-    # Check 4: dal_contract consistency
-    if audit.dal_contract is not None:
-        if audit.dal_contract.source_domain != audit.dal_domain:
-            errors.append(
-                f"dal_contract.source_domain {audit.dal_contract.source_domain} "
-                f"!= dal_domain {audit.dal_domain}"
-            )
-        if audit.dal_contract.claim_scope != audit.dal_claim_scope:
-            errors.append(
-                f"dal_contract.claim_scope {audit.dal_contract.claim_scope} "
-                f"!= dal_claim_scope {audit.dal_claim_scope}"
-            )
-
-    return errors
 ```
 
-**Status**: ❌ NOT IMPLEMENTED (must be added before PR-1C)
+**Status**: ✅ IMPLEMENTED (PR-122)
 
-**Tests Required**: ❌ NOT IMPLEMENTED
+**Tests**: ✅ IMPLEMENTED - 22 comprehensive tests in `tests/dal_core/test_dal_kernel_validators.py`
 
-### Validation Rules
+### Validation Rules (Enforced in PR-122)
 
 ### Rule 1: Domain Consistency
 If `DecisionAudit.dal_domain` is set, it MUST be consistent with `from_layer` and `to_layer`.
@@ -214,7 +196,7 @@ If `DecisionAudit.dal_domain` is set, it MUST be consistent with `from_layer` an
 **Example**:
 - `dal_domain=SYLLABIC` → `from_layer` and `to_layer` must be within U₂s range
 
-⚠️ **Current Status**: Rule documented but NOT enforced in code
+✅ **Status**: ENFORCED in `algebraic_decision_core.py:audit_decision()`
 
 ### Rule 2: Claim Scope Consistency
 If `DecisionAudit.dal_claim_scope` is set, it MUST be consistent with `dal_domain`.
@@ -222,7 +204,7 @@ If `DecisionAudit.dal_claim_scope` is set, it MUST be consistent with `dal_domai
 **Example**:
 - `dal_domain=SYLLABIC` → `dal_claim_scope` can only be `SYLLABLE_STRUCTURE_VALID`
 
-⚠️ **Current Status**: Rule documented but NOT enforced in code
+✅ **Status**: ENFORCED in `algebraic_decision_core.py:audit_decision()`
 
 ### Rule 3: Contract Consistency
 If `DecisionAudit.dal_contract` is set:
@@ -230,11 +212,11 @@ If `DecisionAudit.dal_contract` is set:
 - `dal_contract.target_domain` must match target `dal_domain`
 - `dal_contract.claim_scope` must match `dal_claim_scope`
 
-⚠️ **Current Status**: Rule documented but NOT enforced in code
+✅ **Status**: ENFORCED in `algebraic_decision_core.py:audit_decision()` and `approved_transition_context.py:__post_init__()`
 
 ## Integration Example
 
-⚠️ **WARNING**: This example shows intended usage, but validators don't exist yet.
+✅ **WORKING EXAMPLE** (validators implemented in PR-122):
 
 ```python
 from dal_core.dal_algebra import DalTransitionDomain, DalTransitionContract
@@ -442,20 +424,24 @@ Where:
 ## Next Required Steps (Ordered)
 
 1. ✅ **PR-1A**: Complete (100%)
-2. ⚠️ **PR-1B**: Incomplete - Fix mapping, add validators
-   - [ ] Fix DAL_KERNEL_MAPPING.md (hallucinated DomainType names) ✅ DONE
-   - [ ] Add validate_dal_kernel_mapping() function
-   - [ ] Add tests for dal_* field validation
-   - [ ] Consider adding IDENTITY_DOMAIN and WORDFORM_DOMAIN to DomainType (separate PR)
-3. 🚫 **PR-1C**: BLOCKED until PR-1B complete
+2. ✅ **PR-1B**: Complete - Metadata integration
+   - [x] Fix DAL_KERNEL_MAPPING.md (hallucinated DomainType names) ✅ DONE
+   - [x] Add dal_* fields to DecisionAudit/ApprovedTransitionContext ✅ DONE
+3. ✅ **PR-122**: Complete - Validators implemented
+   - [x] Add validate_dal_kernel_mapping() function ✅ DONE
+   - [x] Add tests for dal_* field validation (22 tests) ✅ DONE
+   - [x] Integrate validation into AlgebraicDecisionCore ✅ DONE
+   - [x] Add CPBStatus.DAL_KERNEL_INCONSISTENCY ✅ DONE
+   - [ ] Consider adding IDENTITY_DOMAIN and WORDFORM_DOMAIN to DomainType (future PR)
+4. 🔵 **PR-1C**: READY to proceed (validators complete)
    - Implement Option C (hybrid failure semantics)
    - Update dal_algebra.py docstring
    - Update DalTransitionProtocol.apply() signature
    - Add AlgebraicFailure dataclass
-4. 🚫 **PR-2**: BLOCKED until PR-1B + PR-1C complete
+5. 🚫 **PR-2**: BLOCKED until PR-1C complete
 
 ---
 
-**Last Updated**: 2026-05-27 (Corrected after user feedback)
-**Status**: PR-1B incomplete, PR-1C blocked
-**Critical Issue**: Hallucinated DomainType names corrected, but validators still missing
+**Last Updated**: 2026-05-27 (PR-122: Validators Implemented)
+**Status**: PR-1B complete, PR-122 complete, PR-1C ready to proceed
+**Achievement**: Dal kernel mapping fully validated and enforced
