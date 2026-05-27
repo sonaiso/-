@@ -91,13 +91,15 @@ _DAL_DOMAIN_TO_DOMAIN_TYPE: Dict[DalTransitionDomain, FrozenSet[DomainType]] = {
     DalTransitionDomain.TEMPLATE: frozenset({
         DomainType.WEIGHT_DOMAIN,
     }),
-    # GAP: IDENTITY_AXIS has no matching DomainType (IDENTITY_DOMAIN doesn't exist)
-    DalTransitionDomain.IDENTITY_AXIS: frozenset(),
+    # IDENTITY_AXIS maps to IDENTITY_DOMAIN
+    DalTransitionDomain.IDENTITY_AXIS: frozenset({
+        DomainType.IDENTITY_DOMAIN,
+    }),
     DalTransitionDomain.DIRECTIONAL_ANALYSIS: frozenset({
         DomainType.MARKER_PROTECTION_DOMAIN,
         DomainType.CLAUSE_AGREEMENT_DOMAIN,
     }),
-    # JUDGMENT maps to JUDGMENT_DOMAIN, NOT U₁₀ WordForm
+    # JUDGMENT maps to JUDGMENT_DOMAIN (U₇-C), NOT U₁₀ WordForm
     DalTransitionDomain.JUDGMENT: frozenset({
         DomainType.JUDGMENT_DOMAIN,
     }),
@@ -217,15 +219,9 @@ def validate_dal_kernel_mapping(
     # Rule 3: Validate dal_domain ↔ DomainType mapping
     expected_domains = DAL_DOMAIN_TO_DOMAIN_TYPE_MAP.get(dal_domain, frozenset())
     if not expected_domains:
-        # Check if this is a documented GAP
-        if dal_domain == DalTransitionDomain.IDENTITY_AXIS:
-            # IDENTITY_AXIS → IDENTITY_DOMAIN missing (documented gap)
-            # Allow it but note as gap
-            pass  # Don't add violation for documented gap
-        else:
-            violations.append(
-                f"dal_domain {dal_domain.name} has no DomainType mapping defined"
-            )
+        violations.append(
+            f"dal_domain {dal_domain.name} has no DomainType mapping defined"
+        )
     else:
         if domain not in expected_domains:
             violations.append(
