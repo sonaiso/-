@@ -248,6 +248,12 @@ from .u10_word_form_candidate_carrier import (
     word_form_candidate_carrier_10,
     validate_approved_context_for_u10,
 )
+from .path_aware_identity_validator import (
+    PathAwareIdentityValidator,
+    IdentityPathType,
+    PathEvidence,
+    IdentityCandidate,
+)
 
 __all__ = [
     "Rank",
@@ -408,4 +414,9 @@ __all__ = [
     "WordFormCandidateResult",
     "word_form_candidate_carrier_10",
     "validate_approved_context_for_u10",
+    # PathAwareIdentityValidator (PR-128)
+    "PathAwareIdentityValidator",
+    "IdentityPathType",
+    "PathEvidence",
+    "IdentityCandidate",
 ]

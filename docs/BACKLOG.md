@@ -537,7 +537,117 @@ DomainSpec(
 
 ---
 
+### 15. Path-Aware Identity Validator (Post-PR-127 Protection)
+
+**Status**: ✅ RESOLVED (PR-128)
+**Impact**: HIGH
+**Identified In**: PR-127 review, user requirement
+**Resolved In**: PR-128 (2026-05-27)
+
+**Issue**:
+PR-127 correctly removed unconditional prerequisites from IDENTITY_DOMAIN:
+- IDENTITY_DOMAIN no longer unconditionally requires WEIGHT_DOMAIN ✅
+- WEIGHT_IDENTITY no longer requires BOTH root AND stem ✅
+- WORDFORM_IDENTITY no longer unconditionally requires WEIGHT_IDENTITY ✅
+
+However, removing requires=frozenset() without transition-time validation creates a **permissive hole**:
+```python
+# After PR-127 (correct fix, but incomplete):
+requires_domains=frozenset()  # No structural requirement (correct)
+# BUT: No transition-time validator yet (gap)
+```
+
+**Problem**:
+Without transition-time validator, identity could be accepted from ANY source:
+```python
+# Danger: Any domain → IDENTITY_DOMAIN (no license check)
+ARBITRARY_DOMAIN → IDENTITY_DOMAIN  # Should fail, but no validator yet
+```
+
+**Constitutional Violation**:
+- Violates: "No identity without licensed path" (لا هوية بلا مسار مرخّص)
+- PR-127 fixed the static prerequisite bug but didn't add runtime path validator
+
+**Resolution (PR-128)**:
+Added `PathAwareIdentityValidator` with:
+1. **Licensed path enumeration**: 6 paths (Weight, Mabni, Tool, Pronoun, Jāmid, Residualized)
+2. **Path evidence validation**: Each path requires specific evidence keys
+3. **Source domain checking**: Validates source_domain matches path requirements
+4. **AlgebraicFailure returns**: Returns AlgebraicFailure (not Exception) for operation failures
+5. **Identity preservation**: Preserves lafz_anchor_id and slot_trace
+6. **Prohibitions enforced**: No meaning, syntax_role, iʿrab, ifādah, hukm outputs
+7. **Rank boundaries**: Always < 1.0 (CERTIFICATE forbidden)
+
+**Implementation**:
+```python
+# src/dal_core/path_aware_identity_validator.py
+class PathAwareIdentityValidator:
+    """Validates identity transitions through licensed paths only."""
+
+    def validate_identity_transition(
+        self,
+        source_domain: DomainType,
+        target_identity: IdentityType,
+        path_type: IdentityPathType,
+        evidence: Dict[str, Any],
+        ...
+    ) -> IdentityCandidate | AlgebraicFailure:
+        # Step 1: Check path_type is licensed
+        # Step 2: Check source_domain matches path requirements
+        # Step 3: Check required evidence is present
+        # Step 4: Compute rank (always < 1.0)
+        # Step 5: Build IdentityCandidate
+```
+
+**Licensed Paths** (6 total):
+1. `WEIGHT_PATH`: WEIGHT_DOMAIN → IDENTITY (requires: weight_pattern, root_or_stem)
+2. `MABNI_PATH`: LAFZ_DOMAIN → IDENTITY (requires: closed_class_marker)
+3. `TOOL_PATH`: LAFZ_DOMAIN → IDENTITY (requires: particle_type)
+4. `PRONOUN_PATH`: LAFZ_DOMAIN → IDENTITY (requires: pronoun_class)
+5. `JAMID_PATH`: LAFZ_DOMAIN → IDENTITY (requires: jamid_marker)
+6. `RESIDUALIZED_PATH`: IDENTITY_DOMAIN → IDENTITY (requires: existing_identity, residuals)
+
+**Tests Added** (20+ tests):
+- `test_identity_rejects_no_path_evidence` (critical negative test)
+- `test_identity_accepts_weight_path_with_weight_evidence`
+- `test_identity_accepts_mabni_path_without_weight`
+- `test_identity_accepts_tool_path_without_weight`
+- `test_identity_accepts_pronoun_path_without_weight`
+- `test_identity_accepts_jamid_path_without_weight`
+- `test_residualized_path_accepts_existing_identity`
+- `test_identity_preserves_lafz_anchor_id`
+- `test_identity_preserves_slot_trace`
+- `test_identity_inherits_residuals`
+- `test_identity_does_not_output_meaning`
+- `test_identity_does_not_output_syntax_role`
+- `test_identity_does_not_output_i3rab`
+- `test_identity_does_not_output_ifadah_or_hukm`
+- `test_identity_rank_is_not_certificate`
+- `test_identity_rejects_missing_evidence_keys`
+- `test_identity_rejects_wrong_source_domain`
+- `test_all_six_paths_work` (integration)
+
+**Impact**:
+- PR-127 gap closed: No permissive hole for identity transitions
+- All 6 licensed paths validated at transition time
+- AlgebraicFailure returned for invalid paths (not Exception)
+- Constitutional law enforced: لا هوية بلا مسار مرخّص
+
+**Priority**: ✅ COMPLETE
+
+---
+
 ## Version History
+
+- **2026-05-27 (PR-128)**: Item #15 resolved
+  - Added PathAwareIdentityValidator to close PR-127 permissive hole
+  - 6 licensed identity paths: Weight, Mabni, Tool, Pronoun, Jāmid, Residualized
+  - 20+ tests covering all paths + negative tests
+  - AlgebraicFailure for operation failures (not Exception)
+  - Preserves lafz_anchor_id, slot_trace, residuals
+  - Prohibits meaning, syntax_role, iʿrab, ifādah, hukm outputs
+  - Rank always < 1.0 (CERTIFICATE forbidden)
+  - Constitutional law enforced: لا هوية بلا مسار مرخّص (No identity without licensed path)
 
 - **2026-05-27 (PR-127)**: Items #13 and #14 resolved
   - Fixed WEIGHT_IDENTITY logic bug (AND → ONE-OF for root/stem)
