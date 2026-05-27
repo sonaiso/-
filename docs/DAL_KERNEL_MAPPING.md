@@ -433,15 +433,17 @@ Where:
    - [x] Integrate validation into AlgebraicDecisionCore ✅ DONE
    - [x] Add CPBStatus.DAL_KERNEL_INCONSISTENCY ✅ DONE
    - [ ] Consider adding IDENTITY_DOMAIN and WORDFORM_DOMAIN to DomainType (future PR)
-4. 🔵 **PR-1C**: READY to proceed (validators complete)
-   - Implement Option C (hybrid failure semantics)
-   - Update dal_algebra.py docstring
-   - Update DalTransitionProtocol.apply() signature
-   - Add AlgebraicFailure dataclass
-5. 🚫 **PR-2**: BLOCKED until PR-1C complete
+4. ✅ **PR-1C**: Complete - Hybrid failure semantics
+   - [x] Implement Option C (hybrid failure semantics) ✅ DONE
+   - [x] Update dal_algebra.py docstring ✅ DONE
+   - [x] Update DalTransitionProtocol.apply() signature ✅ DONE
+   - [x] Add AlgebraicFailure dataclass ✅ DONE
+   - [x] Add comprehensive tests (18 AlgebraicFailure tests) ✅ DONE
+   - [x] Create BACKLOG.md with identified gaps ✅ DONE
+5. 🔵 **PR-2**: READY to proceed (hybrid failure semantics complete)
 
 ---
 
-**Last Updated**: 2026-05-27 (PR-122: Validators Implemented)
-**Status**: PR-1B complete, PR-122 complete, PR-1C ready to proceed
-**Achievement**: Dal kernel mapping fully validated and enforced
+**Last Updated**: 2026-05-27 (PR-1C: Hybrid Failure Semantics Implemented)
+**Status**: PR-1B complete, PR-122 complete, PR-1C complete
+**Achievement**: Dal kernel mapping fully validated and enforced, hybrid failure semantics implemented
