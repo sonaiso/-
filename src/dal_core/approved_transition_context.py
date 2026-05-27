@@ -199,6 +199,27 @@ class ApprovedTransitionContext:
                             f"without evidence. Rank elevation requires evidence."
                         )
 
+        # PR-122: Verify dal_kernel consistency
+        # If dal_* fields are present, they must be valid
+        # This prevents ApprovedTransitionContext from preserving invalid dal_* metadata
+        if self.audit.dal_domain is not None or self.audit.dal_claim_scope is not None:
+            # Import here to avoid circular dependency
+            from dal_core.dal_kernel_validators import validate_dal_kernel_mapping
+
+            kernel_violations = validate_dal_kernel_mapping(
+                self.audit.dal_domain,
+                self.audit.dal_claim_scope,
+                self.audit.dal_contract,
+                self.audit.from_layer,
+                self.audit.to_layer,
+                self.audit.domain
+            )
+            if kernel_violations:
+                raise ValueError(
+                    f"Cannot create ApprovedTransitionContext with dal_kernel violations: "
+                    f"{', '.join(kernel_violations)}"
+                )
+
     def is_approved(self) -> bool:
         """
         Check if audit is truly approved.

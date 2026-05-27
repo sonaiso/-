@@ -95,6 +95,9 @@ from dal_core.dal_algebra import (
     DalClaimScope,
 )
 
+# PR-122: Kernel mapping validators
+from dal_core.dal_kernel_validators import validate_dal_kernel_mapping
+
 
 # ============================================================================
 # CPB Status
@@ -115,6 +118,7 @@ class CPBStatus(Enum):
     RESIDUAL_BLOCKING = "residual_blocking"    # بقايا معطلة
     TRACE_LOSS = "trace_loss"                  # أثر مفقود
     FORBIDDEN_LEAP = "forbidden_leap"          # قفزة ممنوعة
+    DAL_KERNEL_INCONSISTENCY = "dal_kernel_inconsistency"  # PR-122: تضارب kernel dal
 
 
 # ============================================================================
@@ -426,7 +430,11 @@ class CPBIdentityGuardian:
         input_rank: Rank,
         output_rank: Rank,
         residual_set: ResidualSet,
-        trace: Tuple[str, ...]
+        trace: Tuple[str, ...],
+        # PR-122: Kernel integration fields (optional)
+        dal_contract: Optional[DalTransitionContract] = None,
+        dal_domain: Optional[DalTransitionDomain] = None,
+        dal_claim_scope: Optional[DalClaimScope] = None
     ) -> DecisionAudit:
         """
         Perform complete audit of a transition decision.
@@ -442,6 +450,7 @@ class CPBIdentityGuardian:
             6. IDENTITY_VIOLATION - Identity preservation
             7. GATE_VIOLATION - Gate passage
             8. EVIDENCE_INSUFFICIENT - Evidence requirements
+            9. DAL_KERNEL_INCONSISTENCY - Kernel mapping violations (PR-122)
 
         Constitutional Law:
             القفز الممنوع أعلى من كل خلل
@@ -464,6 +473,9 @@ class CPBIdentityGuardian:
             output_rank: Rank after transition
             residual_set: Residuals from operation
             trace: Execution trace
+            dal_contract: Optional DalTransitionContract (PR-122)
+            dal_domain: Optional DalTransitionDomain (PR-122)
+            dal_claim_scope: Optional DalClaimScope (PR-122)
 
         Returns:
             DecisionAudit with complete audit record
@@ -538,6 +550,18 @@ class CPBIdentityGuardian:
             if cpb_status == CPBStatus.APPROVED:
                 cpb_status = CPBStatus.EVIDENCE_INSUFFICIENT
 
+        # PR-122: Verify dal_kernel mapping consistency
+        # This check is CRITICAL for approved audits but lower priority than forbidden leaps
+        kernel_violations = validate_dal_kernel_mapping(
+            dal_domain, dal_claim_scope, dal_contract,
+            from_layer, to_layer, domain
+        )
+        if kernel_violations:
+            for kernel_violation in kernel_violations:
+                violations.append(f"Dal Kernel: {kernel_violation}")
+            if cpb_status == CPBStatus.APPROVED:
+                cpb_status = CPBStatus.DAL_KERNEL_INCONSISTENCY
+
         # Decision is allowed only if ALL checks pass
         allowed = len(violations) == 0
 
@@ -557,7 +581,11 @@ class CPBIdentityGuardian:
             trace=trace,
             cpb_status=cpb_status,
             allowed=allowed,
-            violations=tuple(violations)
+            violations=tuple(violations),
+            # PR-122: Include dal_* fields in audit
+            dal_contract=dal_contract,
+            dal_domain=dal_domain,
+            dal_claim_scope=dal_claim_scope
         )
 
 
@@ -624,7 +652,11 @@ class AlgebraicDecisionCore:
         input_rank: Rank,
         output_rank: Rank,
         residual_set: ResidualSet,
-        trace: Tuple[str, ...]
+        trace: Tuple[str, ...],
+        # PR-122: Kernel integration fields (optional)
+        dal_contract: Optional[DalTransitionContract] = None,
+        dal_domain: Optional[DalTransitionDomain] = None,
+        dal_claim_scope: Optional[DalClaimScope] = None
     ) -> DecisionAudit:
         """
         Make a decision about whether a transition is allowed.
@@ -650,6 +682,9 @@ class AlgebraicDecisionCore:
             output_rank: Rank after
             residual_set: Residuals
             trace: Execution trace
+            dal_contract: Optional DalTransitionContract (PR-122)
+            dal_domain: Optional DalTransitionDomain (PR-122)
+            dal_claim_scope: Optional DalClaimScope (PR-122)
 
         Returns:
             DecisionAudit with complete audit and approval/rejection
@@ -670,7 +705,11 @@ class AlgebraicDecisionCore:
             input_rank=input_rank,
             output_rank=output_rank,
             residual_set=residual_set,
-            trace=trace
+            trace=trace,
+            # PR-122: Pass through dal_* fields
+            dal_contract=dal_contract,
+            dal_domain=dal_domain,
+            dal_claim_scope=dal_claim_scope
         )
 
 
