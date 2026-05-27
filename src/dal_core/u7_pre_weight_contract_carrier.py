@@ -132,6 +132,120 @@ class PreWeightContractFailureType(Enum):
 
 
 # ============================================================================
+# U₇-B: Inflectional Surface Contract (عقد السطح الصرفي)
+# ============================================================================
+
+@dataclass(frozen=True)
+class InflectionalSurfaceProfile:
+    """
+    U₇-B Inflectional Surface Profile - Surface marker classification BEFORE root/weight.
+
+    Critical Law (No Root before Inflectional Filter):
+        علامات الإعراب والعدد والجنس والتعريف ليست جذورًا
+        Iʿrāb, number, gender, and definiteness markers are NOT root letters.
+
+    Purpose:
+        Filter inflectional surface markers BEFORE U₈ root extraction.
+        Prevent كتابان → treating ان as root letters.
+        Prevent مسلمون → treating ون as root letters.
+        Prevent الكتاب → treating ال as root letters.
+
+    Constitutional Principle:
+        ALL fields are HINTS (possible/unlikely/unresolved), NOT certificates.
+        Surface existence → boolean
+        Surface interpretation → hint only
+
+    FORBIDDEN FIELDS:
+        - i3rab_certificate (that's U₇+)
+        - number_certificate (that's U₇+)
+        - gender_certificate (that's U₇+)
+        - definiteness_certificate (that's U₇+)
+        - root (that's U₈)
+        - weight (that's U₉)
+
+    Examples:
+        كتابان → dual_surface_hint=possible, stripped_core_candidate=كتاب
+        مسلمون → sound_masculine_plural_surface_hint=possible, stripped_core_candidate=مسلم
+        مسلمات → sound_feminine_plural_surface_hint=possible, stripped_core_candidate=مسلم
+        الكتاب → al_definiteness_surface_hint=possible, stripped_core_candidate=كتاب
+        كتابٍ → tanwin_surface_hint=possible (genitive tanwīn)
+    """
+
+    # ========== Iʿrāb Surface Markers (Original) ==========
+    # علامات الإعراب الأصلية
+    nominative_surface_hint: PathPermission      # ضمة/واو رفع محتمل
+    accusative_surface_hint: PathPermission      # فتحة/ألف/ياء نصب محتمل
+    genitive_surface_hint: PathPermission        # كسرة/ياء جر محتمل
+    jussive_surface_hint: PathPermission         # سكون/حذف جزم محتمل
+
+    # ========== Iʿrāb Surface Markers (Secondary) ==========
+    # علامات الإعراب الفرعية
+    secondary_i3rab_marker_hint: PathPermission  # علامة فرعية محتملة (واو/ألف/ياء)
+
+    # ========== Number Surface Markers ==========
+    # علامات العدد
+    dual_surface_hint: PathPermission                     # مثنى محتمل (ان/ين)
+    sound_masculine_plural_surface_hint: PathPermission   # جمع مذكر سالم محتمل (ون/ين)
+    sound_feminine_plural_surface_hint: PathPermission    # جمع مؤنث سالم محتمل (ات)
+    broken_plural_surface_hint: PathPermission            # جمع تكسير محتمل
+    singular_surface_hint: PathPermission                 # مفرد محتمل
+
+    # ========== Gender Surface Markers ==========
+    # علامات الجنس
+    masculine_surface_hint: PathPermission        # مذكر محتمل
+    feminine_surface_hint: PathPermission         # مؤنث محتمل (ة/ـة/ات)
+
+    # ========== Rationality Surface Markers ==========
+    # علامات العقل
+    rational_surface_hint: PathPermission         # عاقل محتمل
+    non_rational_surface_hint: PathPermission     # غير عاقل محتمل
+
+    # ========== Definiteness Surface Markers ==========
+    # علامات التعريف
+    al_definiteness_surface_hint: PathPermission  # الـ موجود محتمل
+    tanwin_surface_hint: PathPermission           # تنوين موجود محتمل
+
+    # ========== Diptote Surface Marker ==========
+    # الممنوع من الصرف
+    diptote_surface_hint: PathPermission          # ممنوع من الصرف محتمل
+
+    # ========== Feminine Semantic vs Literal ==========
+    # التأنيث اللفظي/المعنوي
+    literal_feminine_hint: PathPermission         # تأنيث لفظي (تاء/ة)
+    semantic_feminine_hint: PathPermission        # تأنيث معنوي (بلا علامة)
+
+    # ========== Core Extraction ==========
+    # استخلاص النواة
+    stripped_core_candidate: str                  # النواة المجردة المرشحة (كتاب من كتابان)
+    preserved_suffixes: Tuple[str, ...]           # اللواحق المحفوظة (ان، ون، ات، ...)
+    blocked_root_segments: Tuple[str, ...]        # المقاطع المحظورة من الجذر
+
+    # ========== Evidence and Trace ==========
+    residuals: Tuple[str, ...]                    # تحفظات
+    trace_source: str                             # أصل السطح قبل التجريد
+
+    def __post_init__(self):
+        """Validate no forbidden fields."""
+        forbidden_fields = [
+            'i3rab_certificate', 'case_marking',
+            'number_certificate', 'quantity',
+            'gender_certificate', 'gender',
+            'definiteness_certificate', 'is_definite',
+            'root', 'root_certificate',
+            'weight', 'weight_certificate',
+            'pattern', 'pattern_certificate',
+            'meaning', 'hukm', 'resolved_reference'
+        ]
+
+        for field in forbidden_fields:
+            if hasattr(self, field):
+                raise ValueError(
+                    f"InflectionalSurfaceProfile MUST NOT contain '{field}' field "
+                    f"(U₇-B constitutional violation)"
+                )
+
+
+# ============================================================================
 # Core Structures
 # ============================================================================
 
@@ -182,6 +296,9 @@ class PreWeightContractUnit:
 
     # Derivational readiness (hint, NOT certificate)
     derivational_readiness: PathPermission  # Ready for derivational analysis?
+
+    # U₇-B: Inflectional Surface Profile (NEW)
+    inflectional_surface_profile: Optional[InflectionalSurfaceProfile]  # U₇-B surface marker analysis
 
     # Evidence and blocking
     required_evidence: Tuple[str, ...]  # What evidence is needed for approval
@@ -455,6 +572,262 @@ def _determine_path_permissions(
         )
 
 
+# ============================================================================
+# U₇-B: Inflectional Surface Detection Functions
+# ============================================================================
+
+def _analyze_inflectional_surface(surface: str, open_closed_status: str) -> Optional[InflectionalSurfaceProfile]:
+    """
+    U₇-B: Analyze inflectional surface markers before root/weight extraction.
+
+    Critical Purpose:
+        Prevent ان/ون/ات/ال from being treated as root letters in U₈.
+
+    Args:
+        surface: Orthographic surface from U₆
+        open_closed_status: "closed_class" or "open_class"
+
+    Returns:
+        InflectionalSurfaceProfile if open-class, None if closed-class
+
+    Examples:
+        كتابان → dual_surface_hint=possible, stripped_core=كتاب, suffixes=(ان,)
+        مسلمون → sound_masc_plural=possible, stripped_core=مسلم, suffixes=(ون,)
+        الكتاب → al_definiteness=possible, stripped_core=كتاب, suffixes=()
+        كتابٍ → tanwin=possible, genitive=possible, stripped_core=كتاب
+    """
+    # Closed-class units don't need inflectional analysis (already blocked)
+    if open_closed_status == "closed_class":
+        return None
+
+    # Initialize all hints as UNRESOLVED
+    residuals_list = []
+
+    # ========== Detect Number Surface Markers ==========
+    dual_hint, sound_masc_plural_hint, sound_fem_plural_hint, stripped_core, suffixes, blocked_segments = \
+        _detect_number_surface_markers(surface)
+
+    # ========== Detect Definiteness Surface Markers ==========
+    al_hint, tanwin_hint, core_after_al = _detect_definiteness_surface_markers(stripped_core)
+    if al_hint == PathPermission.POSSIBLE:
+        # Al-definiteness detected, update stripped_core
+        stripped_core = core_after_al
+
+    # ========== Detect Iʿrāb Surface Markers ==========
+    nom_hint, acc_hint, gen_hint, juss_hint, secondary_hint = _detect_irab_surface_markers(surface)
+
+    # ========== Detect Gender Surface Markers ==========
+    masc_hint, fem_hint, literal_fem_hint, semantic_fem_hint = _detect_gender_surface_markers(surface, suffixes)
+
+    # ========== Detect Other Markers ==========
+    broken_plural_hint = PathPermission.UNRESOLVED  # Needs lexicon
+    singular_hint = PathPermission.UNRESOLVED if (dual_hint == PathPermission.POSSIBLE or
+                                                    sound_masc_plural_hint == PathPermission.POSSIBLE or
+                                                    sound_fem_plural_hint == PathPermission.POSSIBLE) else PathPermission.POSSIBLE
+    rational_hint = PathPermission.UNRESOLVED
+    non_rational_hint = PathPermission.UNRESOLVED
+    diptote_hint = PathPermission.UNRESOLVED
+
+    return InflectionalSurfaceProfile(
+        # Iʿrāb markers
+        nominative_surface_hint=nom_hint,
+        accusative_surface_hint=acc_hint,
+        genitive_surface_hint=gen_hint,
+        jussive_surface_hint=juss_hint,
+        secondary_i3rab_marker_hint=secondary_hint,
+
+        # Number markers
+        dual_surface_hint=dual_hint,
+        sound_masculine_plural_surface_hint=sound_masc_plural_hint,
+        sound_feminine_plural_surface_hint=sound_fem_plural_hint,
+        broken_plural_surface_hint=broken_plural_hint,
+        singular_surface_hint=singular_hint,
+
+        # Gender markers
+        masculine_surface_hint=masc_hint,
+        feminine_surface_hint=fem_hint,
+
+        # Rationality
+        rational_surface_hint=rational_hint,
+        non_rational_surface_hint=non_rational_hint,
+
+        # Definiteness
+        al_definiteness_surface_hint=al_hint,
+        tanwin_surface_hint=tanwin_hint,
+
+        # Diptote
+        diptote_surface_hint=diptote_hint,
+
+        # Feminine types
+        literal_feminine_hint=literal_fem_hint,
+        semantic_feminine_hint=semantic_fem_hint,
+
+        # Core extraction
+        stripped_core_candidate=stripped_core,
+        preserved_suffixes=suffixes,
+        blocked_root_segments=blocked_segments,
+
+        # Evidence
+        residuals=tuple(residuals_list),
+        trace_source=surface
+    )
+
+
+def _detect_number_surface_markers(surface: str) -> tuple[PathPermission, PathPermission, PathPermission, str, Tuple[str, ...], Tuple[str, ...]]:
+    """
+    Detect dual and sound plural surface markers.
+
+    Returns:
+        (dual_hint, sound_masc_plural_hint, sound_fem_plural_hint, stripped_core, suffixes, blocked_segments)
+
+    Examples:
+        كتابان → (possible, unresolved, unresolved, كتاب, (ان,), (ان,))
+        مسلمون → (unresolved, possible, unresolved, مسلم, (ون,), (ون,))
+        مسلمات → (unresolved, unresolved, possible, مسلم, (ات,), (ات,))
+    """
+    dual_hint = PathPermission.UNRESOLVED
+    sound_masc_plural_hint = PathPermission.UNRESOLVED
+    sound_fem_plural_hint = PathPermission.UNRESOLVED
+    stripped_core = surface
+    suffixes = ()
+    blocked_segments = ()
+
+    # Check for dual markers (ان/ين) - must be at least 3 letters before marker
+    if len(surface) >= 4:
+        if surface.endswith("انِ") or surface.endswith("انَ") or surface.endswith("ان"):
+            dual_hint = PathPermission.POSSIBLE
+            stripped_core = surface[:-2]  # Remove ان
+            suffixes = ("ان",)
+            blocked_segments = ("ان",)
+        elif surface.endswith("ينِ") or surface.endswith("ينَ") or surface.endswith("ين"):
+            dual_hint = PathPermission.POSSIBLE
+            stripped_core = surface[:-2]  # Remove ين
+            suffixes = ("ين",)
+            blocked_segments = ("ين",)
+
+        # Check for sound masculine plural (ون/ين)
+        elif surface.endswith("ونَ") or surface.endswith("ون"):
+            sound_masc_plural_hint = PathPermission.POSSIBLE
+            stripped_core = surface[:-2]  # Remove ون
+            suffixes = ("ون",)
+            blocked_segments = ("ون",)
+
+        # Check for sound feminine plural (ات)
+        elif surface.endswith("اتٌ") or surface.endswith("اتٍ") or surface.endswith("اتُ") or surface.endswith("اتِ") or surface.endswith("اتَ") or surface.endswith("ات"):
+            sound_fem_plural_hint = PathPermission.POSSIBLE
+            stripped_core = surface[:-2]  # Remove ات
+            suffixes = ("ات",)
+            blocked_segments = ("ات",)
+
+    return (dual_hint, sound_masc_plural_hint, sound_fem_plural_hint, stripped_core, suffixes, blocked_segments)
+
+
+def _detect_definiteness_surface_markers(surface: str) -> tuple[PathPermission, PathPermission, str]:
+    """
+    Detect definiteness surface markers (ال and tanwīn).
+
+    Returns:
+        (al_hint, tanwin_hint, core_after_al)
+
+    Examples:
+        الكتاب → (possible, unresolved, كتاب)
+        كتابٌ → (unresolved, possible, كتابٌ)
+        كتاب → (unresolved, unresolved, كتاب)
+    """
+    al_hint = PathPermission.UNRESOLVED
+    tanwin_hint = PathPermission.UNRESOLVED
+    core_after_al = surface
+
+    # Check for ال prefix
+    if len(surface) >= 3:
+        if surface.startswith("ال"):
+            al_hint = PathPermission.POSSIBLE
+            core_after_al = surface[2:]  # Remove ال
+
+    # Check for tanwīn (ٌ, ٍ, ً)
+    if "ٌ" in surface or "ٍ" in surface or "ً" in surface:
+        tanwin_hint = PathPermission.POSSIBLE
+
+    return (al_hint, tanwin_hint, core_after_al)
+
+
+def _detect_irab_surface_markers(surface: str) -> tuple[PathPermission, PathPermission, PathPermission, PathPermission, PathPermission]:
+    """
+    Detect iʿrāb surface markers (hints only, NOT certificates).
+
+    Returns:
+        (nominative_hint, accusative_hint, genitive_hint, jussive_hint, secondary_marker_hint)
+
+    Examples:
+        كتابٌ → (possible, unresolved, unresolved, unresolved, unresolved)
+        كتابًا → (unresolved, possible, unresolved, unresolved, unresolved)
+        كتابٍ → (unresolved, unresolved, possible, unresolved, unresolved)
+    """
+    nom_hint = PathPermission.UNRESOLVED
+    acc_hint = PathPermission.UNRESOLVED
+    gen_hint = PathPermission.UNRESOLVED
+    juss_hint = PathPermission.UNRESOLVED
+    secondary_hint = PathPermission.UNRESOLVED
+
+    # Check for damma/tanwīn damma (nominative)
+    if "ُ" in surface or "ٌ" in surface or surface.endswith("ون"):
+        nom_hint = PathPermission.POSSIBLE
+
+    # Check for fatha/tanwīn fatha (accusative)
+    if "َ" in surface or "ً" in surface or "ا" in surface[-2:]:
+        acc_hint = PathPermission.POSSIBLE
+
+    # Check for kasra/tanwīn kasra (genitive)
+    if "ِ" in surface or "ٍ" in surface or surface.endswith("ين"):
+        gen_hint = PathPermission.POSSIBLE
+
+    # Check for sukūn (jussive)
+    if "ْ" in surface:
+        juss_hint = PathPermission.POSSIBLE
+
+    # Check for secondary markers (واو/ألف/ياء in terminal position)
+    if len(surface) >= 2:
+        if surface[-1] in ["و", "ا", "ي"] or surface[-2:] in ["ون", "ين", "ان"]:
+            secondary_hint = PathPermission.POSSIBLE
+
+    return (nom_hint, acc_hint, gen_hint, juss_hint, secondary_hint)
+
+
+def _detect_gender_surface_markers(surface: str, suffixes: Tuple[str, ...]) -> tuple[PathPermission, PathPermission, PathPermission, PathPermission]:
+    """
+    Detect gender surface markers (hints only).
+
+    Returns:
+        (masculine_hint, feminine_hint, literal_feminine_hint, semantic_feminine_hint)
+
+    Examples:
+        كاتبة → (unresolved, possible, possible, unresolved)
+        كاتبات → (unresolved, possible, possible, unresolved)
+        كاتب → (possible, unresolved, unresolved, possible)
+    """
+    masc_hint = PathPermission.UNRESOLVED
+    fem_hint = PathPermission.UNRESOLVED
+    literal_fem_hint = PathPermission.UNRESOLVED
+    semantic_fem_hint = PathPermission.UNRESOLVED
+
+    # Check for tāʾ marbūṭa (ة)
+    if "ة" in surface or "ـة" in surface:
+        fem_hint = PathPermission.POSSIBLE
+        literal_fem_hint = PathPermission.POSSIBLE
+
+    # Check for ات suffix (sound feminine plural)
+    if "ات" in suffixes or surface.endswith("ات"):
+        fem_hint = PathPermission.POSSIBLE
+        literal_fem_hint = PathPermission.POSSIBLE
+
+    # If no literal feminine marker, could be masculine or semantic feminine
+    if literal_fem_hint == PathPermission.UNRESOLVED:
+        masc_hint = PathPermission.POSSIBLE
+        semantic_fem_hint = PathPermission.POSSIBLE
+
+    return (masc_hint, fem_hint, literal_fem_hint, semantic_fem_hint)
+
+
 def _check_jamid_potential(surface: str) -> PathPermission:
     """
     Check if surface suggests frozen/non-derivational (جامد) potential.
@@ -552,6 +925,18 @@ def pre_weight_contract_7(
         # Derivational readiness (hint only)
         derivational_readiness = PathPermission.UNRESOLVED
 
+        # Determine open/closed status FIRST (needed for U₇-B)
+        if contract_status == ContractStatus.CLOSED_CLASS_BLOCKED:
+            open_closed_status = "closed_class"
+        else:
+            open_closed_status = "open_class"
+
+        # U₇-B: Inflectional Surface Analysis (NEW - before root/weight)
+        inflectional_surface_profile = _analyze_inflectional_surface(
+            mabni_unit.surface,
+            open_closed_status
+        )
+
         # Determine blocked paths
         blocked_paths = []
         required_evidence = []
@@ -561,12 +946,6 @@ def pre_weight_contract_7(
             required_evidence = ["closed_class_mabni_blocks_morphology"]
         elif contract_status == ContractStatus.OPEN_CORE_CONTRACT_CANDIDATE:
             required_evidence = ["lexical_attestation", "surface_family_evidence"]
-
-        # Determine open/closed status
-        if contract_status == ContractStatus.CLOSED_CLASS_BLOCKED:
-            open_closed_status = "closed_class"
-        else:
-            open_closed_status = "open_class"
 
         # Build trace
         trace = mabni_unit.trace_5
@@ -588,6 +967,7 @@ def pre_weight_contract_7(
             loanword_surface_potential=loanword_potential,
             frozen_primitive_potential=frozen_primitive_potential,
             derivational_readiness=derivational_readiness,
+            inflectional_surface_profile=inflectional_surface_profile,  # U₇-B
             required_evidence=tuple(required_evidence),
             blocked_paths=tuple(blocked_paths),
             residuals=mabni_unit.residuals,  # Preserve residuals from U₆
@@ -638,6 +1018,9 @@ __all__ = [
     # Core types
     'ContractStatus',
     'PathPermission',
+
+    # U₇-B: Inflectional Surface Contract
+    'InflectionalSurfaceProfile',
 
     # Structures
     'PreWeightContractUnit',
