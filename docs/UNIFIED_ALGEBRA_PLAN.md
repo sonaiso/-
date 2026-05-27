@@ -1728,30 +1728,86 @@ All work governed by:
 2. ✅ D_mufrad mapping Option B SELECTED: Map to existing DalTransitionDomain
 3. ⚠️ Failure semantics resolution deferred to PR-1C (value-based vs exception-based)
 
-**PR-1B Complete** ✅ (2026-05-27):
+**PR-1B Status** ⚠️ **INCOMPLETE** (2026-05-27):
+
+**What Was Added**:
 1. ✅ Added dal_algebra imports to AlgebraicDecisionCore
 2. ✅ Extended DecisionAudit with dal_contract, dal_domain, dal_claim_scope fields
 3. ✅ Extended ApprovedTransitionContext with dal_algebra fields
-4. ✅ Created DAL_KERNEL_MAPPING.md with canonical mappings
-5. ✅ Documented DalTransitionDomain ↔ ExecutionLayer mapping
-6. ✅ Documented DalTransitionDomain ↔ DomainType mapping
-7. ✅ Verified all imports work correctly
-8. ✅ No breaking changes to existing code
+4. ✅ Created DAL_KERNEL_MAPPING.md
 
-**Current Phase - PR-1C** (IN PROGRESS):
-**Goal**: Resolve Failure semantics contradiction
+**Critical Issues Identified** (User Feedback):
+1. ❌ **Hallucinated DomainType names** in DAL_KERNEL_MAPPING.md:
+   - Document claimed: PHONEME_DOMAIN, PRE_MORPHOLOGICAL_DOMAIN, ROOT_DOMAIN, PATTERN_DOMAIN, IDENTITY_DOMAIN, FORM_DOMAIN, WORDFORM_DOMAIN
+   - Reality: These do NOT exist in domain_registry.py
+   - Actual names: SCRIPT_DOMAIN, SOUND_DOMAIN, SYLLABLE_DOMAIN, BOUNDARY_DOMAIN, LAFZ_DOMAIN, MARKER_PROTECTION_DOMAIN, CLAUSE_AGREEMENT_DOMAIN, ROOT_STEM_DOMAIN, WEIGHT_DOMAIN, etc.
+   - **Fixed**: 2026-05-27 (corrected mapping to use actual DomainType values)
+
+2. ❌ **No validators** for dal_* fields:
+   - Fields are Optional with no enforcement
+   - Can be set to inconsistent values
+   - No validation that dal_domain matches ExecutionLayer
+   - No validation that dal_domain matches DomainType
+   - No validation that dal_claim_scope matches dal_domain
+   - **Status**: Transitional metadata only, NOT enforced governance
+
+3. ❌ **No tests** for kernel integration:
+   - No test that dal_contract is preserved correctly
+   - No test that inconsistent values are rejected
+   - No test of validate_dal_kernel_mapping() (doesn't exist yet)
+
+4. ❌ **U₁₀ WordForm mapped to JUDGMENT incorrectly**:
+   - U₁₀ WordFormCandidate is NOT final judgment
+   - No Ifādah, no Hukm at U₁₀
+   - It's a word contract/form holder
+   - JUDGMENT_DOMAIN should be for U₁₅ Hukm, not U₁₀
+   - **Fixed**: Mapping corrected, gaps identified
+
+5. ❌ **Missing DomainType entries**:
+   - IDENTITY_DOMAIN needed for DType (Ism/Fi'l/Harf classification at U₅, U₆)
+   - WORDFORM_DOMAIN needed for DMufrad/U₁₀ WordFormCandidate
+   - **Status**: GAP - requires separate PR to add these domains
+
+**Corrective Actions Taken** (2026-05-27):
+1. ✅ Fixed DAL_KERNEL_MAPPING.md to use actual DomainType names
+2. ✅ Added "PR-1B Status: Incomplete - Metadata Only" section
+3. ✅ Added validate_dal_kernel_mapping() TODO with implementation sketch
+4. ✅ Clarified U₁₀ WordForm ≠ JUDGMENT
+5. ✅ Identified missing IDENTITY_DOMAIN and WORDFORM_DOMAIN gaps
+6. ✅ Documented that dal_* fields are transitional metadata, NOT enforced
+
+**PR-1B Remaining Work**:
+- [ ] Implement validate_dal_kernel_mapping() function
+- [ ] Add tests for dal_* field validation
+- [ ] Consider adding IDENTITY_DOMAIN and WORDFORM_DOMAIN to DomainType (separate PR recommended)
+- [ ] Mark PR-1B as complete ONLY after validators and tests added
+
+**Current Phase - CORRECTING PR-1B** (IN PROGRESS):
+**Status**: Documentation corrected, code validators still needed
+
+**Next Steps**:
+1. **Option A**: Add validators and tests to complete PR-1B
+2. **Option B**: Mark PR-1B as "Foundation Only" and proceed to PR-1C with understanding that dal_* fields are transitional
+
+**Current Phase - PR-1C** 🚫 **BLOCKED**:
+**Reason**: Cannot proceed until PR-1B mapping is code-accurate and validators are added OR explicitly marked as transitional foundation
+
+**PR-1C Decision Made**: Option C - Hybrid Failure Semantics
 
 **The Contradiction** (dal_algebra.py internal inconsistency):
 - Module docstring (line 19): "Transitions return CandidateSet[𝔾] or Failure"
 - Protocol (line 310-315): "Returns CandidateSet or raises exception for Failure"
 
-**Resolution Options**:
-- **Option A (Value-based)**: Return `Failure` object (algebraic closure)
-- **Option B (Exception-based)**: Raise exceptions (easier integration)
-- **Option C (Hybrid)**: Both approaches with clear separation
+**Resolution**: Option C - Hybrid Failure Semantics
+- **Construction invariant violation** → Exception (ValueError, TypeError)
+- **Algebraic operation failure** → AlgebraicFailure value
 
-**Decision Required**: Choose Option A, B, or C
+**Mathematical Formulation**:
+```
+Construction: Invalid invariant → raise ValueError/TypeError
+Operation: Opₑ : A → Success[B] ∪ AlgebraicFailure
+```
 
-**Next Steps After PR-1C**:
-1. **PR-2**: Promote dal_algebra.py with resolved semantics and kernel integration complete
-
+**Next Steps After PR-1B Correction**:
+1. **PR-1C**: Implement Option C (hybrid failure semantics)
+2. **PR-2**: Promote dal_algebra.py with resolved semantics and kernel integration complete
