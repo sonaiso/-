@@ -64,13 +64,15 @@ This document defines the **canonical mapping** between three foundational regis
 
 **Critical Notes**:
 1. ✅ **IDENTITY_AXIS → IDENTITY_DOMAIN**: Added in PR-125. Maps to محور الهوية (Ism/Fi'l/Harf classification).
-2. ✅ **Path-aware IDENTITY_DOMAIN** (PR-127): IDENTITY_DOMAIN does NOT unconditionally require WEIGHT_DOMAIN. Arabic identity can arise through multiple paths:
+2. ✅ **Path-aware IDENTITY_DOMAIN** (PR-127, PR-128): IDENTITY_DOMAIN does NOT unconditionally require WEIGHT_DOMAIN. Arabic identity can arise through multiple paths:
    - **Weight path**: WEIGHT_DOMAIN → IDENTITY_DOMAIN (derived forms: فاعل، مفعول...)
    - **Mabni/closed-class path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (closed-class: ما، هل، إن...)
    - **Tool/particle path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (particles: في، على، من...)
    - **Pronoun path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (pronouns: هو، أنت...)
    - **Jāmid/frozen path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (frozen nouns, non-weighted)
+   - **Residualized path**: IDENTITY_DOMAIN → IDENTITY_DOMAIN (with residuals)
    - **Constitutional law enforced**: لا هوية من الوزن وحده (No Identity from weight alone for all paths)
+   - **Path validation enforced** (PR-128): PathAwareIdentityValidator ensures no identity without licensed path evidence
 3. ✅ **WORDFORM → WORDFORM_DOMAIN**: Added in PR-126. Maps to صورة الكلمة المرشحة (Word form candidate).
 4. ✅ **JUDGMENT ≠ U₁₀ WordForm**: Confirmed and enforced (PR-126). U₁₀ WordFormCandidate is NOT final judgment. It's a word contract/form holder.
 5. **Derivational forms**: `SOURCE_FORM_DOMAIN`, `ATTRIBUTE_FORM_DOMAIN`, `FUNCTIONAL_FORM_DOMAIN` exist for future architecture.
