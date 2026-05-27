@@ -170,6 +170,7 @@ def validate_dal_kernel_mapping(
         Tuple of validation error messages (empty if valid)
 
     Validation Rules:
+        0. If dal_contract present: dal_domain and dal_claim_scope are REQUIRED
         1. If dal_domain is None: allow legacy mode (no validation)
         2. If dal_domain present: must match from_layer/to_layer
         3. If dal_claim_scope present: must be allowed for dal_domain
@@ -181,9 +182,23 @@ def validate_dal_kernel_mapping(
     """
     violations: list[str] = []
 
+    # Rule 0: If dal_contract present, dal_domain and dal_claim_scope are REQUIRED
+    # Constitutional Law: No contract without domain. No contract without claim scope.
+    if dal_contract is not None:
+        if dal_domain is None:
+            violations.append(
+                "dal_contract present but dal_domain is None. "
+                "Constitutional law: No contract without domain."
+            )
+        if dal_claim_scope is None:
+            violations.append(
+                "dal_contract present but dal_claim_scope is None. "
+                "Constitutional law: No contract without claim scope."
+            )
+
     # Rule 1: If dal_domain absent, allow legacy mode
     if dal_domain is None:
-        return tuple(violations)  # No dal_domain = no validation
+        return tuple(violations)  # No dal_domain = no validation (unless dal_contract present)
 
     # Rule 2: Validate dal_domain ↔ ExecutionLayer mapping
     expected_layers = DAL_DOMAIN_TO_EXECUTION_LAYER_MAP.get(dal_domain, frozenset())

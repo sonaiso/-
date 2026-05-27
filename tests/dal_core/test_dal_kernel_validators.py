@@ -506,3 +506,191 @@ def test_is_dal_kernel_mapping_valid_returns_bool():
         to_layer=ExecutionLayer.U9_WEIGHT,
         domain=DomainType.WEIGHT_DOMAIN
     ) is False
+
+
+# ============================================================================
+# Test PR-124: dal_contract without dal_domain / dal_claim_scope Validation
+# ============================================================================
+
+def test_dal_contract_without_dal_domain_is_violation():
+    """Test that dal_contract without dal_domain is a violation (PR-124)."""
+    contract = DalTransitionContract(
+        contract_id="test-contract",
+        source_domain=DalTransitionDomain.TEMPLATE,
+        target_domain=DalTransitionDomain.JUDGMENT,
+        input_type=dict,
+        output_type=dict,
+        claim_scope=DalClaimScope.TEMPLATE_MATCHED
+    )
+
+    violations = validate_dal_kernel_mapping(
+        dal_domain=None,  # Missing domain
+        dal_claim_scope=DalClaimScope.TEMPLATE_MATCHED,
+        dal_contract=contract,
+        from_layer=ExecutionLayer.U9_WEIGHT,
+        to_layer=ExecutionLayer.U9_WEIGHT,
+        domain=DomainType.WEIGHT_DOMAIN
+    )
+
+    assert len(violations) > 0, "Should have violation for dal_contract without dal_domain"
+    assert any("dal_contract present but dal_domain is None" in v for v in violations), \
+        f"Should mention dal_contract without dal_domain. Got: {violations}"
+    assert any("No contract without domain" in v for v in violations), \
+        "Should mention constitutional law"
+
+
+def test_dal_contract_without_dal_claim_scope_is_violation():
+    """Test that dal_contract without dal_claim_scope is a violation (PR-124)."""
+    contract = DalTransitionContract(
+        contract_id="test-contract",
+        source_domain=DalTransitionDomain.TEMPLATE,
+        target_domain=DalTransitionDomain.JUDGMENT,
+        input_type=dict,
+        output_type=dict,
+        claim_scope=DalClaimScope.TEMPLATE_MATCHED
+    )
+
+    violations = validate_dal_kernel_mapping(
+        dal_domain=DalTransitionDomain.TEMPLATE,
+        dal_claim_scope=None,  # Missing claim scope
+        dal_contract=contract,
+        from_layer=ExecutionLayer.U9_WEIGHT,
+        to_layer=ExecutionLayer.U9_WEIGHT,
+        domain=DomainType.WEIGHT_DOMAIN
+    )
+
+    assert len(violations) > 0, "Should have violation for dal_contract without dal_claim_scope"
+    assert any("dal_contract present but dal_claim_scope is None" in v for v in violations), \
+        f"Should mention dal_contract without dal_claim_scope. Got: {violations}"
+    assert any("No contract without claim scope" in v for v in violations), \
+        "Should mention constitutional law"
+
+
+def test_dal_contract_without_both_domain_and_scope_has_two_violations():
+    """Test that dal_contract without both dal_domain and dal_claim_scope has two violations (PR-124)."""
+    contract = DalTransitionContract(
+        contract_id="test-contract",
+        source_domain=DalTransitionDomain.TEMPLATE,
+        target_domain=DalTransitionDomain.JUDGMENT,
+        input_type=dict,
+        output_type=dict,
+        claim_scope=DalClaimScope.TEMPLATE_MATCHED
+    )
+
+    violations = validate_dal_kernel_mapping(
+        dal_domain=None,  # Missing domain
+        dal_claim_scope=None,  # Missing claim scope
+        dal_contract=contract,
+        from_layer=ExecutionLayer.U9_WEIGHT,
+        to_layer=ExecutionLayer.U9_WEIGHT,
+        domain=DomainType.WEIGHT_DOMAIN
+    )
+
+    assert len(violations) == 2, f"Should have 2 violations. Got {len(violations)}: {violations}"
+    assert any("dal_domain is None" in v for v in violations), \
+        "Should have violation for missing dal_domain"
+    assert any("dal_claim_scope is None" in v for v in violations), \
+        "Should have violation for missing dal_claim_scope"
+
+
+def test_approved_context_rejects_dal_contract_without_domain():
+    """Test that ApprovedTransitionContext rejects audit with dal_contract but no dal_domain (PR-124)."""
+    core = AlgebraicDecisionCore()
+
+    contract = DalTransitionContract(
+        contract_id="test-contract",
+        source_domain=DalTransitionDomain.TEMPLATE,
+        target_domain=DalTransitionDomain.JUDGMENT,
+        input_type=dict,
+        output_type=dict,
+        claim_scope=DalClaimScope.TEMPLATE_MATCHED
+    )
+
+    # Create audit with dal_contract but no dal_domain
+    audit = core.decide_transition(
+        transition_id="test_contract_without_domain",
+        from_layer=ExecutionLayer.U9_WEIGHT,
+        to_layer=ExecutionLayer.U9_WEIGHT,
+        input_identity=IdentityType.WEIGHT_IDENTITY,
+        output_identity=IdentityType.WEIGHT_IDENTITY,
+        existing_identities=frozenset({
+            IdentityType.WEIGHT_IDENTITY,
+        }),
+        domain=DomainType.WEIGHT_DOMAIN,
+        attempted_determination="test",
+        gate_name="test_gate",
+        gate_passed=True,
+        evidence=("test_evidence",),
+        required_evidence=frozenset(),
+        input_rank=Rank.CANDIDATE,
+        output_rank=Rank.CANDIDATE,
+        residual_set=ResidualSet(frozenset()),
+        trace=("test_trace",),
+        dal_contract=contract,
+        dal_domain=None,  # Missing
+        dal_claim_scope=DalClaimScope.TEMPLATE_MATCHED
+    )
+
+    # Audit should not be approved
+    assert not audit.allowed, "Audit should not be allowed with dal_contract without dal_domain"
+    assert any("Dal Kernel" in v for v in audit.violations), \
+        f"Should have Dal Kernel violation. Got: {audit.violations}"
+
+    # Trying to create context should raise ValueError
+    with pytest.raises(ValueError, match="unapproved audit"):
+        create_approved_context(
+            audit,
+            frozenset({IdentityType.WEIGHT_IDENTITY})
+        )
+
+
+def test_approved_context_rejects_dal_contract_without_claim_scope():
+    """Test that ApprovedTransitionContext rejects audit with dal_contract but no dal_claim_scope (PR-124)."""
+    core = AlgebraicDecisionCore()
+
+    contract = DalTransitionContract(
+        contract_id="test-contract",
+        source_domain=DalTransitionDomain.TEMPLATE,
+        target_domain=DalTransitionDomain.JUDGMENT,
+        input_type=dict,
+        output_type=dict,
+        claim_scope=DalClaimScope.TEMPLATE_MATCHED
+    )
+
+    # Create audit with dal_contract but no dal_claim_scope
+    audit = core.decide_transition(
+        transition_id="test_contract_without_claim_scope",
+        from_layer=ExecutionLayer.U9_WEIGHT,
+        to_layer=ExecutionLayer.U9_WEIGHT,
+        input_identity=IdentityType.WEIGHT_IDENTITY,
+        output_identity=IdentityType.WEIGHT_IDENTITY,
+        existing_identities=frozenset({
+            IdentityType.WEIGHT_IDENTITY,
+        }),
+        domain=DomainType.WEIGHT_DOMAIN,
+        attempted_determination="test",
+        gate_name="test_gate",
+        gate_passed=True,
+        evidence=("test_evidence",),
+        required_evidence=frozenset(),
+        input_rank=Rank.CANDIDATE,
+        output_rank=Rank.CANDIDATE,
+        residual_set=ResidualSet(frozenset()),
+        trace=("test_trace",),
+        dal_contract=contract,
+        dal_domain=DalTransitionDomain.TEMPLATE,
+        dal_claim_scope=None  # Missing
+    )
+
+    # Audit should not be approved
+    assert not audit.allowed, "Audit should not be allowed with dal_contract without dal_claim_scope"
+    assert any("Dal Kernel" in v for v in audit.violations), \
+        f"Should have Dal Kernel violation. Got: {audit.violations}"
+
+    # Trying to create context should raise ValueError
+    with pytest.raises(ValueError, match="unapproved audit"):
+        create_approved_context(
+            audit,
+            frozenset({IdentityType.WEIGHT_IDENTITY})
+        )
+

@@ -202,7 +202,9 @@ class ApprovedTransitionContext:
         # PR-122: Verify dal_kernel consistency
         # If dal_* fields are present, they must be valid
         # This prevents ApprovedTransitionContext from preserving invalid dal_* metadata
-        if self.audit.dal_domain is not None or self.audit.dal_claim_scope is not None:
+        if (self.audit.dal_domain is not None
+            or self.audit.dal_claim_scope is not None
+            or self.audit.dal_contract is not None):
             # Import here to avoid circular dependency
             from dal_core.dal_kernel_validators import validate_dal_kernel_mapping
 
