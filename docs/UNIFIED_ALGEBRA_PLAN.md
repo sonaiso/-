@@ -1661,14 +1661,14 @@ All work governed by:
 - [x] Add Algebraic Roles & Governance table
 - [x] Add D_mufrad Pipeline → Dal/Execution/Domain mapping table
 - [x] Add temporary kernel role division decision
-- [ ] ⚠️ PENDING: User approval of temporary decisions
+- [x] ✅ User approval received (2026-05-27)
 
-**PR-1A Status**: 13/14 checklist items complete (93%)
-**Blocking**: User must approve temporary kernel role division before marking PR-1A complete
+**PR-1A Status**: 14/14 checklist items complete (100% ✅)
+**Result**: COMPLETE - Proceeding to PR-1B
 
 ---
 
-**Document Status**: Phase 1A - Awaiting User Approval (93% complete)
+**Document Status**: Phase 1B - Kernel Formalization (PR-1A Complete ✅)
 
 **Critical Achievement**: All UNVERIFIED components now verified with line counts, exports, and test status
 
@@ -1723,14 +1723,22 @@ All work governed by:
 6. ✅ D_mufrad mapping table added with 3 resolution options
 7. ✅ Temporary kernel role division proposed
 
-**Remaining Decisions Required** (User Approval):
-1. ⚠️ Kernel role division: dal_algebra = constitution, AlgebraicDecisionCore = governance
-2. ⚠️ D_mufrad mapping resolution (Option A/B/C - see Map 3)
-3. ⚠️ Failure semantics resolution (PR-1C - value-based vs exception-based)
+**PR-1A Complete** ✅:
+1. ✅ Kernel role division APPROVED: dal_algebra = constitution, AlgebraicDecisionCore = governance
+2. ✅ D_mufrad mapping Option B SELECTED: Map to existing DalTransitionDomain
+3. ⚠️ Failure semantics resolution deferred to PR-1C (value-based vs exception-based)
 
-**Next Required Steps** (in order):
-1. **User approval**: Review temporary decisions above
-2. **Start PR-1B**: Formalize kernel relationship (code or documentation)
-3. **Start PR-1C**: Resolve failure semantics (value-based vs exception-based)
-4. **Only then**: PR-2 (promote dal_algebra.py with resolved semantics and clear kernel role)
+**Current Phase - PR-1B** (IN PROGRESS):
+**Goal**: Formalize kernel relationship between dal_algebra.py and AlgebraicDecisionCore
+
+**PR-1B Tasks**:
+1. Add dal_algebra import to AlgebraicDecisionCore
+2. Add DalTransitionContract field to ApprovedTransitionContext
+3. Document DalTransitionDomain ↔ ExecutionLayer canonical mapping
+4. Document DalTransitionDomain ↔ DomainType canonical mapping
+5. Add unit tests for kernel integration
+
+**Next Steps After PR-1B**:
+1. **PR-1C**: Resolve failure semantics (value-based vs exception-based)
+2. **PR-2**: Promote dal_algebra.py with resolved semantics and clear kernel role
 
