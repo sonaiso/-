@@ -16,8 +16,13 @@ Obeys PR #21 (Ordered Dal Form Governance):
 Obeys PR #22 (Project Algebra Architecture Map):
 - 𝔾 = successful typed objects.
 - Failure ∉ 𝔾.
-- Transitions return CandidateSet[𝔾] or Failure.
+- Transitions return CandidateSet[𝔾] or AlgebraicFailure.
 - No algebra may claim outputs of later algebra.
+
+PR #1C (Hybrid Failure Semantics):
+- Construction invariant violation → Exception (ValueError, TypeError)
+- Algebraic operation failure → AlgebraicFailure value
+- Preserves algebraic closure while maintaining construction safety
 """
 
 from dataclasses import dataclass, field
@@ -152,6 +157,66 @@ class DalTraceRef:
     timestamp: str                 # When transition occurred
     reversible: bool = False       # Can this be reversed?
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+# ============================================================================
+# Algebraic Failure Model (PR-1C)
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class AlgebraicFailure:
+    """Algebraic operation failure value.
+
+    PR #1C: Hybrid Failure Semantics
+
+    Represents failure of an algebraic operation (NOT construction failure).
+    Construction failures should raise ValueError/TypeError in __post_init__.
+
+    This is a VALUE in the algebra, not an exception.
+    It enables algebraic composability while preserving failure information.
+
+    Examples of when to use AlgebraicFailure:
+    - Gate not satisfied
+    - Evidence insufficient
+    - Rank not licensed
+    - Residual blocking operation
+    - Domain boundary violation during operation
+    - Forbidden path attempted
+    - Minimal sufficiency not met
+
+    Examples of when to raise Exception instead:
+    - Invalid field values in __post_init__ (e.g., negative probability)
+    - Missing required structural fields
+    - Invalid enum combinations
+    - Type mismatches
+    - Attempt to forge ApprovedTransitionContext
+
+    Mathematical Type:
+        Opₑ : A → Success[B] ∪ AlgebraicFailure
+
+    where A is valid input (construction already validated).
+    """
+    reason: str                           # Human-readable failure reason
+    gate: Optional[str] = None            # Which gate was not satisfied
+    evidence_gap: Optional[str] = None    # What evidence was missing
+    rank_issue: Optional[str] = None      # Rank-related problem
+    residual_block: Optional[str] = None  # Blocking residual description
+    domain_violation: Optional[str] = None  # Domain boundary crossed
+    forbidden_path: Optional[str] = None  # Forbidden transition attempted
+    counter_evidence: List[DalCounterEvidence] = field(default_factory=list)
+    trace: List[DalTraceRef] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Validate failure invariants.
+
+        Note: Even failure values must have valid construction.
+        """
+        if not self.reason:
+            raise ValueError("AlgebraicFailure must have non-empty reason")
+        if not isinstance(self.reason, str):
+            raise TypeError(f"AlgebraicFailure.reason must be str, got {type(self.reason)}")
 
 
 # ============================================================================
@@ -297,7 +362,15 @@ class DalCandidateSetProtocol(Protocol, Generic[T]):
 class DalTransitionProtocol(Protocol, Generic[T]):
     """Protocol for dal transitions.
 
-    Transition: 𝔾ᵢ × Aux → CandidateSet[𝔾ⱼ] ∪ Failure
+    PR #1C: Hybrid Failure Semantics
+
+    Transition: 𝔾ᵢ × Aux → CandidateSet[𝔾ⱼ] ∪ AlgebraicFailure
+
+    Returns either:
+    - CandidateSet[T]: Successful operation with candidates
+    - AlgebraicFailure: Operation failed (gate not satisfied, evidence insufficient, etc.)
+
+    Raises Exception ONLY for construction/invariant violations, NOT for operation failures.
     """
 
     @property
@@ -307,10 +380,23 @@ class DalTransitionProtocol(Protocol, Generic[T]):
         ...
 
     @abstractmethod
-    def apply(self, input_obj: Any, **aux) -> DalCandidateSetProtocol[T]:
+    def apply(self, input_obj: Any, **aux) -> DalCandidateSetProtocol[T] | AlgebraicFailure:
         """Apply transition to input with auxiliary data.
 
-        Returns CandidateSet or raises exception for Failure.
+        Args:
+            input_obj: Input object (must be valid/constructed)
+            **aux: Auxiliary data for transition
+
+        Returns:
+            CandidateSet[T] if operation succeeds, AlgebraicFailure if operation fails.
+
+        Raises:
+            ValueError: If input_obj has invalid construction/invariants
+            TypeError: If input_obj has wrong type
+
+        Note:
+            Construction failures raise exceptions.
+            Algebraic operation failures return AlgebraicFailure.
         """
         ...
 
@@ -529,6 +615,8 @@ __all__ = [
     "DalEvidence",
     "DalCounterEvidence",
     "DalTraceRef",
+    # Algebraic Failure (PR-1C)
+    "AlgebraicFailure",
     # Contracts and protocols
     "DalTransitionContract",
     "DalCandidateProtocol",
