@@ -51,9 +51,11 @@ def test_algebraic_failure_basic_construction():
     assert failure.residual_block is None
     assert failure.domain_violation is None
     assert failure.forbidden_path is None
-    assert failure.counter_evidence == []
-    assert failure.trace == []
-    assert failure.metadata == {}
+    # After immutability conversion: tuple not list, MappingProxyType not dict
+    assert failure.counter_evidence == ()
+    assert failure.trace == ()
+    assert isinstance(failure.metadata, Mapping)
+    assert not isinstance(failure.metadata, dict)
 
 
 def test_algebraic_failure_with_all_fields():
@@ -363,8 +365,9 @@ def test_transition_construction_failure_raises_exception():
             if not input_obj:
                 raise ValueError("Input must be non-empty")
 
-            # If construction is valid, return success
-            return AlgebraicFailure(reason="test")  # Mock return
+            # Success path not under test here
+            # Would return CandidateSet on valid input, but we only test failures
+            return AlgebraicFailure(reason="mock - success path not tested")
 
     transition = MockConstructionCheckingTransition()
 
