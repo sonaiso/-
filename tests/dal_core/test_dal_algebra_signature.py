@@ -13,7 +13,7 @@ Tests verify:
 
 import pytest
 from dataclasses import dataclass
-from typing import List
+from typing import List, Mapping
 
 from dal_core.dal_algebra import (
     DalTransitionDomain,
@@ -240,7 +240,7 @@ def test_algebraic_failure_with_trace():
 
 
 def test_algebraic_failure_preserves_immutability():
-    """AlgebraicFailure preserves immutability even with mutable-typed fields."""
+    """AlgebraicFailure is truly immutable with tuple/MappingProxyType."""
     failure = AlgebraicFailure(
         reason="Test",
         counter_evidence=[],
@@ -248,15 +248,196 @@ def test_algebraic_failure_preserves_immutability():
         metadata={}
     )
 
-    # Even though fields are typed as List/dict, the dataclass is frozen
-    with pytest.raises(Exception):  # FrozenInstanceError
-        failure.counter_evidence.append(  # type: ignore
-            DalCounterEvidence(
-                source="test",
-                claim_scope=DalClaimScope.CARRIER_VALID,
-                span=(0, 1)
+    # Fields are converted to immutable types in __post_init__
+    assert isinstance(failure.counter_evidence, tuple)
+    assert isinstance(failure.trace, tuple)
+    # MappingProxyType is a Mapping but not a dict
+    assert isinstance(failure.metadata, Mapping)
+    assert not isinstance(failure.metadata, dict)
+
+    # Tuple has no append method
+    assert not hasattr(failure.counter_evidence, 'append')
+    assert not hasattr(failure.trace, 'append')
+
+    # MappingProxyType prevents modification
+    with pytest.raises(TypeError):
+        failure.metadata['key'] = 'value'  # type: ignore
+
+
+def test_algebraic_failure_accepts_list_input_stores_tuple():
+    """AlgebraicFailure accepts list input but stores as tuple."""
+    counter_ev = DalCounterEvidence(
+        source="test",
+        claim_scope=DalClaimScope.CARRIER_VALID,
+        span=(0, 1),
+        severity=0.8
+    )
+    trace_ref = DalTraceRef(
+        transition_id="test",
+        source_domain=DalTransitionDomain.GRAPHOPHONEMIC,
+        target_domain=DalTransitionDomain.SYLLABIC,
+        timestamp="2026-05-27T08:00:00Z"
+    )
+
+    # Pass lists (mutable)
+    failure = AlgebraicFailure(
+        reason="Test",
+        counter_evidence=[counter_ev],
+        trace=[trace_ref],
+        metadata={"key": "value"}
+    )
+
+    # Stored as tuples and MappingProxyType (immutable)
+    assert isinstance(failure.counter_evidence, tuple)
+    assert isinstance(failure.trace, tuple)
+    assert isinstance(failure.metadata, Mapping)
+    assert len(failure.counter_evidence) == 1
+    assert len(failure.trace) == 1
+    assert failure.metadata["key"] == "value"
+
+
+# ============================================================================
+# Test Operation-Level Failure Semantics (PR-1C)
+# ============================================================================
+
+
+def test_transition_operation_failure_returns_algebraic_failure():
+    """Operation failure returns AlgebraicFailure, not exception."""
+
+    class MockFailingTransition:
+        """Mock transition that fails due to gate non-satisfaction."""
+
+        @property
+        def contract(self):
+            return DalTransitionContract(
+                contract_id="mock_failing",
+                source_domain=DalTransitionDomain.GRAPHOPHONEMIC,
+                target_domain=DalTransitionDomain.SYLLABIC,
+                input_type=str,
+                output_type=str,
+                claim_scope=DalClaimScope.SYLLABLE_STRUCTURE_VALID
             )
-        )
+
+        def apply(self, input_obj, **aux):
+            """Returns AlgebraicFailure for gate non-satisfaction."""
+            # Input is valid (construction passed)
+            # But operation fails (gate not satisfied)
+            return AlgebraicFailure(
+                reason="Gate not satisfied",
+                gate="mock_gate",
+                evidence_gap="missing_lexicon_attestation"
+            )
+
+    transition = MockFailingTransition()
+    result = transition.apply("valid_input")
+
+    # Operation failure returns AlgebraicFailure value
+    assert isinstance(result, AlgebraicFailure)
+    assert result.reason == "Gate not satisfied"
+    assert result.gate == "mock_gate"
+    assert result.evidence_gap == "missing_lexicon_attestation"
+
+
+def test_transition_construction_failure_raises_exception():
+    """Construction/invariant failure raises exception, not AlgebraicFailure."""
+
+    class MockConstructionCheckingTransition:
+        """Mock transition that validates construction invariants."""
+
+        @property
+        def contract(self):
+            return DalTransitionContract(
+                contract_id="mock_construction",
+                source_domain=DalTransitionDomain.GRAPHOPHONEMIC,
+                target_domain=DalTransitionDomain.SYLLABIC,
+                input_type=str,
+                output_type=str,
+                claim_scope=DalClaimScope.SYLLABLE_STRUCTURE_VALID
+            )
+
+        def apply(self, input_obj, **aux):
+            """Raises exception for invalid construction."""
+            # Construction invariant violation: input must be non-empty string
+            if not isinstance(input_obj, str):
+                raise TypeError(f"Expected str, got {type(input_obj)}")
+            if not input_obj:
+                raise ValueError("Input must be non-empty")
+
+            # If construction is valid, return success
+            return AlgebraicFailure(reason="test")  # Mock return
+
+    transition = MockConstructionCheckingTransition()
+
+    # Construction failure raises exception
+    with pytest.raises(TypeError, match="Expected str"):
+        transition.apply(None)
+
+    with pytest.raises(ValueError, match="non-empty"):
+        transition.apply("")
+
+
+def test_algebraic_failure_with_evidence_gap_operation():
+    """Operation failing due to evidence insufficiency returns AlgebraicFailure."""
+
+    class MockEvidenceRequiringTransition:
+        """Mock transition requiring evidence."""
+
+        @property
+        def contract(self):
+            return DalTransitionContract(
+                contract_id="mock_evidence",
+                source_domain=DalTransitionDomain.TEMPLATE,
+                target_domain=DalTransitionDomain.IDENTITY_AXIS,
+                input_type=str,
+                output_type=str,
+                claim_scope=DalClaimScope.IDENTITY_DETERMINED,
+                evidence_requirement=EvidenceRequirement.LEXICON_LOOKUP
+            )
+
+        def apply(self, input_obj, **aux):
+            """Returns AlgebraicFailure for insufficient evidence."""
+            # Check for evidence in aux
+            if "evidence" not in aux:
+                return AlgebraicFailure(
+                    reason="Insufficient evidence for lexicon attestation",
+                    evidence_gap="lexicon_attestation_required"
+                )
+            # Would return success if evidence present
+            return AlgebraicFailure(reason="mock")
+
+    transition = MockEvidenceRequiringTransition()
+    result = transition.apply("valid_input")  # No evidence provided
+
+    assert isinstance(result, AlgebraicFailure)
+    assert "Insufficient evidence" in result.reason
+    assert result.evidence_gap == "lexicon_attestation_required"
+
+
+def test_algebraic_failure_composability():
+    """AlgebraicFailure enables compositional patterns."""
+
+    # Create multiple failures
+    failure1 = AlgebraicFailure(
+        reason="Gate A failed",
+        gate="gate_a"
+    )
+    failure2 = AlgebraicFailure(
+        reason="Gate B failed",
+        gate="gate_b"
+    )
+
+    # Can be collected and analyzed
+    failures = [failure1, failure2]
+    assert all(isinstance(f, AlgebraicFailure) for f in failures)
+    assert [f.gate for f in failures] == ["gate_a", "gate_b"]
+
+    # Can be traced through operations
+    combined_failure = AlgebraicFailure(
+        reason="Multiple gates failed",
+        gate="composite",
+        metadata={"component_failures": len(failures)}
+    )
+    assert combined_failure.metadata["component_failures"] == 2
 
 
 def test_dal_evidence_requires_span():

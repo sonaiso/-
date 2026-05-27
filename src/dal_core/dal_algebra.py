@@ -27,8 +27,9 @@ PR #1C (Hybrid Failure Semantics):
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Protocol, List, Any, Optional, Set, TypeVar, Generic
+from typing import Protocol, List, Any, Optional, Set, TypeVar, Generic, Tuple, Mapping
 from abc import abstractmethod
+from types import MappingProxyType
 
 
 # ============================================================================
@@ -196,6 +197,10 @@ class AlgebraicFailure:
         Opₑ : A → Success[B] ∪ AlgebraicFailure
 
     where A is valid input (construction already validated).
+
+    Immutability:
+        All fields are truly immutable. Lists/dicts passed to constructor
+        are converted to tuple/MappingProxyType in __post_init__.
     """
     reason: str                           # Human-readable failure reason
     gate: Optional[str] = None            # Which gate was not satisfied
@@ -204,19 +209,32 @@ class AlgebraicFailure:
     residual_block: Optional[str] = None  # Blocking residual description
     domain_violation: Optional[str] = None  # Domain boundary crossed
     forbidden_path: Optional[str] = None  # Forbidden transition attempted
-    counter_evidence: List[DalCounterEvidence] = field(default_factory=list)
-    trace: List[DalTraceRef] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    counter_evidence: Tuple[DalCounterEvidence, ...] = ()
+    trace: Tuple[DalTraceRef, ...] = ()
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
-        """Validate failure invariants.
+        """Validate failure invariants and enforce true immutability.
 
         Note: Even failure values must have valid construction.
+        This method coerces mutable inputs to immutable types.
         """
         if not self.reason:
             raise ValueError("AlgebraicFailure must have non-empty reason")
         if not isinstance(self.reason, str):
             raise TypeError(f"AlgebraicFailure.reason must be str, got {type(self.reason)}")
+
+        # Coerce counter_evidence to tuple if list/sequence provided
+        if not isinstance(self.counter_evidence, tuple):
+            object.__setattr__(self, "counter_evidence", tuple(self.counter_evidence))
+
+        # Coerce trace to tuple if list/sequence provided
+        if not isinstance(self.trace, tuple):
+            object.__setattr__(self, "trace", tuple(self.trace))
+
+        # Coerce metadata to MappingProxyType if dict provided
+        if not isinstance(self.metadata, MappingProxyType):
+            object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
 
 
 # ============================================================================
