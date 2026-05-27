@@ -70,10 +70,14 @@ class DomainType(Enum):
     ROOT_STEM_DOMAIN = auto()                   # مجال الجذر والجذع
     WEIGHT_DOMAIN = auto()                      # مجال الوزن
 
+    # Identity Domain (U₅-U₆)
+    IDENTITY_DOMAIN = auto()                    # مجال محور الهوية (Ism/Fi'l/Harf)
+
     # Derivational Domains (U₁₀+)
     SOURCE_FORM_DOMAIN = auto()                 # مجال صيغة المصدر
     ATTRIBUTE_FORM_DOMAIN = auto()              # مجال صيغة الصفة
     FUNCTIONAL_FORM_DOMAIN = auto()             # مجال الصيغة الوظيفية
+    WORDFORM_DOMAIN = auto()                    # مجال صورة الكلمة المرشحة
 
     # Syntactic Domains (U₁₃+)
     AMIL_RELATION_DOMAIN = auto()               # مجال علاقة العامل
@@ -383,9 +387,36 @@ class DomainRegistry:
                 DomainType.ROOT_STEM_DOMAIN
             }),
             allows_transition_to=frozenset({
+                DomainType.IDENTITY_DOMAIN,
                 DomainType.SOURCE_FORM_DOMAIN,
                 DomainType.ATTRIBUTE_FORM_DOMAIN,
                 DomainType.FUNCTIONAL_FORM_DOMAIN
+            })
+        ))
+
+        # Identity Domain (U₅-U₆) - محور الهوية
+        self._add_spec(DomainSpec(
+            domain_type=DomainType.IDENTITY_DOMAIN,
+            arabic_name="مجال محور الهوية",
+            layer=DomainLayer.DERIVATION_LAYER,
+            competencies=frozenset({
+                "ism_fil_harf_classification",  # اسم/فعل/حرف
+                "functional_role_determination",  # U₅
+                "mabni_closed_class_determination",  # U₆
+                "word_category_classification"
+            }),
+            prohibitions=frozenset({
+                "syntactic_role",  # Identity ≠ syntactic function
+                "meaning",  # Identity ≠ meaning
+                "i3rab",  # Identity ≠ i3rab judgment
+                "case_assignment",
+                "semantic_interpretation"
+            }),
+            requires_domains=frozenset({
+                DomainType.WEIGHT_DOMAIN
+            }),
+            allows_transition_to=frozenset({
+                DomainType.WORDFORM_DOMAIN
             })
         ))
 
@@ -449,7 +480,35 @@ class DomainRegistry:
             }),
             requires_domains=frozenset({DomainType.WEIGHT_DOMAIN}),
             allows_transition_to=frozenset({
-                DomainType.SYNTAX_DOMAIN
+                DomainType.WORDFORM_DOMAIN
+            })
+        ))
+
+        # WordForm Domain (U₁₀) - صورة الكلمة المرشحة
+        self._add_spec(DomainSpec(
+            domain_type=DomainType.WORDFORM_DOMAIN,
+            arabic_name="مجال صورة الكلمة المرشحة",
+            layer=DomainLayer.DERIVATION_LAYER,
+            competencies=frozenset({
+                "word_form_candidate",
+                "lexical_form_closed",
+                "word_contract_holder",
+                "jamid_mushtaq_classification",  # جامد/مشتق
+                "mabni_murab_classification"  # مبني/معرب
+            }),
+            prohibitions=frozenset({
+                "syntactic_role",  # WordForm ≠ syntactic function
+                "meaning",  # WordForm ≠ meaning (no isolated word→meaning)
+                "i3rab_judgment",  # WordForm ≠ i3rab judgment
+                "compositional_relation",  # WordForm ≠ composition
+                "ifadah",  # WordForm ≠ ifādah (no تمام الإفادة)
+                "hukm"  # WordForm ≠ hukm (judgment)
+            }),
+            requires_domains=frozenset({
+                DomainType.IDENTITY_DOMAIN
+            }),
+            allows_transition_to=frozenset({
+                DomainType.SYNTAX_DOMAIN  # U₁₀ → U₁₁ (composition)
             })
         ))
 

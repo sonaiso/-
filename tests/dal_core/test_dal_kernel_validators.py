@@ -694,3 +694,57 @@ def test_approved_context_rejects_dal_contract_without_claim_scope():
             frozenset({IdentityType.WEIGHT_IDENTITY})
         )
 
+
+
+# ============================================================================
+# Test PR-125: IDENTITY_DOMAIN and WORDFORM_DOMAIN
+# ============================================================================
+
+def test_identity_axis_with_identity_domain_passes():
+    """Test that IDENTITY_AXIS with IDENTITY_DOMAIN passes validation."""
+    violations = validate_dal_kernel_mapping(
+        dal_domain=DalTransitionDomain.IDENTITY_AXIS,
+        dal_claim_scope=DalClaimScope.IDENTITY_DETERMINED,
+        dal_contract=None,
+        from_layer=ExecutionLayer.U5_FUNCTIONAL_ROLE,
+        to_layer=ExecutionLayer.U6_MABNI_CLOSED_CLASS,
+        domain=DomainType.IDENTITY_DOMAIN
+    )
+    assert len(violations) == 0, f"Expected no violations, got: {violations}"
+
+
+def test_identity_axis_with_wrong_domain_fails():
+    """Test that IDENTITY_AXIS with wrong domain fails validation."""
+    violations = validate_dal_kernel_mapping(
+        dal_domain=DalTransitionDomain.IDENTITY_AXIS,
+        dal_claim_scope=DalClaimScope.IDENTITY_DETERMINED,
+        dal_contract=None,
+        from_layer=ExecutionLayer.U5_FUNCTIONAL_ROLE,
+        to_layer=ExecutionLayer.U6_MABNI_CLOSED_CLASS,
+        domain=DomainType.WEIGHT_DOMAIN  # Wrong domain
+    )
+    assert len(violations) > 0
+    assert any("IDENTITY_AXIS" in v and "WEIGHT_DOMAIN" in v for v in violations)
+
+
+def test_identity_domain_exists_in_mapping():
+    """Test that IDENTITY_DOMAIN is registered in DAL_DOMAIN_TO_DOMAIN_TYPE_MAP."""
+    identity_domains = DAL_DOMAIN_TO_DOMAIN_TYPE_MAP.get(DalTransitionDomain.IDENTITY_AXIS)
+    assert identity_domains is not None, "IDENTITY_AXIS should have DomainType mapping"
+    assert DomainType.IDENTITY_DOMAIN in identity_domains
+
+
+def test_wordform_domain_exists_in_domain_registry():
+    """Test that WORDFORM_DOMAIN exists in DomainType enum."""
+    # Simply accessing it should not raise AttributeError
+    assert hasattr(DomainType, 'WORDFORM_DOMAIN')
+    wordform_domain = DomainType.WORDFORM_DOMAIN
+    assert wordform_domain is not None
+
+
+def test_identity_domain_exists_in_domain_registry():
+    """Test that IDENTITY_DOMAIN exists in DomainType enum."""
+    # Simply accessing it should not raise AttributeError
+    assert hasattr(DomainType, 'IDENTITY_DOMAIN')
+    identity_domain = DomainType.IDENTITY_DOMAIN
+    assert identity_domain is not None

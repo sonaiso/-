@@ -11,54 +11,78 @@ This document tracks known issues and improvements that were identified during i
 
 ### 1. Missing IDENTITY_DOMAIN in DomainType
 
-**Status**: GAP
+**Status**: ✅ RESOLVED (PR-125)
 **Impact**: HIGH
 **Identified In**: PR-1B, PR-122
+**Resolved In**: PR-125 (2026-05-27)
 
 **Issue**:
 - `DalTransitionDomain.IDENTITY_AXIS` has no corresponding `DomainType`
 - Current mapping: `IDENTITY_AXIS → U5_FUNCTIONAL_ROLE, U6_MABNI_CLOSED_CLASS`
 - Missing domain for Ism/Fi'l/Harf classification (DType)
 
-**Required Action**:
+**Resolution**:
 ```python
-# In domain_registry.py, add:
-IDENTITY_DOMAIN = "identity_domain"  # محور الهوية (Ism/Fi'l/Harf)
+# In domain_registry.py, added:
+IDENTITY_DOMAIN = auto()  # مجال محور الهوية (Ism/Fi'l/Harf)
 ```
 
-**Blocking**:
-- Full dal_kernel validation for U₅-U₆ transitions
-- DType → DMufrad architectural clarity
+**DomainSpec Added**:
+- Arabic name: "مجال محور الهوية"
+- Layer: DERIVATION_LAYER
+- Competencies: ism_fil_harf_classification, functional_role_determination, mabni_closed_class_determination
+- Prohibitions: syntactic_role, meaning, i3rab, case_assignment, semantic_interpretation
+- Requires: WEIGHT_DOMAIN
+- Allows transition to: WORDFORM_DOMAIN
 
-**Priority**: Must fix before U₁₁ implementation
+**Mapping Updated**:
+- `DAL_DOMAIN_TO_DOMAIN_TYPE_MAP[IDENTITY_AXIS]` now maps to `{IDENTITY_DOMAIN}`
+- Removed GAP handling in `validate_dal_kernel_mapping()`
+
+**Tests Added** (3 tests):
+- `test_identity_axis_with_identity_domain_passes`
+- `test_identity_axis_with_wrong_domain_fails`
+- `test_identity_domain_exists_in_mapping`
+- `test_identity_domain_exists_in_domain_registry`
 
 ---
 
 ### 2. Missing WORDFORM_DOMAIN for U₁₀
 
-**Status**: GAP
+**Status**: ✅ RESOLVED (PR-125)
 **Impact**: HIGH
 **Identified In**: PR-1B, PR-122
+**Resolved In**: PR-125 (2026-05-27)
 
 **Issue**:
 - U₁₀ WordFormCandidateCarrier has no specific `DomainType`
-- Currently incorrectly mapped to `JUDGMENT_DOMAIN`
+- Previously incorrectly mapped to `JUDGMENT_DOMAIN`
 - U₁₀ is NOT judgment (no Ifādah, no Hukm)
 
-**Required Action**:
+**Resolution**:
 ```python
-# In domain_registry.py, add:
-WORDFORM_DOMAIN = "wordform_domain"  # صورة الكلمة المرشحة
-# OR
-LEXICAL_FORM_DOMAIN = "lexical_form_domain"  # الصيغة المعجمية المغلقة
+# In domain_registry.py, added:
+WORDFORM_DOMAIN = auto()  # مجال صورة الكلمة المرشحة
 ```
 
-**Constitutional Issue**:
-- U₁₀ is a word CONTRACT/FORM holder, not a judgment
-- Mapping to JUDGMENT_DOMAIN violates architectural separation
-- Must be corrected before claiming U₁₀ constitutional completion
+**DomainSpec Added**:
+- Arabic name: "مجال صورة الكلمة المرشحة"
+- Layer: DERIVATION_LAYER
+- Competencies: word_form_candidate, lexical_form_closed, word_contract_holder, jamid_mushtaq_classification, mabni_murab_classification
+- Prohibitions: syntactic_role, meaning, i3rab_judgment, compositional_relation, ifadah, hukm
+- Requires: IDENTITY_DOMAIN
+- Allows transition to: SYNTAX_DOMAIN (U₁₀ → U₁₁ composition)
 
-**Priority**: Must fix in next architecture cleanup PR
+**Constitutional Clarification**:
+- U₁₀ is a word CONTRACT/FORM holder, not a judgment
+- No isolated word→meaning jump allowed (constitutional law)
+- No Ifādah (no تمام الإفادة) at U₁₀
+- Mapping to JUDGMENT_DOMAIN was architectural violation (now corrected)
+
+**Tests Added** (1 test):
+- `test_wordform_domain_exists_in_domain_registry`
+
+**Priority**: ✅ COMPLETE
 
 ---
 
@@ -387,6 +411,15 @@ def test_construction_failure_raises_exception():
 ---
 
 ## Version History
+
+- **2026-05-27 (PR-125)**: Items #1 and #2 resolved
+  - Added IDENTITY_DOMAIN to DomainType and DomainRegistry
+  - Added WORDFORM_DOMAIN to DomainType and DomainRegistry
+  - Updated DAL_DOMAIN_TO_DOMAIN_TYPE_MAP: IDENTITY_AXIS → IDENTITY_DOMAIN
+  - Removed GAP handling for IDENTITY_AXIS in dal_kernel_validators
+  - Added 5 new tests for IDENTITY_DOMAIN and WORDFORM_DOMAIN
+  - Clarified U₁₀ as word contract/form holder, NOT judgment
+  - Constitutional law enforced: "No isolated word→meaning jump without compositional relation"
 
 - **2026-05-27 (PR-124)**: Items #3 and #5 resolved
   - Tightened dal_contract validation
