@@ -395,6 +395,16 @@ class DomainRegistry:
         ))
 
         # Identity Domain (U₅-U₆) - محور الهوية
+        # PR-127: Path-aware prerequisites
+        # Arabic identity determination has multiple paths:
+        # 1. Weight path: WEIGHT_DOMAIN → IDENTITY_DOMAIN (derived forms: فاعل، مفعول...)
+        # 2. Mabni path: LAFZ_DOMAIN → IDENTITY_DOMAIN (closed-class: ما، هل، إن...)
+        # 3. Tool path: LAFZ_DOMAIN → IDENTITY_DOMAIN (particles: في، على، من...)
+        # 4. Pronoun path: LAFZ_DOMAIN → IDENTITY_DOMAIN (pronouns: هو، أنت...)
+        # 5. Jāmid path: LAFZ_DOMAIN → IDENTITY_DOMAIN (frozen nouns, non-weighted)
+        #
+        # Constitutional law: No Identity from weight alone for all paths.
+        # Remove unconditional WEIGHT_DOMAIN requirement.
         self._add_spec(DomainSpec(
             domain_type=DomainType.IDENTITY_DOMAIN,
             arabic_name="مجال محور الهوية",
@@ -412,9 +422,7 @@ class DomainRegistry:
                 "case_assignment",
                 "semantic_interpretation"
             }),
-            requires_domains=frozenset({
-                DomainType.WEIGHT_DOMAIN
-            }),
+            requires_domains=frozenset(),  # Path-aware: validated at transition time
             allows_transition_to=frozenset({
                 DomainType.WORDFORM_DOMAIN
             })

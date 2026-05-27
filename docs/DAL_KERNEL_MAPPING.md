@@ -57,17 +57,24 @@ This document defines the **canonical mapping** between three foundational regis
 | `PRE_MORPH` | `BOUNDARY_DOMAIN`, `LAFZ_DOMAIN` | Boundary and lexical unit (U₃-U₄) | ⚠️ Tentative |
 | `ORIGIN` | `ROOT_STEM_DOMAIN` | Root and stem material (U₈) | ✅ Verified |
 | `TEMPLATE` | `WEIGHT_DOMAIN` | Weight determination (U₉) | ✅ Verified |
-| `IDENTITY_AXIS` | `IDENTITY_DOMAIN` | Identity axis classification (Ism/Fi'l/Harf) | ✅ ADDED (PR-125) |
+| `IDENTITY_AXIS` | `IDENTITY_DOMAIN` | Identity axis classification (Ism/Fi'l/Harf) - **Path-aware** (PR-127) | ✅ ADDED (PR-125), ✅ PATH-AWARE (PR-127) |
 | `DIRECTIONAL_ANALYSIS` | `MARKER_PROTECTION_DOMAIN`, `CLAUSE_AGREEMENT_DOMAIN` | Surface protection (U₇-A, U₇-B, U₇-C) | ⚠️ Tentative |
 | `WORDFORM` | `WORDFORM_DOMAIN` | Word form candidate (U₁₀) | ✅ ADDED (PR-126) |
 | `JUDGMENT` | `JUDGMENT_DOMAIN` | Final judgment (U₇-C ONLY) | ✅ CORRECTED (PR-126) |
 
 **Critical Notes**:
 1. ✅ **IDENTITY_AXIS → IDENTITY_DOMAIN**: Added in PR-125. Maps to محور الهوية (Ism/Fi'l/Harf classification).
-2. ✅ **WORDFORM → WORDFORM_DOMAIN**: Added in PR-126. Maps to صورة الكلمة المرشحة (Word form candidate).
-3. ✅ **JUDGMENT ≠ U₁₀ WordForm**: Confirmed and enforced (PR-126). U₁₀ WordFormCandidate is NOT final judgment. It's a word contract/form holder.
-4. **Derivational forms**: `SOURCE_FORM_DOMAIN`, `ATTRIBUTE_FORM_DOMAIN`, `FUNCTIONAL_FORM_DOMAIN` exist for future architecture.
-5. **Syntax/Semantics domains**: `AMIL_RELATION_DOMAIN`, `I3RAB_SURFACE_DOMAIN`, `SYNTAX_DOMAIN`, `SEMANTICS_DOMAIN`, `PRAGMATICS_DOMAIN` exist for future U₁₁-U₁₅ layers.
+2. ✅ **Path-aware IDENTITY_DOMAIN** (PR-127): IDENTITY_DOMAIN does NOT unconditionally require WEIGHT_DOMAIN. Arabic identity can arise through multiple paths:
+   - **Weight path**: WEIGHT_DOMAIN → IDENTITY_DOMAIN (derived forms: فاعل، مفعول...)
+   - **Mabni/closed-class path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (closed-class: ما، هل، إن...)
+   - **Tool/particle path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (particles: في، على، من...)
+   - **Pronoun path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (pronouns: هو، أنت...)
+   - **Jāmid/frozen path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (frozen nouns, non-weighted)
+   - **Constitutional law enforced**: لا هوية من الوزن وحده (No Identity from weight alone for all paths)
+3. ✅ **WORDFORM → WORDFORM_DOMAIN**: Added in PR-126. Maps to صورة الكلمة المرشحة (Word form candidate).
+4. ✅ **JUDGMENT ≠ U₁₀ WordForm**: Confirmed and enforced (PR-126). U₁₀ WordFormCandidate is NOT final judgment. It's a word contract/form holder.
+5. **Derivational forms**: `SOURCE_FORM_DOMAIN`, `ATTRIBUTE_FORM_DOMAIN`, `FUNCTIONAL_FORM_DOMAIN` exist for future architecture.
+6. **Syntax/Semantics domains**: `AMIL_RELATION_DOMAIN`, `I3RAB_SURFACE_DOMAIN`, `SYNTAX_DOMAIN`, `SEMANTICS_DOMAIN`, `PRAGMATICS_DOMAIN` exist for future U₁₁-U₁₅ layers.
 
 **Previously Non-Existent DomainTypes** (Now added):
 - ✅ `IDENTITY_DOMAIN` - ADDED (PR-125) - محور الهوية
@@ -480,10 +487,17 @@ Where:
    - [x] Add 6 tests for WORDFORM domain mapping ✅ DONE
    - [x] Update DAL_KERNEL_MAPPING.md (all maps corrected) ✅ DONE
    - [x] Update BACKLOG.md (item #4 resolved) ✅ PENDING
-7. 🔵 **PR-2**: READY to proceed (all foundational gaps closed)
+7. ✅ **PR-127**: Complete - Path-aware IDENTITY_DOMAIN prerequisites
+   - [x] Fix WEIGHT_IDENTITY logic bug (AND → ONE-OF for root/stem) ✅ DONE
+   - [x] Remove unconditional WEIGHT_DOMAIN requirement from IDENTITY_DOMAIN ✅ DONE
+   - [x] Remove unconditional WEIGHT_IDENTITY requirement from WORDFORM_IDENTITY ✅ DONE
+   - [x] Add 17 tests proving path-aware identity (weighted vs non-weighted paths) ✅ DONE
+   - [x] Update DAL_KERNEL_MAPPING.md with path-aware notes ✅ DONE
+   - [x] Update BACKLOG.md (new item documenting PR-127) ✅ PENDING
+8. 🔵 **PR-2**: READY to proceed (all foundational gaps closed)
 
 ---
 
-**Last Updated**: 2026-05-27 (PR-126: U10/JUDGMENT/WORDFORM mapping corrected)
-**Status**: PR-1B complete, PR-122 complete, PR-1C complete, PR-125 complete, PR-126 complete
-**Achievement**: Dal kernel mapping fully validated and enforced, hybrid failure semantics implemented, all critical domain gaps closed, U₁₀ architectural violation corrected
+**Last Updated**: 2026-05-27 (PR-127: Path-aware IDENTITY_DOMAIN prerequisites)
+**Status**: PR-1B complete, PR-122 complete, PR-1C complete, PR-125 complete, PR-126 complete, PR-127 complete
+**Achievement**: Dal kernel mapping fully validated and enforced, hybrid failure semantics implemented, all critical domain gaps closed, U₁₀ architectural violation corrected, path-aware identity prerequisites implemented

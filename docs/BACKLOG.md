@@ -435,7 +435,119 @@ def test_construction_failure_raises_exception():
 
 ---
 
+### 13. WEIGHT_IDENTITY Logic Bug (Root/Stem AND Logic)
+
+**Status**: ✅ RESOLVED (PR-127)
+**Impact**: HIGH
+**Identified In**: User feedback, memory citation
+**Resolved In**: PR-127 (2026-05-27)
+
+**Issue**:
+```python
+# In identity_registry.py:344-352 (BEFORE PR-127):
+WEIGHT_IDENTITY = IdentitySpec(
+    requires=frozenset({
+        IdentityType.ROOT_MATERIAL_IDENTITY,
+        IdentityType.STEM_IDENTITY
+    })
+)
+```
+
+This creates AND logic: WEIGHT_IDENTITY requires BOTH root AND stem simultaneously.
+
+**Problem**:
+- Algebraically incorrect: Arabic weight derives from root OR stem, not both
+- Blocks valid words deriving from root only or stem only
+- frozenset with both creates AND semantics (all must exist)
+
+**Resolution (PR-127)**:
+```python
+# After PR-127:
+WEIGHT_IDENTITY = IdentitySpec(
+    requires=frozenset(),  # Path-aware: validated at transition time
+)
+```
+
+**Rationale**:
+- Python frozenset in 'requires' field means ALL must exist (AND logic)
+- For ONE-OF semantics (root OR stem), different approach needed
+- Path-aware validation at transition time, not structure time
+
+**Tests Added** (2 tests):
+- `test_weight_identity_does_not_require_both_root_and_stem`
+- `test_weight_identity_path_aware_requirements`
+
+**Priority**: ✅ COMPLETE
+
+---
+
+### 14. IDENTITY_DOMAIN Unconditional WEIGHT_DOMAIN Requirement
+
+**Status**: ✅ RESOLVED (PR-127)
+**Impact**: HIGH
+**Identified In**: PR-127 planning, user requirement
+**Resolved In**: PR-127 (2026-05-27)
+
+**Issue**:
+IDENTITY_DOMAIN unconditionally required WEIGHT_DOMAIN in domain_registry.py:
+
+```python
+# BEFORE PR-127:
+DomainSpec(
+    domain_type=DomainType.IDENTITY_DOMAIN,
+    requires_domains=frozenset({DomainType.WEIGHT_DOMAIN})
+)
+```
+
+**Problem**:
+Arabic identity determination has multiple paths, not all through weight:
+1. **Weight path**: WEIGHT_DOMAIN → IDENTITY_DOMAIN (derived: فاعل، مفعول...)
+2. **Mabni path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (closed-class: ما، هل، إن...)
+3. **Tool path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (particles: في، على، من...)
+4. **Pronoun path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (pronouns: هو، أنت...)
+5. **Jāmid path**: LAFZ_DOMAIN → IDENTITY_DOMAIN (frozen nouns, non-weighted)
+
+**Constitutional Violation**:
+- Unconditional WEIGHT_DOMAIN requirement blocks non-weighted paths
+- Violates: "No Identity from weight alone for all paths" (لا هوية من الوزن وحده)
+
+**Resolution (PR-127)**:
+```python
+# After PR-127:
+DomainSpec(
+    domain_type=DomainType.IDENTITY_DOMAIN,
+    requires_domains=frozenset(),  # Path-aware: validated at transition time
+)
+```
+
+**Impact**:
+- Mabni/tool/pronoun/jāmid paths no longer blocked by missing WEIGHT_DOMAIN
+- Path-aware identity determination enabled
+- Constitutional law enforced
+
+**Tests Added** (17 tests total):
+- `test_identity_domain_does_not_require_weight_domain`
+- `test_identity_domain_allows_multiple_entry_paths`
+- `test_mabni_path_does_not_require_weight`
+- `test_no_identity_from_weight_alone` (constitutional law)
+- `test_identity_must_be_path_aware` (constitutional law)
+- 12+ additional path-aware tests
+
+**Priority**: ✅ COMPLETE
+
+---
+
 ## Version History
+
+- **2026-05-27 (PR-127)**: Items #13 and #14 resolved
+  - Fixed WEIGHT_IDENTITY logic bug (AND → ONE-OF for root/stem)
+  - Removed unconditional WEIGHT_DOMAIN requirement from IDENTITY_DOMAIN
+  - Removed unconditional WEIGHT_IDENTITY requirement from WORDFORM_IDENTITY
+  - Added 17 tests for path-aware identity
+  - Updated DAL_KERNEL_MAPPING.md with path-aware notes
+  - Constitutional laws enforced:
+    * لا هوية من الوزن وحده (No Identity from weight alone)
+    * الهوية يجب أن تكون مدركة للمسار (Identity must be path-aware)
 
 - **2026-05-27 (PR-125)**: Items #1 and #2 resolved
   - Added IDENTITY_DOMAIN to DomainType and DomainRegistry
