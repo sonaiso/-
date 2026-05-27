@@ -1668,7 +1668,7 @@ All work governed by:
 
 ---
 
-**Document Status**: Phase 1B - Kernel Formalization (PR-1A Complete ✅)
+**Document Status**: Phase 1C - Failure Semantics Resolution (PR-1A ✅, PR-1B ✅)
 
 **Critical Achievement**: All UNVERIFIED components now verified with line counts, exports, and test status
 
@@ -1728,17 +1728,30 @@ All work governed by:
 2. ✅ D_mufrad mapping Option B SELECTED: Map to existing DalTransitionDomain
 3. ⚠️ Failure semantics resolution deferred to PR-1C (value-based vs exception-based)
 
-**Current Phase - PR-1B** (IN PROGRESS):
-**Goal**: Formalize kernel relationship between dal_algebra.py and AlgebraicDecisionCore
+**PR-1B Complete** ✅ (2026-05-27):
+1. ✅ Added dal_algebra imports to AlgebraicDecisionCore
+2. ✅ Extended DecisionAudit with dal_contract, dal_domain, dal_claim_scope fields
+3. ✅ Extended ApprovedTransitionContext with dal_algebra fields
+4. ✅ Created DAL_KERNEL_MAPPING.md with canonical mappings
+5. ✅ Documented DalTransitionDomain ↔ ExecutionLayer mapping
+6. ✅ Documented DalTransitionDomain ↔ DomainType mapping
+7. ✅ Verified all imports work correctly
+8. ✅ No breaking changes to existing code
 
-**PR-1B Tasks**:
-1. Add dal_algebra import to AlgebraicDecisionCore
-2. Add DalTransitionContract field to ApprovedTransitionContext
-3. Document DalTransitionDomain ↔ ExecutionLayer canonical mapping
-4. Document DalTransitionDomain ↔ DomainType canonical mapping
-5. Add unit tests for kernel integration
+**Current Phase - PR-1C** (IN PROGRESS):
+**Goal**: Resolve Failure semantics contradiction
 
-**Next Steps After PR-1B**:
-1. **PR-1C**: Resolve failure semantics (value-based vs exception-based)
-2. **PR-2**: Promote dal_algebra.py with resolved semantics and clear kernel role
+**The Contradiction** (dal_algebra.py internal inconsistency):
+- Module docstring (line 19): "Transitions return CandidateSet[𝔾] or Failure"
+- Protocol (line 310-315): "Returns CandidateSet or raises exception for Failure"
+
+**Resolution Options**:
+- **Option A (Value-based)**: Return `Failure` object (algebraic closure)
+- **Option B (Exception-based)**: Raise exceptions (easier integration)
+- **Option C (Hybrid)**: Both approaches with clear separation
+
+**Decision Required**: Choose Option A, B, or C
+
+**Next Steps After PR-1C**:
+1. **PR-2**: Promote dal_algebra.py with resolved semantics and kernel integration complete
 
