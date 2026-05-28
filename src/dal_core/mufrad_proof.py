@@ -57,6 +57,25 @@ class MufradProof:
     Composition-ready singular word proof with complete morphological
     and surface analysis.
 
+    ALGEBRAIC CLASSIFICATION (see docs/MUFRADPROOF_ALGEBRAIC_AUDIT.md):
+    -------------------------------------------------------------------
+    - Category: CARRIER (FormCarrier, Layer 2)
+    - Domain: D₃ (Form + Structure)
+    - Position: Result of Fill(Root × Pattern) operation
+    - Compliance: All three constitutional documents (Slot Geometry,
+      Extra Letters/Harakāt, Algebraic Rigor)
+
+    FOUR CARRIER QUESTIONS:
+    ----------------------
+    1. What does it carry?
+       → Form identity, morphological structure, potentials, surface effects
+    2. What slots does it accept?
+       → Root/pattern/augmentation/haraka/clitic slots (23+ essential slots)
+    3. What operations enter upon it?
+       → Fill, Segment, Extract, Classify, ComputeSurface, EstimateCasePotential
+    4. What is it prohibited from producing?
+       → Meaning, syntax roles, case effects, relations (STOP law)
+
     ALLOWED FIELDS:
     - Morphological features (as governed candidates)
     - Surface effects (visible/estimated marks)
