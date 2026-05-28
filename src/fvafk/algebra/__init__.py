@@ -45,9 +45,13 @@ from __future__ import annotations
 
 from .arabic_layers import (
     ALLOWED_BRIDGES,
+    CANONICAL_ALLOWED_BRIDGES,
+    CANONICAL_FORBIDDEN_BRIDGES,
     FORBIDDEN_BRIDGES,
     Domain,
     is_bridge_allowed,
+    is_canonical_bridge_allowed,
+    is_legacy_bridge_allowed,
 )
 from .code_learning import CodeChange, CodeLearningTrace
 from .code_learning_loop import (
@@ -85,8 +89,12 @@ __all__ = [
     # arabic_layers
     "ALLOWED_BRIDGES",
     "FORBIDDEN_BRIDGES",
+    "CANONICAL_ALLOWED_BRIDGES",
+    "CANONICAL_FORBIDDEN_BRIDGES",
     "Domain",
     "is_bridge_allowed",
+    "is_canonical_bridge_allowed",
+    "is_legacy_bridge_allowed",
     # core
     "Carrier",
     "Evidence",
