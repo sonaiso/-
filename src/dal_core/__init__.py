@@ -254,6 +254,13 @@ from .path_aware_identity_validator import (
     PathEvidence,
     IdentityCandidate,
 )
+from .relation_slot_readiness import (
+    CompositionFrameType,
+    NominalFrameSlotGeometry,
+    VerbalFrameSlotGeometry,
+    SemiSentenceFrameSlotGeometry,
+    RelationSlotVector,
+)
 
 __all__ = [
     "Rank",
@@ -419,4 +426,10 @@ __all__ = [
     "IdentityPathType",
     "PathEvidence",
     "IdentityCandidate",
+    # RelationSlotReadiness (Bridge to RelationAlgebraCore)
+    "CompositionFrameType",
+    "NominalFrameSlotGeometry",
+    "VerbalFrameSlotGeometry",
+    "SemiSentenceFrameSlotGeometry",
+    "RelationSlotVector",
 ]
