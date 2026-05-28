@@ -681,10 +681,10 @@ class GovernedTraceT5Validator:
         # Residuals are embedded in candidate payloads via residual_payload.residuals
         valid_residual_ids = set()
         for cand in source_trace.candidates:
-            # ResidualSet contains residual identifiers
+            # ResidualSet has .residuals field which is a FrozenSet[Residual]
             residual_set = cand.residual_payload.residuals
-            # Extract residual IDs from the set
-            for residual in residual_set:
+            # Extract residual IDs from the frozenset
+            for residual in residual_set.residuals:
                 valid_residual_ids.add(str(residual))
 
         # Validate referenced residual IDs
