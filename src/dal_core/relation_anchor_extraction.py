@@ -333,10 +333,12 @@ def _extract_anchor_from_presyntax(vec: PreSyntaxMufradVector) -> Anchor:
 
     Extract typed Anchor from PreSyntaxMufradVector.
 
-    Decision tree:
-        if ISM + jamid → EntityAnchor
-        if ISM/FIIL + mushtaq → TransformationAnchor
-        if HARF + mabni → FunctionAnchor
+    Decision tree (complete implementation):
+        1. HARF → FunctionAnchor (always)
+        2. ISM + MUSHTAQ → TransformationAnchor (with carrier subtype)
+        3. ISM + JAMID → EntityAnchor (with carrier subtype)
+        4. FIIL → TransformationAnchor (always)
+        5. UNRESOLVED axes → ValueError
 
     Args:
         vec: PreSyntaxMufradVector to convert
@@ -345,23 +347,105 @@ def _extract_anchor_from_presyntax(vec: PreSyntaxMufradVector) -> Anchor:
         Typed Anchor (Entity/Transformation/Function)
 
     Raises:
-        ValueError: If vector cannot be converted to anchor
+        ValueError: If vector cannot be converted to anchor (unresolved axes)
 
     Constitutional Law:
         This extraction MUST preserve identity trace from vec.
         It does NOT add meaning/ifadah/hukm.
     """
-    # TODO: Implement full extraction logic
-    # For now: stub that raises NotImplementedError
-    # Full implementation requires:
-    # 1. Check ishtiqaq_judgment (if available)
-    # 2. Check binaa_judgment (if available)
-    # 3. Check type_id
-    # 4. Build appropriate anchor type
+    from dal_core.mufrad_axes import (
+        IshtiqaqJudgment,
+        BinaaJudgment,
+        MushtaqSubtype,
+        JamidSubtype,
+    )
+    from dal_core.d_type import DalType
 
-    raise NotImplementedError(
-        "_extract_anchor_from_presyntax not yet implemented. "
-        "Requires full mapping from PreSyntaxMufradVector features to Anchor types."
+    # Get type from vec
+    type_value = (vec.type_value or "").upper()
+
+    # Rule 0: Unresolved binaa judgment blocks anchor extraction
+    if vec.binaa_judgment == BinaaJudgment.UNRESOLVED:
+        raise ValueError(
+            f"Cannot extract anchor from PreSyntaxMufradVector {vec.mufrad_id}: "
+            f"binaa_judgment is UNRESOLVED. Must resolve before anchor extraction."
+        )
+
+    # Build trace from vec
+    trace_tuple = (vec.trace_id,) if vec.trace_id else (vec.mufrad_id,)
+
+    # Rule 1: HARF → FunctionAnchor (always)
+    if type_value == "HARF" or (vec.type_id and "HARF" in str(vec.type_id)):
+        # HARF always gets FunctionAnchor
+        # Use actual FunctionAnchor signature from relation_algebra_core.py
+        return FunctionAnchor(
+            identity=IdentityType.FORM_IDENTITY,  # Default for particles
+            locked_form=vec.mufrad_id,  # Surface form is locked
+            scope_type="local",  # Default scope type (string, not enum)
+            attachment_requirements=frozenset(),  # No requirements yet
+            trace=trace_tuple,
+        )
+
+    # Rule 2: ISM - check ishtiqaq axis
+    if type_value == "ISM" or (vec.type_id and "ISM" in str(vec.type_id)):
+        # ISM requires resolved ishtiqaq judgment
+        if vec.ishtiqaq_judgment == IshtiqaqJudgment.UNRESOLVED:
+            raise ValueError(
+                f"Cannot extract anchor from ISM PreSyntaxMufradVector {vec.mufrad_id}: "
+                f"ishtiqaq_judgment is UNRESOLVED. Must resolve before anchor extraction."
+            )
+
+        # ISM + MUSHTAQ → TransformationAnchor
+        if vec.ishtiqaq_judgment == IshtiqaqJudgment.MUSHTAQ:
+            # Use actual TransformationAnchor signature
+            return TransformationAnchor(
+                identity=IdentityType.FORM_IDENTITY,
+                origin_root_id="unspecified",  # Would come from root extraction
+                pattern_id="unspecified",  # Would come from wazn matching
+                event_or_attribute="attribute",  # Default for mushtaq (string, not enum)
+                bearability_requirements=frozenset(),  # No requirements yet
+                valency_requirements=None,  # No valency specified
+                trace=trace_tuple,
+            )
+
+        # ISM + JAMID → EntityAnchor
+        if vec.ishtiqaq_judgment == IshtiqaqJudgment.JAMID:
+            # Use actual EntityAnchor signature
+            return EntityAnchor(
+                identity=IdentityType.FORM_IDENTITY,
+                ontic_type="substance",  # Default for jamid (string, not enum)
+                genus_or_individual="genus",  # Default (string, not enum)
+                reference_status="unresolved",  # Not determined yet (string, not enum)
+                preserved_invariant="form",  # Form is preserved
+                stability="stable",  # Jamid is stable (string, not enum)
+                verified_bearability=True,  # Can bear predication
+                trace=trace_tuple,
+            )
+
+        # ISM + NOT_APPLICABLE should not occur (axis always applies to ISM)
+        raise ValueError(
+            f"Invalid state: ISM {vec.mufrad_id} has ishtiqaq_judgment=NOT_APPLICABLE. "
+            f"Ishtiqaq axis always applies to ISM."
+        )
+
+    # Rule 3: FIIL → TransformationAnchor (always)
+    if type_value == "FIIL" or (vec.type_id and "FIIL" in str(vec.type_id)):
+        # FIIL always gets TransformationAnchor
+        # (ishtiqaq_judgment should be NOT_APPLICABLE for FIIL)
+        return TransformationAnchor(
+            identity=IdentityType.FORM_IDENTITY,
+            origin_root_id="unspecified",  # Would come from verb root
+            pattern_id="unspecified",  # Would come from verb pattern
+            event_or_attribute="event",  # Verbs are events
+            bearability_requirements=frozenset(),  # No requirements yet
+            valency_requirements=None,  # Would come from verb features
+            trace=trace_tuple,
+        )
+
+    # Defensive: Unknown type
+    raise ValueError(
+        f"Cannot extract anchor from PreSyntaxMufradVector {vec.mufrad_id}: "
+        f"Unknown or missing type_value='{vec.type_value}', type_id={vec.type_id}"
     )
 
 
@@ -426,7 +510,6 @@ def extract_anchored_inputs_from_slot_vector(
 
     Raises:
         ValueError: If slot_vector invalid or conversion fails
-        NotImplementedError: If _extract_anchor_from_presyntax not ready
 
     Constitutional Law:
         This function MUST:
@@ -468,13 +551,8 @@ def extract_anchored_inputs_from_slot_vector(
         # Generate unique instance ID
         anchor_instance_id = f"{base_id}_anchor_{i}"
 
-        # Extract typed anchor (STUB - will raise NotImplementedError)
-        try:
-            anchor = _extract_anchor_from_presyntax(vec)
-        except NotImplementedError:
-            # For now, we document the gap but allow construction
-            # In production, this should fail
-            anchor = None  # Will be caught by AnchoredMufradInput validation
+        # Extract typed anchor (now implemented)
+        anchor = _extract_anchor_from_presyntax(vec)
 
         # Determine relation side
         relation_side = _determine_relation_side(i, slot_vector)

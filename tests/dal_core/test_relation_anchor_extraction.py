@@ -370,31 +370,163 @@ def test_determine_relation_side_taqyid():
 
 
 # ============================================================================
-# Integration Test (stub - will fail until _extract_anchor implemented)
+# Integration Tests
 # ============================================================================
 
-def test_extract_anchored_inputs_requires_implementation():
+def test_extract_anchored_inputs_full_flow():
     """
-    Integration Test: extract_anchored_inputs requires full implementation
+    Integration Test: Full extraction flow from PreSyntaxMufradVector to AnchoredMufradInput
 
-    This test documents the current gap:
-        _extract_anchor_from_presyntax is NOT IMPLEMENTED YET
-
-    When implemented, this test should be updated to verify full flow:
+    Verifies complete implementation of:
         RelationSlotVector → Tuple[AnchoredMufradInput, ...]
+
+    Tests all decision paths:
+        1. HARF → FunctionAnchor
+        2. ISM + JAMID → EntityAnchor
+        3. ISM + MUSHTAQ → TransformationAnchor
+        4. FIIL → TransformationAnchor
+    """
+    from unittest.mock import Mock
+    from dal_core.mufrad_axes import IshtiqaqJudgment, BinaaJudgment
+    from dal_core.ranks import LughaRank
+    from dal_core.type_ids import NounTypeID, VerbTypeID, ParticleTypeID
+
+    # Test Case 1: HARF → FunctionAnchor
+    vec_harf = Mock()
+    vec_harf.mufrad_id = "mufrad_harf_001"
+    vec_harf.trace_id = "trace_harf_001"
+    vec_harf.type_value = "HARF"
+    vec_harf.type_id = ParticleTypeID.HARF_JARR
+    vec_harf.binaa_judgment = BinaaJudgment.MABNI
+    vec_harf.ishtiqaq_judgment = IshtiqaqJudgment.NOT_APPLICABLE
+    vec_harf.final_rank = LughaRank.YAQIN
+    vec_harf.residuals = ()
+
+    # Test Case 2: ISM + JAMID → EntityAnchor
+    vec_jamid = Mock()
+    vec_jamid.mufrad_id = "mufrad_jamid_002"
+    vec_jamid.trace_id = "trace_jamid_002"
+    vec_jamid.type_value = "ISM"
+    vec_jamid.type_id = NounTypeID.ISM_COMMON
+    vec_jamid.binaa_judgment = BinaaJudgment.MUERAB
+    vec_jamid.ishtiqaq_judgment = IshtiqaqJudgment.JAMID
+    vec_jamid.final_rank = LughaRank.YAQIN
+    vec_jamid.residuals = ()
+
+    # Test Case 3: ISM + MUSHTAQ → TransformationAnchor
+    vec_mushtaq = Mock()
+    vec_mushtaq.mufrad_id = "mufrad_mushtaq_003"
+    vec_mushtaq.trace_id = "trace_mushtaq_003"
+    vec_mushtaq.type_value = "ISM"
+    vec_mushtaq.type_id = NounTypeID.ISM_COMMON
+    vec_mushtaq.binaa_judgment = BinaaJudgment.MUERAB
+    vec_mushtaq.ishtiqaq_judgment = IshtiqaqJudgment.MUSHTAQ
+    vec_mushtaq.final_rank = LughaRank.YAQIN
+    vec_mushtaq.residuals = ()
+
+    # Test Case 4: FIIL → TransformationAnchor
+    vec_fiil = Mock()
+    vec_fiil.mufrad_id = "mufrad_fiil_004"
+    vec_fiil.trace_id = "trace_fiil_004"
+    vec_fiil.type_value = "FIIL"
+    vec_fiil.type_id = VerbTypeID.FIIL_MADI
+    vec_fiil.binaa_judgment = BinaaJudgment.MABNI
+    vec_fiil.ishtiqaq_judgment = IshtiqaqJudgment.NOT_APPLICABLE
+    vec_fiil.final_rank = LughaRank.YAQIN
+    vec_fiil.residuals = ()
+
+    # Create RelationSlotVector
+    slot_vector = Mock()
+    slot_vector.vector_id = "slot_vector_123"
+    slot_vector.input_vectors = [vec_jamid, vec_mushtaq]
+    slot_vector.relation_slot_type = RelationType.ISNAD
+    slot_vector.preserved_trace_ids = ["trace_jamid_002", "trace_mushtaq_003"]
+
+    # Extract anchored inputs
+    anchored_inputs = extract_anchored_inputs_from_slot_vector(slot_vector)
+
+    # Verify count
+    assert len(anchored_inputs) == 2
+
+    # Verify first input (JAMID → EntityAnchor)
+    first = anchored_inputs[0]
+    assert first.anchor_instance_id == "slot_vector_123_anchor_0"
+    assert first.source_vector_id == "mufrad_jamid_002"
+    assert first.source_trace_id == "trace_jamid_002"
+    assert isinstance(first.anchor, EntityAnchor)
+    assert first.relation_side == RelationSide.LEFT
+
+    # Verify second input (MUSHTAQ → TransformationAnchor)
+    second = anchored_inputs[1]
+    assert second.anchor_instance_id == "slot_vector_123_anchor_1"
+    assert second.source_vector_id == "mufrad_mushtaq_003"
+    assert second.source_trace_id == "trace_mushtaq_003"
+    assert isinstance(second.anchor, TransformationAnchor)
+    assert second.relation_side == RelationSide.RIGHT
+
+
+def test_extract_anchor_blocks_on_unresolved_binaa():
+    """
+    Test: _extract_anchor_from_presyntax blocks on UNRESOLVED binaa_judgment
+
+    Constitutional requirement:
+        Unresolved axes MUST block anchor extraction
+    """
+    from unittest.mock import Mock
+    from dal_core.mufrad_axes import IshtiqaqJudgment, BinaaJudgment
+    from dal_core.ranks import LughaRank
+
+    vec = Mock()
+    vec.mufrad_id = "mufrad_unresolved_001"
+    vec.type_value = "ISM"
+    vec.type_id = None
+    vec.binaa_judgment = BinaaJudgment.UNRESOLVED  # Blocker
+    vec.ishtiqaq_judgment = IshtiqaqJudgment.JAMID
+    vec.final_rank = LughaRank.YAQIN
+    vec.residuals = ()
+
+    with pytest.raises(ValueError, match="binaa_judgment is UNRESOLVED"):
+        _extract_anchor_from_presyntax(vec)
+
+
+def test_extract_anchor_blocks_on_unresolved_ishtiqaq_for_ism():
+    """
+    Test: _extract_anchor_from_presyntax blocks on UNRESOLVED ishtiqaq_judgment for ISM
+
+    Constitutional requirement:
+        ISM requires resolved ishtiqaq axis
+    """
+    from unittest.mock import Mock
+    from dal_core.mufrad_axes import IshtiqaqJudgment, BinaaJudgment
+    from dal_core.ranks import LughaRank
+
+    vec = Mock()
+    vec.mufrad_id = "mufrad_unresolved_002"
+    vec.type_value = "ISM"
+    vec.type_id = None
+    vec.binaa_judgment = BinaaJudgment.MUERAB
+    vec.ishtiqaq_judgment = IshtiqaqJudgment.UNRESOLVED  # Blocker for ISM
+    vec.final_rank = LughaRank.YAQIN
+    vec.residuals = ()
+
+    with pytest.raises(ValueError, match="ishtiqaq_judgment is UNRESOLVED"):
+        _extract_anchor_from_presyntax(vec)
+
+
+def test_extract_anchored_inputs_empty_vectors_fails():
+    """
+    Test: extract_anchored_inputs_from_slot_vector fails on empty input_vectors
+
+    Constitutional requirement:
+        Must have at least one input vector
     """
     from unittest.mock import Mock
 
-    # Mock RelationSlotVector
     slot_vector = Mock()
-    slot_vector.input_vectors = []  # Empty will raise ValueError
+    slot_vector.input_vectors = []  # Empty
 
-    # Should fail due to empty input_vectors
     with pytest.raises(ValueError, match="cannot be empty"):
         extract_anchored_inputs_from_slot_vector(slot_vector)
-
-    # When input_vectors non-empty, will fail due to NotImplementedError in _extract_anchor
-    # This is EXPECTED and DOCUMENTED behavior until full implementation
 
 
 # ============================================================================

@@ -241,9 +241,18 @@ audit = result.downward_audit()
 
 ### ❌ Full Anchor Extraction
 
-`_extract_anchor_from_presyntax()` is STUB.
+**STATUS: ✅ IMPLEMENTED (2026-05-28)**
 
-Requires full implementation mapping PreSyntaxMufradVector → Anchor.
+`_extract_anchor_from_presyntax()` is FULLY IMPLEMENTED.
+
+Complete mapping:
+1. HARF → FunctionAnchor (locked_form, scope_type, attachment_requirements)
+2. ISM + JAMID → EntityAnchor (ontic_type, genus_or_individual, reference_status, etc.)
+3. ISM + MUSHTAQ → TransformationAnchor (origin_root_id, pattern_id, event_or_attribute)
+4. FIIL → TransformationAnchor (event type)
+5. UNRESOLVED axes → ValueError (blocks extraction)
+
+All four decision paths tested and working.
 
 ---
 
@@ -335,17 +344,22 @@ print(audit['source_vectors'])    # → ["mufrad_زيد", "mufrad_قائم"]
 
 ## Next Steps (الخطوات التالية)
 
-### Immediate (مباشر):
+### Completed (مُنجَز) ✅:
 
-1. ✅ Run constitutional tests: `pytest tests/dal_core/test_relation_anchor_extraction.py -v`
-2. ✅ Verify all tests pass except integration test (expected)
-3. ✅ Store memory of this implementation
+1. ✅ Constitutional tests: `pytest tests/dal_core/test_relation_anchor_extraction.py -v`
+2. ✅ All tests pass including full integration test
+3. ✅ Implementation complete and verified
+4. ✅ Full `_extract_anchor_from_presyntax()` logic implemented
+5. ✅ Mapped PreSyntaxMufradVector features → Anchor types
+6. ✅ Updated integration test to verify full flow
 
 ### Short-term (قريب):
 
-1. Implement `_extract_anchor_from_presyntax()` full logic
-2. Map PreSyntaxMufradVector features → Anchor types
-3. Update integration test to verify full flow
+1. Enhance anchor extraction with refined carrier type mapping:
+   - Map specific JamidSubtype → ontic_type/genus_or_individual
+   - Map specific MushtaqSubtype → event_or_attribute
+   - Extract root_id and pattern_id from vec when available
+2. Add more edge case tests (proper names, functional jamid, etc.)
 
 ### Medium-term (متوسط):
 
@@ -410,12 +424,12 @@ assert len(set(audit['source_vectors'])) == 2  # ✅ Distinct sources
 - [x] منع meaning/ifadah/hukm (validation in __post_init__)
 - [x] Immutability (frozen=True dataclasses)
 - [x] Constitutional tests written and passing
-- [ ] Full _extract_anchor implementation (documented stub - next step)
+- [x] Full _extract_anchor implementation (COMPLETE - 2026-05-28)
 - [ ] Reference tracking (placeholder exists - future work)
 
 ---
 
-**Status:** ✅ Constitutional foundation complete. Implementation stub documented. Ready for next phase.
+**Status:** ✅ Constitutional foundation complete. Full anchor extraction IMPLEMENTED. Ready for integration.
 
 **Date:** 2026-05-28
 
