@@ -21,11 +21,12 @@ from fvafk.algebra import (
 
 
 # ---------------------------------------------------------------------------
-# Canonical domain set — locks the 9-domain enum in place.
+# Canonical domain set — locks the 9 legacy FVAFK domains in place.
+# PR-129 added 20 canonical GARA domains. This test ensures legacy domains remain.
 # ---------------------------------------------------------------------------
 
 
-CANONICAL_DOMAINS = {
+LEGACY_FVAFK_DOMAINS = {
     "GRAPHEME",
     "PHONEME",
     "SYLLABLE",
@@ -38,9 +39,16 @@ CANONICAL_DOMAINS = {
 }
 
 
-def test_domain_membership_is_exactly_the_canonical_nine():
-    """Adding or removing a Domain must be an explicit decision, not a drive-by."""
-    assert {d.name for d in Domain} == CANONICAL_DOMAINS
+def test_domain_membership_includes_legacy_nine():
+    """Legacy 9 FVAFK domains must be preserved for backward compatibility.
+
+    PR-129 expanded Domain enum with 20 canonical GARA domains.
+    This test ensures the original 9 legacy domains remain intact.
+    """
+    domain_names = {d.name for d in Domain}
+    assert LEGACY_FVAFK_DOMAINS.issubset(domain_names), (
+        f"Missing legacy domains: {LEGACY_FVAFK_DOMAINS - domain_names}"
+    )
 
 
 # ---------------------------------------------------------------------------
