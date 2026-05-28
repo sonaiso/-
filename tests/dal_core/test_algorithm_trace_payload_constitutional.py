@@ -117,14 +117,14 @@ def test_algorithm_trace_payload_requires_source_algorithm():
 
 
 def test_algorithm_trace_payload_requires_candidates():
-    """Test that AlgorithmTracePayload requires non-empty candidates."""
-    with pytest.raises(ValueError, match="requires non-empty candidates"):
+    """Test that AlgorithmTracePayload requires non-empty candidates OR blocking residuals."""
+    with pytest.raises(ValueError, match="requires either non-empty candidates OR explicit blocking residuals"):
         AlgorithmTracePayload(
             schema_version="algorithm-trace-v1",
             source_algorithm="RelationAlgebra",
             source_layer="relation_network",
             input_surface="زيد قائم",
-            candidates=(),  # Empty - should fail
+            candidates=(),  # Empty - should fail (no blocking residuals either)
             network=None,
             allowed_next_layers=(),
             forbidden_jumps=()
@@ -903,3 +903,113 @@ def test_algorithm_trace_payload_is_immutable():
     # Attempting to modify should fail (frozen=True)
     with pytest.raises(AttributeError):
         payload.schema_version = "v2"  # type: ignore
+
+
+# ============================================================================
+# Test Blocked Algorithm Trace (Constitutional Edge Case)
+# ============================================================================
+
+def test_payload_allows_blocked_algorithm_trace_without_candidates():
+    """
+    Constitutional edge case: AlgorithmTracePayload must represent algorithm
+    failure/blockage with no candidates but explicit blocking residuals.
+
+    Use cases:
+        - Unanalyzable foreign input
+        - Invalid/malformed input
+        - Input blocked by constitutional gates
+
+    Constitutional Law:
+        Payload must contain EITHER candidates OR blocking residuals.
+    """
+    from dal_core.residuals import ResidualType
+
+    # Create blocking residual
+    blocking_residual = Residual(
+        type=ResidualType.FOREIGN_WORD,
+        severity=ResidualSeverity.BLOCKER,
+        message="Input is foreign/unanalyzable"
+    )
+    blocking_residuals = create_residual_set(frozenset([blocking_residual]))
+
+    # Create residual payload with blocking count
+    residual_payload = ResidualTracePayload(
+        residuals=blocking_residuals,
+        residual_sources=("ForeignWordGate",),
+        blocking_count=1
+    )
+
+    # Create network trace with blocking residuals (no relations)
+    # Note: We need at least one relation for NetworkTracePayload
+    # So we create a minimal relation trace representing the blockage
+    rank_payload = RankTracePayload(
+        rank=Rank.BLOCKED,
+        rank_evidence=("foreign_word_detected",),
+        rank_trace=("gate_foreign_word",)
+    )
+
+    relation_trace = RelationTracePayload(
+        relation_id="blocked_analysis",
+        relation_type="blocked",
+        anchor_id="foreign_input",
+        related_id="blocked",
+        trace=("foreign_word_gate", "analysis_blocked"),
+        rank_payload=rank_payload,
+        residual_payload=residual_payload
+    )
+
+    network_trace = NetworkTracePayload(
+        network_id="blocked_network",
+        relations=(relation_trace,),
+        network_status="blocked",
+        closure_eligible=False,
+        closure_residuals=residual_payload
+    )
+
+    # Create payload with NO candidates but WITH blocking residuals
+    payload = AlgorithmTracePayload(
+        schema_version="algorithm-trace-v1",
+        source_algorithm="ArabicAnalysisGate",
+        source_layer="foreign_word_detection",
+        input_surface="hello",  # Foreign input
+        candidates=(),  # No candidates - algorithm was blocked
+        network=network_trace,
+        allowed_next_layers=(),
+        forbidden_jumps=(
+            ForbiddenJumpPayload(
+                from_layer="blocked_input",
+                to_layer="any_analysis",
+                reason="Foreign/invalid input cannot proceed to analysis"
+            ),
+        )
+    )
+
+    # Validate payload was created successfully
+    assert payload.schema_version == "algorithm-trace-v1"
+    assert len(payload.candidates) == 0
+    assert payload.network is not None
+    assert payload.network.closure_residuals.blocking_count == 1
+    assert payload.is_non_authoritative is True
+
+
+def test_payload_rejects_empty_candidates_without_blocking_residuals():
+    """
+    Test that AlgorithmTracePayload rejects invalid case:
+    no candidates AND no blocking residuals.
+
+    Constitutional Law:
+        Payload must represent VALID algorithm execution.
+        Either successful (candidates) or blocked (blocking residuals).
+    """
+    # Try to create payload with neither candidates nor blocking residuals
+    with pytest.raises(ValueError, match="requires either non-empty candidates OR explicit blocking residuals"):
+        AlgorithmTracePayload(
+            schema_version="algorithm-trace-v1",
+            source_algorithm="SomeAlgorithm",
+            source_layer="some_layer",
+            input_surface="test",
+            candidates=(),  # No candidates
+            network=None,  # No network with blocking residuals
+            allowed_next_layers=(),
+            forbidden_jumps=()
+        )

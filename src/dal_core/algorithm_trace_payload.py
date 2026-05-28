@@ -464,6 +464,15 @@ class AlgorithmTracePayload:
          The trace does not delete residuals.
          The trace does not close ifadah.)
 
+        Constitutional Requirement:
+            Payload must contain EITHER:
+            - Non-empty candidates (successful algorithm execution), OR
+            - Explicit blocking residuals (blocked/invalid/foreign input)
+
+            This allows representing both:
+            1. Successful analysis with candidates
+            2. Blocked analysis with no candidates but blocking residuals
+
     Fields:
         schema_version: Payload schema version (for evolution)
         source_algorithm: Algorithm that produced this trace
@@ -534,8 +543,23 @@ class AlgorithmTracePayload:
         # Validate candidates
         if not isinstance(self.candidates, tuple):
             raise TypeError(f"candidates must be tuple, got {type(self.candidates)}")
+
+        # Constitutional requirement: Payload must represent valid algorithm execution
+        # Either candidates OR blocking residuals must be present
+        # (Algorithm may produce no candidates if input is blocked/invalid/foreign)
         if not self.candidates:
-            raise ValueError("AlgorithmTracePayload requires non-empty candidates")
+            # No candidates - this is allowed only if there are explicit blocking residuals
+            # Check if network has blocking residuals (for blocked algorithm case)
+            has_blocking_residuals = (
+                self.network is not None and
+                self.network.closure_residuals.blocking_count > 0
+            )
+            if not has_blocking_residuals:
+                raise ValueError(
+                    "AlgorithmTracePayload requires either non-empty candidates "
+                    "OR explicit blocking residuals (for blocked/invalid input cases)"
+                )
+
         for i, cand in enumerate(self.candidates):
             if not isinstance(cand, CandidateTracePayload):
                 raise TypeError(
