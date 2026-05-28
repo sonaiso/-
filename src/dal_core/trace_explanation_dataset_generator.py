@@ -269,12 +269,13 @@ class TraceExplanationDatasetGenerator:
         referenced_gate_ids = explanation.referenced_gate_ids
         referenced_rank_values = tuple(explanation.referenced_rank_values)
 
-        # Create input trace summary
+        # Create input trace summary (NO raw surface - trace metadata only)
         input_trace_summary = (
+            f"Trace ID: {trace.trace_id}, "
             f"Algorithm: {trace.source_algorithm}, "
             f"Layer: {trace.source_layer}, "
             f"Candidates: {len(trace.candidates)}, "
-            f"Surface: {trace.input_surface}"
+            f"Residuals: {sum(len(c.residual_payload.residuals.residuals) for c in trace.candidates)}"
         )
 
         # Generate dataset row
@@ -380,12 +381,53 @@ class TraceExplanationDatasetGenerator:
                     )
                     break
 
-        # Create input trace summary
+        # Validate that suggested_gate exists in trace provenance (CONSTITUTIONAL REQUIREMENT)
+        if validation_status == ValidationStatus.VALID and repair.suggested_gate:
+            gate_found = False
+
+            # Check in candidate residual_sources
+            for cand in trace.candidates:
+                if hasattr(cand, 'residual_payload') and hasattr(cand.residual_payload, 'residual_sources'):
+                    if repair.suggested_gate in cand.residual_payload.residual_sources:
+                        gate_found = True
+                        break
+
+            # Check in candidate trace/operation provenance
+            if not gate_found:
+                for cand in trace.candidates:
+                    if hasattr(cand, 'trace') and repair.suggested_gate in cand.trace:
+                        gate_found = True
+                        break
+
+            # Check in residual locations
+            if not gate_found:
+                for cand in trace.candidates:
+                    if hasattr(cand, 'residual_payload'):
+                        residual_set = cand.residual_payload.residuals
+                        for residual in residual_set.residuals:
+                            if hasattr(residual, 'location') and residual.location == repair.suggested_gate:
+                                gate_found = True
+                                break
+                        if gate_found:
+                            break
+
+            if not gate_found:
+                validation_status = ValidationStatus.REJECTED_INVENTED_REFERENCES
+                residuals.append(
+                    DatasetGenerationResidual(
+                        issue_type="invented_gate_reference",
+                        message=f"Repair suggests gate '{repair.suggested_gate}' not found in trace provenance",
+                        rejected_references=(repair.suggested_gate,),
+                    )
+                )
+
+        # Create input trace summary (NO raw surface - trace metadata only)
         input_trace_summary = (
+            f"Trace ID: {trace.trace_id}, "
             f"Algorithm: {trace.source_algorithm}, "
             f"Layer: {trace.source_layer}, "
             f"Candidates: {len(trace.candidates)}, "
-            f"Surface: {trace.input_surface}, "
+            f"Residuals: {sum(len(c.residual_payload.residuals.residuals) for c in trace.candidates)}, "
             f"Blocking Residuals: {len(repair.blocked_by_residual_ids)}"
         )
 

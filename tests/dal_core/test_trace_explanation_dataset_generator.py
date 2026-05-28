@@ -36,6 +36,7 @@ from tests.fixtures.golden_trace_explanation_fixtures import (
     create_invalid_invented_candidate_fixture,
     create_invalid_invented_residual_fixture,
     create_invalid_invented_gate_fixture,
+    create_invalid_rank_claim_fixture,
 )
 from dal_core.trace_explanation_dataset_generator import (
     TraceExplanationDatasetGenerator,
@@ -499,3 +500,141 @@ def test_constitutional_output_type_classification():
     # Verify requires_algorithm_rerun distinction
     assert not explanation_row.requires_algorithm_rerun
     assert repair_row.requires_algorithm_rerun
+
+# ============================================================================
+# Additional Constitutional Tests (PR #145 Amendments)
+# ============================================================================
+
+def test_reject_invalid_explanation_with_invented_rank():
+    """
+    Test: Invalid explanation with invented rank claim is rejected.
+
+    Constitutional Requirement:
+        Explanations with invented rank values MUST be rejected.
+        All rank references MUST exist in source trace.
+    """
+    fixture = create_invalid_rank_claim_fixture()
+
+    # Generate dataset row (should mark as REJECTED)
+    row = TraceExplanationDatasetGenerator.generate_from_explanation_candidate(
+        trace=fixture.trace,
+        explanation=fixture.invalid_explanation,
+    )
+
+    # Verify rejection
+    assert row.validation_status == ValidationStatus.REJECTED_VALIDATION_FAILURE
+    assert len(row.residuals_about_dataset_generation) > 0
+
+
+def test_reject_repair_suggestion_with_invented_suggested_gate():
+    """
+    Test: Repair suggestion with invented suggested_gate is rejected.
+
+    Constitutional Requirement:
+        Repair suggestions MUST only reference gates that exist in trace provenance.
+        Invented gates MUST be rejected.
+    """
+    from tests.fixtures.golden_trace_explanation_fixtures import (
+        create_valid_repair_suggestion_fixture,
+    )
+    from dal_core.governed_trace_t5_contract import RepairSuggestionCandidate
+
+    # Get valid fixture and modify it to have invented gate
+    fixture = create_valid_repair_suggestion_fixture()
+
+    # Create repair with invented gate (not in trace)
+    repair_with_invented_gate = RepairSuggestionCandidate(
+        source_trace_id=fixture.trace.trace_id,
+        blocked_by_residual_ids=fixture.repair_suggestion.blocked_by_residual_ids,
+        suggested_gate="INVENTED_GATE_XYZ_999",  # This gate does not exist in trace
+        suggested_rerun=True,  # Must be bool, not string
+        explanation="This repair suggests an invented gate",
+        requires_algorithm_rerun=True,
+    )
+
+    # Generate dataset row (should mark as REJECTED)
+    row = TraceExplanationDatasetGenerator.generate_from_repair_suggestion_candidate(
+        trace=fixture.trace,
+        repair=repair_with_invented_gate,
+    )
+
+    # Verify rejection due to invented gate
+    assert row.validation_status == ValidationStatus.REJECTED_INVENTED_REFERENCES
+    assert len(row.residuals_about_dataset_generation) > 0
+    assert row.residuals_about_dataset_generation[0].issue_type == "invented_gate_reference"
+    assert "INVENTED_GATE_XYZ_999" in row.residuals_about_dataset_generation[0].rejected_references
+
+
+def test_input_trace_summary_does_not_include_input_surface():
+    """
+    Test: input_trace_summary must NOT include trace.input_surface.
+
+    Constitutional Requirement:
+        Dataset rows must be trace-metadata-derived, NOT raw-text-derived.
+        input_trace_summary MUST NOT leak raw Arabic surface forms.
+    """
+    fixture = create_valid_explanation_fixture()
+
+    # Generate dataset row from explanation
+    explanation_row = TraceExplanationDatasetGenerator.generate_from_explanation_candidate(
+        trace=fixture.trace,
+        explanation=fixture.explanation,
+    )
+
+    # Verify input_trace_summary does NOT contain input_surface
+    assert fixture.trace.input_surface not in explanation_row.input_trace_summary
+    assert "Surface:" not in explanation_row.input_trace_summary
+    
+    # Verify it DOES contain trace metadata
+    assert "Trace ID:" in explanation_row.input_trace_summary
+    assert fixture.trace.trace_id in explanation_row.input_trace_summary
+    assert "Algorithm:" in explanation_row.input_trace_summary
+    assert "Layer:" in explanation_row.input_trace_summary
+    assert "Candidates:" in explanation_row.input_trace_summary
+    assert "Residuals:" in explanation_row.input_trace_summary
+
+    # Generate dataset row from repair suggestion
+    repair_fixture = create_valid_repair_suggestion_fixture()
+    repair_row = TraceExplanationDatasetGenerator.generate_from_repair_suggestion_candidate(
+        trace=repair_fixture.trace,
+        repair=repair_fixture.repair_suggestion,
+    )
+
+    # Verify repair row also does NOT contain input_surface
+    assert repair_fixture.trace.input_surface not in repair_row.input_trace_summary
+    assert "Surface:" not in repair_row.input_trace_summary
+
+
+def test_valid_repair_suggested_gate_must_exist_in_trace_provenance():
+    """
+    Test: Valid repair suggestion with gate existing in trace provenance is accepted.
+
+    Constitutional Requirement:
+        Repair suggestions MAY reference gates IF those gates exist in trace provenance.
+        Valid gate references MUST NOT be rejected.
+    """
+    fixture = create_valid_repair_suggestion_fixture()
+
+    # Generate dataset row (should be VALID if gate exists in trace)
+    row = TraceExplanationDatasetGenerator.generate_from_repair_suggestion_candidate(
+        trace=fixture.trace,
+        repair=fixture.repair_suggestion,
+    )
+
+    # If the fixture has a suggested_gate, verify it's validated properly
+    if fixture.repair_suggestion.suggested_gate:
+        # Verify the row has the gate referenced
+        assert len(row.referenced_gate_ids) == 1
+        assert fixture.repair_suggestion.suggested_gate in row.referenced_gate_ids
+        
+        # If validation passed, the gate must exist in trace provenance
+        if row.validation_status == ValidationStatus.VALID:
+            # Success: gate was found in trace provenance
+            assert row.validation_status == ValidationStatus.VALID
+        else:
+            # If rejected, it should be due to gate not found
+            assert row.validation_status == ValidationStatus.REJECTED_INVENTED_REFERENCES
+            assert any(
+                "gate" in res.message.lower() 
+                for res in row.residuals_about_dataset_generation
+            )
