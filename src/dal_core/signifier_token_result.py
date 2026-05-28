@@ -64,6 +64,13 @@ class SignifierToken:
     """
     الدال الوظيفي - Operational Signifier Unit
 
+    ALGEBRAIC CLASSIFICATION (see docs/MUFRADPROOF_ALGEBRAIC_AUDIT.md):
+    -------------------------------------------------------------------
+    - Category: CARRIER WRAPPER (Layer 2.5 - Transitional)
+    - Purpose: Boundary enforcement wrapper around MufradProof
+    - Properties: Delegates carrier properties to wrapped proof
+    - Compliance: Inherits MufradProof prohibitions + adds RelationCandidate block
+
     Constitutional Position:
     ----------------------
     - IS: Operational unit with licensed identity from MufradProof
@@ -126,6 +133,13 @@ class SignifierTokenResult:
     نتيجة إنتاج الدال الوظيفي
 
     Result wrapper for GARA-FT-0 boundary operation.
+
+    ALGEBRAIC CLASSIFICATION (see docs/MUFRADPROOF_ALGEBRAIC_AUDIT.md):
+    -------------------------------------------------------------------
+    - Category: META-ENTITY (Result Wrapper)
+    - Purpose: Discriminated union (Success | Failure)
+    - NOT a Carrier: No identity, no slots, no operations
+    - Wrapper Pattern: Contains carrier OR failure, not both
 
     Constitutional Position:
     ----------------------
