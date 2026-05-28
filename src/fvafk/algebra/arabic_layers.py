@@ -16,6 +16,21 @@ for the FVAFK pipeline:
 - ``MORPH_DEEP``    ↛ ``HUKM``      (وزن عميق → حكم)
 
 Each forbidden jump must be mediated by an intermediate carrier.
+
+PATH-AWARE BRIDGES (not globally allowed, not globally forbidden):
+
+- ``LAFZ`` → ``IDENTITY``: Path-aware, requires validation
+
+  Two valid paths to IDENTITY exist:
+
+  1. Mushtaq (derived) path:
+     LAFZ → MARKER_PROTECTION/CLAUSE_AGREEMENT → ROOT_STEM → WEIGHT → IDENTITY
+
+  2. Non-weight path (for mabni, particles, pronouns, jāmid, proper names, loans):
+     LAFZ → PathAwareIdentityValidator → IDENTITY
+
+  This bridge is delegated to PathAwareIdentityValidator, not declared
+  globally allowed or forbidden.
 """
 
 from __future__ import annotations
@@ -221,10 +236,11 @@ CANONICAL_FORBIDDEN_BRIDGES: FrozenSet[Tuple[Domain, Domain]] = frozenset(
         (Domain.BOUNDARY, Domain.WEIGHT),
         (Domain.BOUNDARY, Domain.IDENTITY),
 
-        # Lafz → Weight/Identity jumps (must go through protection)
+        # Lafz → Weight jumps (must go through protection)
         (Domain.LAFZ, Domain.ROOT_STEM),
         (Domain.LAFZ, Domain.WEIGHT),
-        (Domain.LAFZ, Domain.IDENTITY),
+        # Note: LAFZ → IDENTITY is path-aware, not forbidden categorically
+        # (allows mabni, particles, pronouns, jāmid, proper names, loans)
         (Domain.LAFZ, Domain.SYNTAX_CANONICAL),
         (Domain.LAFZ, Domain.SEMANTICS_CANONICAL),
 

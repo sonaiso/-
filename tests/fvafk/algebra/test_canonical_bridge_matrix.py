@@ -86,10 +86,16 @@ LEGACY_FVAFK_DOMAINS = {
 
 
 def test_domain_enum_contains_all_canonical_domains():
-    """Domain enum must contain all 20 canonical GARA domains."""
+    """Domain enum must contain exactly all 20 canonical GARA domains."""
     domain_names = {d.name for d in Domain}
-    assert CANONICAL_GARA_DOMAINS.issubset(domain_names), (
+    assert domain_names >= CANONICAL_GARA_DOMAINS, (
         f"Missing canonical domains: {CANONICAL_GARA_DOMAINS - domain_names}"
+    )
+    # Exact match: domain_names should contain canonical + legacy (29 total)
+    expected_total = CANONICAL_GARA_DOMAINS | LEGACY_FVAFK_DOMAINS
+    assert domain_names == expected_total, (
+        f"Domain enum should contain exactly canonical + legacy domains. "
+        f"Extra: {domain_names - expected_total}, Missing: {expected_total - domain_names}"
     )
 
 
@@ -165,9 +171,9 @@ def test_every_canonical_forbidden_bridge_is_rejected(
 
 
 def test_canonical_forbidden_bridges_count():
-    """CANONICAL_FORBIDDEN_BRIDGES must contain exactly 45 forbidden jumps."""
-    assert len(CANONICAL_FORBIDDEN_BRIDGES) == 45, (
-        f"Expected 45 canonical forbidden bridges, got {len(CANONICAL_FORBIDDEN_BRIDGES)}"
+    """CANONICAL_FORBIDDEN_BRIDGES must contain exactly 44 forbidden jumps."""
+    assert len(CANONICAL_FORBIDDEN_BRIDGES) == 44, (
+        f"Expected 44 canonical forbidden bridges, got {len(CANONICAL_FORBIDDEN_BRIDGES)}"
     )
 
 
@@ -448,3 +454,68 @@ def test_no_backward_bridges_in_allowed():
     assert len(backward_bridges) <= 2, (
         f"Too many backward bridges detected: {backward_bridges}"
     )
+
+
+# =============================================================================
+# Test Set 10: Path-Aware Bridges (LAFZ → IDENTITY)
+# =============================================================================
+
+
+def test_lafz_to_identity_not_forbidden_categorically():
+    """LAFZ → IDENTITY must NOT be in CANONICAL_FORBIDDEN_BRIDGES.
+
+    Constitutional requirement: LAFZ → IDENTITY is path-aware, not categorically forbidden.
+
+    Two valid paths exist:
+    1. Mushtaq (derived) path: LAFZ → ROOT_STEM → WEIGHT → IDENTITY
+    2. Non-weight path: LAFZ → IDENTITY (for mabni, particles, pronouns, jāmid, etc.)
+
+    Forbidding this bridge categorically violates: لا هوية من الوزن وحده
+    (No Identity from weight alone)
+    """
+    assert (Domain.LAFZ, Domain.IDENTITY) not in CANONICAL_FORBIDDEN_BRIDGES, (
+        "LAFZ → IDENTITY must not be forbidden categorically; "
+        "it is path-aware (allows mabni, particles, pronouns, jāmid, proper names, loans)"
+    )
+
+
+def test_lafz_to_identity_not_globally_allowed():
+    """LAFZ → IDENTITY must NOT be in CANONICAL_ALLOWED_BRIDGES.
+
+    Constitutional requirement: LAFZ → IDENTITY requires path-aware validation.
+
+    This bridge is not a universal allowed bridge. It requires:
+    - PathAwareIdentityValidator to determine which path applies
+    - Either: mushtaq path through ROOT_STEM → WEIGHT
+    - Or: non-weight path for closed-class items
+
+    Making this globally allowed would bypass path validation.
+    """
+    assert (Domain.LAFZ, Domain.IDENTITY) not in CANONICAL_ALLOWED_BRIDGES, (
+        "LAFZ → IDENTITY must not be globally allowed; "
+        "it requires path-aware validation (PathAwareIdentityValidator)"
+    )
+
+
+def test_lafz_to_identity_path_awareness():
+    """LAFZ → IDENTITY must be neither allowed nor forbidden by default checks.
+
+    This proves the bridge is truly path-aware (delegated to validators).
+
+    - is_canonical_bridge_allowed(LAFZ, IDENTITY) returns False (not in allowed set)
+    - (LAFZ, IDENTITY) not in CANONICAL_FORBIDDEN_BRIDGES (not categorically forbidden)
+
+    Result: The bridge requires explicit path-aware validation at runtime.
+    """
+    # Not globally allowed
+    assert is_canonical_bridge_allowed(Domain.LAFZ, Domain.IDENTITY) is False, (
+        "LAFZ → IDENTITY should not be globally allowed"
+    )
+
+    # Not categorically forbidden
+    assert (Domain.LAFZ, Domain.IDENTITY) not in CANONICAL_FORBIDDEN_BRIDGES, (
+        "LAFZ → IDENTITY should not be categorically forbidden"
+    )
+
+    # This combination means: path-aware validation required
+
