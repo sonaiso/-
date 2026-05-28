@@ -474,6 +474,7 @@ class AlgorithmTracePayload:
             2. Blocked analysis with no candidates but blocking residuals
 
     Fields:
+        trace_id: Unique identifier for this specific trace execution
         schema_version: Payload schema version (for evolution)
         source_algorithm: Algorithm that produced this trace
         source_layer: Layer where algorithm executed
@@ -497,6 +498,7 @@ class AlgorithmTracePayload:
         - Input to GovernedTraceT5 for explanation/ranking/repair suggestion
         - Serialization for storage/transmission
     """
+    trace_id: str
     schema_version: str
     source_algorithm: str
     source_layer: str
@@ -511,6 +513,7 @@ class AlgorithmTracePayload:
         Validate algorithm trace payload invariants.
 
         Constitutional guards:
+            - trace_id required (unique execution identifier)
             - schema_version required
             - source_algorithm required
             - source_layer required
@@ -518,6 +521,12 @@ class AlgorithmTracePayload:
             - forbidden_jumps required (may be empty tuple)
             - allowed_next_layers required (may be empty tuple)
         """
+        # Validate trace_id
+        if not self.trace_id:
+            raise ValueError("AlgorithmTracePayload requires non-empty trace_id")
+        if not isinstance(self.trace_id, str):
+            raise TypeError(f"trace_id must be str, got {type(self.trace_id)}")
+
         # Validate schema_version
         if not self.schema_version:
             raise ValueError("AlgorithmTracePayload requires non-empty schema_version")

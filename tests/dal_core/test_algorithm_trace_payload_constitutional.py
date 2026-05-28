@@ -70,6 +70,7 @@ def test_algorithm_trace_payload_requires_schema_version():
 
     with pytest.raises(ValueError, match="requires non-empty schema_version"):
         AlgorithmTracePayload(
+            trace_id="test_trace_id",
             schema_version="",  # Empty - should fail
             source_algorithm="RelationAlgebra",
             source_layer="relation_network",
@@ -106,6 +107,7 @@ def test_algorithm_trace_payload_requires_source_algorithm():
     with pytest.raises(ValueError, match="requires non-empty source_algorithm"):
         AlgorithmTracePayload(
             schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
             source_algorithm="",  # Empty - should fail
             source_layer="relation_network",
             input_surface="زيد قائم",
@@ -121,6 +123,7 @@ def test_algorithm_trace_payload_requires_candidates():
     with pytest.raises(ValueError, match="requires either non-empty candidates OR explicit blocking residuals"):
         AlgorithmTracePayload(
             schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
             source_algorithm="RelationAlgebra",
             source_layer="relation_network",
             input_surface="زيد قائم",
@@ -233,6 +236,7 @@ def test_algorithm_trace_payload_has_no_to_hukm_method():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -269,6 +273,7 @@ def test_algorithm_trace_payload_has_no_to_reality_method():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -305,6 +310,7 @@ def test_algorithm_trace_payload_has_no_close_ifadah_method():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -343,6 +349,7 @@ def test_algorithm_trace_payload_has_no_create_candidate_method():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -379,6 +386,7 @@ def test_algorithm_trace_payload_has_no_upgrade_rank_method():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -415,6 +423,7 @@ def test_algorithm_trace_payload_has_no_delete_residuals_method():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -629,6 +638,7 @@ def test_algorithm_trace_payload_is_non_authoritative():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -664,6 +674,7 @@ def test_algorithm_trace_payload_declares_forbidden_operations():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -717,6 +728,7 @@ def test_forbidden_jumps_are_preserved():
 
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -761,6 +773,7 @@ def test_allowed_next_layers_are_preserved():
 
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -847,6 +860,7 @@ def test_complete_algorithm_trace_payload_construction():
     # Build complete payload
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebraCore",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -891,6 +905,7 @@ def test_algorithm_trace_payload_is_immutable():
     )
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="RelationAlgebra",
         source_layer="relation_network",
         input_surface="زيد قائم",
@@ -969,6 +984,7 @@ def test_payload_allows_blocked_algorithm_trace_without_candidates():
     # Create payload with NO candidates but WITH blocking residuals
     payload = AlgorithmTracePayload(
         schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
         source_algorithm="ArabicAnalysisGate",
         source_layer="foreign_word_detection",
         input_surface="hello",  # Foreign input
@@ -1005,6 +1021,7 @@ def test_payload_rejects_empty_candidates_without_blocking_residuals():
     with pytest.raises(ValueError, match="requires either non-empty candidates OR explicit blocking residuals"):
         AlgorithmTracePayload(
             schema_version="algorithm-trace-v1",
+            trace_id="test_trace_id",
             source_algorithm="SomeAlgorithm",
             source_layer="some_layer",
             input_surface="test",

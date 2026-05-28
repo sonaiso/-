@@ -72,6 +72,7 @@ def create_test_trace_payload() -> AlgorithmTracePayload:
         forbidden_outputs=("hukm", "reality")
     )
     return AlgorithmTracePayload(
+        trace_id="trace_exec_001",
         schema_version="algorithm-trace-v1",
         source_algorithm="TestAlgorithm",
         source_layer="test_layer",
@@ -707,7 +708,7 @@ def test_complete_t5_contract_flow_explanation():
 
     # Step 4: Create explanation output
     explanation = ExplanationCandidate(
-        source_trace_id=trace.source_algorithm,
+        source_trace_id=trace.trace_id,
         operation=t5_input.operation,
         explanation_text="This trace shows a predicative relation",
         referenced_candidate_ids=("test_cand_1",),
@@ -751,7 +752,7 @@ def test_complete_t5_contract_flow_repair_suggestion():
 
     # Step 4: Create repair suggestion output
     suggestion = RepairSuggestionCandidate(
-        source_trace_id=trace.source_algorithm,
+        source_trace_id=trace.trace_id,
         blocked_by_residual_ids=("residual_agreement",),
         suggested_gate="AgreementGate",
         suggested_rerun=True,
@@ -766,3 +767,201 @@ def test_complete_t5_contract_flow_repair_suggestion():
     assert suggestion.requires_algorithm_rerun is True
     assert not hasattr(suggestion, "executed_repair")
     assert not hasattr(suggestion, "resolved_residuals")
+
+
+# ============================================================================
+# Test Reference Provenance Validation (PR #142-fix)
+# ============================================================================
+
+def test_explanation_invalid_candidate_id_reference():
+    """Test that explanation with non-existent candidate_id is rejected."""
+    trace = create_test_trace_payload()
+
+    # Create explanation referencing non-existent candidate
+    explanation = ExplanationCandidate(
+        source_trace_id=trace.trace_id,
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        explanation_text="Invalid reference test",
+        referenced_candidate_ids=("cand_fake_999",),  # NON-EXISTENT
+        referenced_rank_values=(),
+        referenced_residual_ids=(),
+        referenced_gate_ids=(),
+        confidence=0.8
+    )
+
+    # Validation must reject
+    with pytest.raises(ValueError, match="candidate_id 'cand_fake_999' not found"):
+        GovernedTraceT5Validator.validate_explanation_references(explanation, trace)
+
+
+def test_explanation_invalid_residual_id_reference():
+    """Test that explanation with non-existent residual_id is rejected."""
+    trace = create_test_trace_payload()
+
+    # Create explanation referencing non-existent residual
+    explanation = ExplanationCandidate(
+        source_trace_id=trace.trace_id,
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        explanation_text="Invalid residual reference",
+        referenced_candidate_ids=(),
+        referenced_rank_values=(),
+        referenced_residual_ids=("residual_fake_999",),  # NON-EXISTENT
+        referenced_gate_ids=(),
+        confidence=0.8
+    )
+
+    # Validation must reject
+    with pytest.raises(ValueError, match="residual_id 'residual_fake_999' not found"):
+        GovernedTraceT5Validator.validate_explanation_references(explanation, trace)
+
+
+def test_explanation_invalid_gate_id_reference():
+    """Test that explanation with non-existent gate_id is rejected."""
+    trace = create_test_trace_payload()
+
+    # Create explanation referencing non-existent gate
+    explanation = ExplanationCandidate(
+        source_trace_id=trace.trace_id,
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        explanation_text="Invalid gate reference",
+        referenced_candidate_ids=(),
+        referenced_rank_values=(),
+        referenced_residual_ids=(),
+        referenced_gate_ids=("gate_invented_by_t5",),  # NON-EXISTENT
+        confidence=0.8
+    )
+
+    # Validation must reject
+    with pytest.raises(ValueError, match="gate_id 'gate_invented_by_t5' not found"):
+        GovernedTraceT5Validator.validate_explanation_references(explanation, trace)
+
+
+def test_explanation_invalid_rank_value_reference():
+    """Test that explanation with rank not in trace is rejected."""
+    trace = create_test_trace_payload()
+
+    # Create explanation claiming CERTIFICATE rank (not in trace)
+    explanation = ExplanationCandidate(
+        source_trace_id=trace.trace_id,
+        operation=TraceConsumerOperation.EXPLAIN_EXISTING_RANK,
+        explanation_text="Claiming higher rank",
+        referenced_candidate_ids=(),
+        referenced_rank_values=("CERTIFICATE",),  # NOT IN TRACE (trace has HYPOTHESIS)
+        referenced_residual_ids=(),
+        referenced_gate_ids=(),
+        confidence=0.8
+    )
+
+    # Validation must reject
+    with pytest.raises(ValueError, match="rank 'CERTIFICATE' not found"):
+        GovernedTraceT5Validator.validate_explanation_references(explanation, trace)
+
+
+def test_explanation_valid_references_all_types():
+    """Test that explanation with all valid references passes."""
+    # Create trace with richer data
+    rank_payload = RankTracePayload(
+        rank=Rank.HYPOTHESIS,
+        rank_evidence=("evidence1",),
+        rank_trace=("gate_step1", "gate_step2")
+    )
+    residual_payload = ResidualTracePayload(
+        residuals=create_residual_set(frozenset()),
+        residual_sources=("AgreementGate", "CaseGate"),
+        blocking_count=0
+    )
+    candidate_payload = CandidateTracePayload(
+        candidate_id="valid_cand_1",
+        candidate_type="RelationCandidate",
+        layer="relation_network",
+        trace=("operational_step1", "operational_step2"),
+        rank_payload=rank_payload,
+        residual_payload=residual_payload,
+        forbidden_outputs=("hukm", "reality")
+    )
+    trace = AlgorithmTracePayload(
+        trace_id="trace_exec_002",
+        schema_version="algorithm-trace-v1",
+        source_algorithm="TestAlgorithm",
+        source_layer="test_layer",
+        input_surface="test input",
+        candidates=(candidate_payload,),
+        network=None,
+        allowed_next_layers=(),
+        forbidden_jumps=()
+    )
+
+    # Create explanation with valid references
+    explanation = ExplanationCandidate(
+        source_trace_id=trace.trace_id,
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        explanation_text="All references valid",
+        referenced_candidate_ids=("valid_cand_1",),
+        referenced_rank_values=("HYPOTHESIS",),
+        referenced_residual_ids=(),  # Empty residuals in this trace
+        referenced_gate_ids=("AgreementGate", "operational_step1"),
+        confidence=0.9
+    )
+
+    # Validation must pass
+    GovernedTraceT5Validator.validate_explanation_references(explanation, trace)
+
+
+def test_trace_id_binding_enforcement():
+    """Test that trace_id properly binds explanations to specific traces."""
+    trace1 = create_test_trace_payload()
+
+    # Create second trace with different trace_id
+    rank_payload = RankTracePayload(
+        rank=Rank.HYPOTHESIS,
+        rank_evidence=("evidence2",),
+        rank_trace=("trace2",)
+    )
+    residual_payload = ResidualTracePayload(
+        residuals=create_residual_set(frozenset()),
+        residual_sources=(),
+        blocking_count=0
+    )
+    candidate_payload = CandidateTracePayload(
+        candidate_id="test_cand_2",
+        candidate_type="RelationCandidate",
+        layer="relation_network",
+        trace=("step2",),
+        rank_payload=rank_payload,
+        residual_payload=residual_payload,
+        forbidden_outputs=("hukm", "reality")
+    )
+    trace2 = AlgorithmTracePayload(
+        trace_id="trace_exec_002",  # DIFFERENT trace_id
+        schema_version="algorithm-trace-v1",
+        source_algorithm="TestAlgorithm",  # SAME algorithm
+        source_layer="test_layer",
+        input_surface="test input 2",
+        candidates=(candidate_payload,),
+        network=None,
+        allowed_next_layers=(),
+        forbidden_jumps=()
+    )
+
+    # Verify different trace_ids
+    assert trace1.trace_id != trace2.trace_id
+    assert trace1.source_algorithm == trace2.source_algorithm
+
+    # Create explanation bound to trace1
+    explanation1 = ExplanationCandidate(
+        source_trace_id=trace1.trace_id,
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        explanation_text="Bound to trace 1",
+        referenced_candidate_ids=("test_cand_1",),
+        referenced_rank_values=("HYPOTHESIS",),
+        referenced_residual_ids=(),
+        referenced_gate_ids=(),
+        confidence=0.8
+    )
+
+    # Explanation references trace1's candidates - must validate against trace1
+    GovernedTraceT5Validator.validate_explanation_references(explanation1, trace1)
+
+    # Same explanation validated against trace2 must fail (different candidate_id)
+    with pytest.raises(ValueError, match="candidate_id 'test_cand_1' not found"):
+        GovernedTraceT5Validator.validate_explanation_references(explanation1, trace2)

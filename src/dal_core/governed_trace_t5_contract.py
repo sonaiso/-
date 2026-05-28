@@ -250,7 +250,7 @@ class ExplanationCandidate:
         - ONLY fields for: referencing existing trace elements
 
     Fields:
-        source_trace_id: References AlgorithmTracePayload.source_algorithm
+        source_trace_id: References AlgorithmTracePayload.trace_id (NOT source_algorithm)
         operation: Which permitted operation was performed
         explanation_text: Natural language explanation
         referenced_candidate_ids: Candidate IDs from trace (read-only references)
@@ -364,7 +364,7 @@ class RepairSuggestionCandidate:
         - ONLY fields for: suggesting which gate/operation might help
 
     Fields:
-        source_trace_id: References AlgorithmTracePayload.source_algorithm
+        source_trace_id: References AlgorithmTracePayload.trace_id (NOT source_algorithm)
         blocked_by_residual_ids: Residual IDs that block progress
         suggested_gate: Which gate/operation might resolve blockage
         suggested_rerun: Whether algorithm rerun is suggested
@@ -651,6 +651,12 @@ class GovernedTraceT5Validator:
         Constitutional Guard:
             Explanation MUST reference only elements from the source trace.
 
+        Validates:
+            - referenced_candidate_ids exist in trace
+            - referenced_residual_ids exist in trace
+            - referenced_gate_ids exist in trace (via residual_sources or trace fields)
+            - referenced_rank_values match ranks in trace
+
         Args:
             explanation: Explanation to validate
             source_trace: Source algorithm trace
@@ -671,6 +677,50 @@ class GovernedTraceT5Validator:
                     f"not found in source trace"
                 )
 
-        # Note: Rank and residual validation would require more complex trace parsing
-        # For now, we enforce the structural constraint that explanations can only
-        # reference, not create
+        # Collect all valid residual IDs from trace
+        # Residuals are embedded in candidate payloads via residual_payload.residuals
+        valid_residual_ids = set()
+        for cand in source_trace.candidates:
+            # ResidualSet has .residuals field which is a FrozenSet[Residual]
+            residual_set = cand.residual_payload.residuals
+            # Extract residual IDs from the frozenset
+            for residual in residual_set.residuals:
+                valid_residual_ids.add(str(residual))
+
+        # Validate referenced residual IDs
+        for ref_id in explanation.referenced_residual_ids:
+            if ref_id not in valid_residual_ids:
+                raise ValueError(
+                    f"ExplanationCandidate references residual_id '{ref_id}' "
+                    f"not found in source trace"
+                )
+
+        # Collect all valid gate IDs from trace
+        # Gates appear in residual_sources and candidate traces
+        valid_gate_ids = set()
+        for cand in source_trace.candidates:
+            # Gates from residual sources
+            valid_gate_ids.update(cand.residual_payload.residual_sources)
+            # Gates from operational trace
+            valid_gate_ids.update(cand.trace)
+
+        # Validate referenced gate IDs
+        for ref_id in explanation.referenced_gate_ids:
+            if ref_id not in valid_gate_ids:
+                raise ValueError(
+                    f"ExplanationCandidate references gate_id '{ref_id}' "
+                    f"not found in source trace"
+                )
+
+        # Collect all valid rank values from trace
+        valid_rank_values = {
+            cand.rank_payload.rank.name for cand in source_trace.candidates
+        }
+
+        # Validate referenced rank values
+        for ref_rank in explanation.referenced_rank_values:
+            if ref_rank not in valid_rank_values:
+                raise ValueError(
+                    f"ExplanationCandidate references rank '{ref_rank}' "
+                    f"not found in source trace"
+                )
