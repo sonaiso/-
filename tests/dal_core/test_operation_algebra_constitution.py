@@ -370,16 +370,17 @@ def test_surface_inverse_rank_limit():
 
 def test_surface_inverse_valid():
     """Law 5: SurfaceInverse valid case."""
+    from dal_core.residuals import ResidualType
+
     surface_inv = SurfaceInverse(
         surface_after="كَتَبَ",
         recovered_candidates=("ك ت ب", "ك ت ب + فَعَلَ"),
         residuals=frozenset([
             Residual(
+                type=ResidualType.ROOT_UNRESOLVED,
                 severity=ResidualSeverity.WARNING,
-                category="ambiguity",
-                description="Multiple root candidates",
-                gate_origin="surface_analysis",
-                layer="morphology"
+                message="Multiple root candidates",
+                location="surface_analysis"
             )
         ]),
         rank=Rank.HYPOTHESIS,
