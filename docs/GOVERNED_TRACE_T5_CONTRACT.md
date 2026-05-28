@@ -322,6 +322,33 @@ From `TraceConsumerOperation` enum (PR #141):
 
 ## Constitutional Enforcement Mechanisms
 
+### Primary Defense: Structural Absence
+
+The **primary constitutional defense** is the **structural absence of forbidden fields**:
+
+- `ExplanationCandidate` and `RepairSuggestionCandidate` **cannot** create candidates, upgrade ranks, resolve residuals, close ifadah, or produce hukm/reality because **no fields exist** for these operations
+- Immutable `AlgorithmTracePayload` input prevents trace modification
+- `source_trace_id` bound to specific `trace.trace_id` (NOT `source_algorithm`)
+- Full provenance validation for all references:
+  - `referenced_candidate_ids` must exist in trace
+  - `referenced_residual_ids` must exist in trace
+  - `referenced_gate_ids` must exist in trace
+  - `referenced_rank_values` must exist in trace
+- No mutation path for rank, residuals, ifādah, hukm, or reality
+
+**Constitutional Principle:**
+> Structure enforces constitution. No code path exists for forbidden operations.
+
+### Auxiliary Defense: Keyword Filtering
+
+`TraceConsumerContext` provides **auxiliary keyword filtering** to catch obvious violations in user queries:
+- Filters phrases like "create", "upgrade", "delete", "resolve", "close ifadah"
+- **NOT the primary defense** - sophisticated prompts could bypass keywords
+- Provides helpful early feedback but **does not replace structural prevention**
+
+**Constitutional Principle:**
+> Keyword guards are helpers, not foundation. Structure is the true constitutional barrier.
+
 ### 1. Structural Prevention (No Forbidden Fields)
 
 `ExplanationCandidate` and `RepairSuggestionCandidate` are designed **without** fields for forbidden operations:
@@ -335,7 +362,31 @@ From `TraceConsumerOperation` enum (PR #141):
 
 **Enforcement:** Structure itself prevents forbidden operations.
 
-### 2. Validation Guards
+### 2. Trace Identity Binding
+
+**PR #142-fix:** `source_trace_id` must reference `AlgorithmTracePayload.trace_id`:
+
+- Each trace execution has unique `trace_id`
+- `source_algorithm` identifies the **algorithm class**, not the specific trace instance
+- T5 explanations and repair suggestions bind to **specific immutable trace instances**
+- Multiple traces from same algorithm remain distinguishable
+
+**Constitutional Requirement:**
+> T5 explanations must reference a specific trace execution, not just an algorithm name.
+
+### 3. Reference Provenance Validation
+
+**PR #142-fix:** All explanation references validated against source trace:
+
+- **Candidate IDs:** Must exist in `trace.candidates`
+- **Residual IDs:** Must exist in candidate residual sets
+- **Gate IDs:** Must exist in residual sources or operational traces
+- **Rank Values:** Must match ranks actually present in trace
+
+**Constitutional Requirement:**
+> No explanation without provenance. T5 cannot invent references.
+
+### 4. Validation Guards
 
 `__post_init__` methods enforce:
 - Required fields present
