@@ -615,7 +615,9 @@ class ConstitutionalEvaluator:
                 )
 
         # Check for rank value references
-        rank_pattern = r'rank[_\s]([A-Z_]+)'
+        # Pattern matches: "rank_CERTIFICATE" or "rank CERTIFICATE" (case-insensitive)
+        # Note: We convert to upper, so pattern must match "RANK" not "rank"
+        rank_pattern = r'\bRANK[_\s]([A-Z_]+)\b'
         found_ranks = set(re.findall(rank_pattern, predicted_text.upper()))
         valid_ranks = set(source_example.referenced_rank_values)
 

@@ -485,7 +485,7 @@ def test_valid_residual_reference_not_flagged_as_invented():
         referenced_residual_ids=("residual_xyz789",)
     )
     output = create_valid_model_output(
-        predicted_text="Explaining residual_xyz789 that remains unresolved"
+        predicted_text="Explaining residual_xyz789 that remains pending"
     )
 
     report = ConstitutionalEvaluator.evaluate_model_output(output, example)
