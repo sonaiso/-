@@ -467,21 +467,16 @@ class NoExecutionIntegrationReport:
         if not self.integration_config_id:
             raise ValueError("NoExecutionIntegrationReport requires integration_config_id")
 
-        # Validate all no-execution confirmations are True
+        # Validate structural confirmations are always True
         if not self.dependencies_declared_not_loaded:
             raise ValueError("Must confirm dependencies_declared_not_loaded")
 
         if not self.boundaries_defined_not_implemented:
             raise ValueError("Must confirm boundaries_defined_not_implemented")
 
-        if not self.no_model_loading_detected:
-            raise ValueError("Must confirm no_model_loading_detected")
-
-        if not self.no_training_execution_detected:
-            raise ValueError("Must confirm no_training_execution_detected")
-
-        if not self.no_inference_execution_detected:
-            raise ValueError("Must confirm no_inference_execution_detected")
+        # Note: no_model_loading_detected, no_training_execution_detected,
+        # and no_inference_execution_detected can be False if markers were detected.
+        # They reflect marker detection status, not execution status.
 
 
 # ============================================================================
@@ -531,7 +526,56 @@ class GovernedT5IntegrationSkeleton:
         ✅ run_preflight_checks(): Run preflight validation
         ✅ create_integration_report(): Create validation report
         ✅ scan_for_execution_markers(): Detect forbidden markers
+        ✅ create_integration_config_from_run_plan(): Create config from TrainingRunPlan
     """
+
+    @staticmethod
+    def create_integration_config_from_run_plan(
+        run_plan: TrainingRunPlan,
+        dependency_declaration: ModelDependencyDeclaration,
+        input_adapter_boundary: AdapterBoundaryPlan,
+        output_adapter_boundary: AdapterBoundaryPlan,
+        validation_adapter_boundary: AdapterBoundaryPlan,
+    ) -> GovernedT5IntegrationConfig:
+        """
+        Create integration config from TrainingRunPlan.
+
+        Args:
+            run_plan: TrainingRunPlan to link to
+            dependency_declaration: Model dependency declaration
+            input_adapter_boundary: Input adapter boundary plan
+            output_adapter_boundary: Output adapter boundary plan
+            validation_adapter_boundary: Validation adapter boundary plan
+
+        Returns:
+            GovernedT5IntegrationConfig linked to run_plan
+
+        Raises:
+            ValueError: If run_plan is not ready for execution
+
+        Constitutional Law:
+            This method creates integration config from run_plan.
+            It validates run_plan.ready_for_execution == True.
+            It preserves run_plan.run_plan_id in training_run_plan_id.
+            It does NOT execute training or load models.
+        """
+        # Validate run_plan is ready
+        if not run_plan.ready_for_execution:
+            raise ValueError(
+                f"TrainingRunPlan '{run_plan.run_plan_id}' is not ready_for_execution. "
+                f"Preflight status: {run_plan.preflight_report.passed}"
+            )
+
+        # Create integration config linked to run_plan
+        return GovernedT5IntegrationConfig(
+            integration_id=f"integration_{run_plan.run_plan_id}",
+            training_run_plan_id=run_plan.run_plan_id,
+            dependency_declaration=dependency_declaration,
+            input_adapter_boundary=input_adapter_boundary,
+            output_adapter_boundary=output_adapter_boundary,
+            validation_adapter_boundary=validation_adapter_boundary,
+            constitutional_constraints=INTEGRATION_CONSTITUTIONAL_CONSTRAINTS,
+        )
 
     @staticmethod
     def validate_integration_config(
@@ -577,7 +621,7 @@ class GovernedT5IntegrationSkeleton:
     @staticmethod
     def scan_for_execution_markers(text: str) -> Tuple[str, ...]:
         """
-        Scan text for forbidden execution markers.
+        Scan text for forbidden execution markers (case-insensitive).
 
         Args:
             text: Text to scan
@@ -588,11 +632,14 @@ class GovernedT5IntegrationSkeleton:
         Constitutional Law:
             This method performs STATIC SCANNING only.
             It does NOT execute code or import libraries.
+            Scanning is case-insensitive to catch variations.
         """
         detected = []
+        text_lower = text.lower()
 
         for marker in FORBIDDEN_EXECUTION_MARKERS:
-            if marker in text:
+            marker_lower = marker.lower()
+            if marker_lower in text_lower:
                 detected.append(marker)
 
         return tuple(detected)
@@ -619,6 +666,30 @@ class GovernedT5IntegrationSkeleton:
         checks = []
         critical_violations = []
 
+        # Categorize detected markers if scan_text provided
+        import_markers = []
+        model_loading_markers = []
+        inference_markers = []
+        training_markers = []
+
+        if scan_text:
+            detected = GovernedT5IntegrationSkeleton.scan_for_execution_markers(scan_text)
+
+            # Categorize detected markers
+            for marker in detected:
+                marker_lower = marker.lower()
+                if "import" in marker_lower:
+                    import_markers.append(marker)
+                elif "from_pretrained" in marker_lower or "tokenizer" in marker_lower:
+                    model_loading_markers.append(marker)
+                elif "generate" in marker_lower or "forward" in marker_lower:
+                    inference_markers.append(marker)
+                elif "trainer" in marker_lower or "train(" in marker_lower or "backward" in marker_lower or "optimizer" in marker_lower:
+                    training_markers.append(marker)
+                else:
+                    # General execution marker
+                    import_markers.append(marker)
+
         # Check 1: Dependency declaration (data only)
         dep_check = IntegrationPreflightCheck(
             check_type=IntegrationCheckType.DEPENDENCY_DECLARATION,
@@ -628,17 +699,16 @@ class GovernedT5IntegrationSkeleton:
         )
         checks.append(dep_check)
 
-        # Check 2: No forbidden imports (if scan_text provided)
+        # Check 2: No forbidden imports
         if scan_text:
-            detected = GovernedT5IntegrationSkeleton.scan_for_execution_markers(scan_text)
-            if detected:
+            if import_markers:
                 import_check = IntegrationPreflightCheck(
                     check_type=IntegrationCheckType.NO_FORBIDDEN_IMPORTS,
                     status=IntegrationCheckStatus.FAILED,
-                    message=f"Detected {len(detected)} forbidden execution markers",
-                    detected_violations=detected,
+                    message=f"Detected {len(import_markers)} forbidden import markers",
+                    detected_violations=tuple(import_markers),
                 )
-                critical_violations.extend(detected)
+                critical_violations.extend(import_markers)
             else:
                 import_check = IntegrationPreflightCheck(
                     check_type=IntegrationCheckType.NO_FORBIDDEN_IMPORTS,
@@ -648,7 +718,64 @@ class GovernedT5IntegrationSkeleton:
                 )
             checks.append(import_check)
 
-        # Check 3: Adapter boundaries valid
+        # Check 3: No model loading
+        if scan_text:
+            if model_loading_markers:
+                loading_check = IntegrationPreflightCheck(
+                    check_type=IntegrationCheckType.NO_MODEL_LOADING,
+                    status=IntegrationCheckStatus.FAILED,
+                    message=f"Detected {len(model_loading_markers)} model loading markers",
+                    detected_violations=tuple(model_loading_markers),
+                )
+                critical_violations.extend(model_loading_markers)
+            else:
+                loading_check = IntegrationPreflightCheck(
+                    check_type=IntegrationCheckType.NO_MODEL_LOADING,
+                    status=IntegrationCheckStatus.PASSED,
+                    message="No model loading markers detected",
+                    detected_violations=(),
+                )
+            checks.append(loading_check)
+
+        # Check 4: No inference execution
+        if scan_text:
+            if inference_markers:
+                inference_check = IntegrationPreflightCheck(
+                    check_type=IntegrationCheckType.NO_INFERENCE_EXECUTION,
+                    status=IntegrationCheckStatus.FAILED,
+                    message=f"Detected {len(inference_markers)} inference execution markers",
+                    detected_violations=tuple(inference_markers),
+                )
+                critical_violations.extend(inference_markers)
+            else:
+                inference_check = IntegrationPreflightCheck(
+                    check_type=IntegrationCheckType.NO_INFERENCE_EXECUTION,
+                    status=IntegrationCheckStatus.PASSED,
+                    message="No inference execution markers detected",
+                    detected_violations=(),
+                )
+            checks.append(inference_check)
+
+        # Check 5: No training execution
+        if scan_text:
+            if training_markers:
+                training_check = IntegrationPreflightCheck(
+                    check_type=IntegrationCheckType.NO_TRAINING_EXECUTION,
+                    status=IntegrationCheckStatus.FAILED,
+                    message=f"Detected {len(training_markers)} training execution markers",
+                    detected_violations=tuple(training_markers),
+                )
+                critical_violations.extend(training_markers)
+            else:
+                training_check = IntegrationPreflightCheck(
+                    check_type=IntegrationCheckType.NO_TRAINING_EXECUTION,
+                    status=IntegrationCheckStatus.PASSED,
+                    message="No training execution markers detected",
+                    detected_violations=(),
+                )
+            checks.append(training_check)
+
+        # Check 6: Adapter boundaries valid
         is_valid, violations = GovernedT5IntegrationSkeleton.validate_integration_config(config)
         if is_valid:
             boundary_check = IntegrationPreflightCheck(
@@ -667,7 +794,7 @@ class GovernedT5IntegrationSkeleton:
             critical_violations.extend(violations)
         checks.append(boundary_check)
 
-        # Check 4: Constitutional constraints
+        # Check 7: Constitutional constraints
         const_check = IntegrationPreflightCheck(
             check_type=IntegrationCheckType.CONSTITUTIONAL_CONSTRAINTS,
             status=IntegrationCheckStatus.PASSED,
@@ -704,16 +831,34 @@ class GovernedT5IntegrationSkeleton:
         Constitutional Law:
             This method creates CONFIRMATION report only.
             It does NOT execute any models, training, or inference.
+            Detection flags reflect whether markers were found in preflight checks.
         """
+        # Determine detection status from preflight violations
+        no_model_loading_detected = True
+        no_training_execution_detected = True
+        no_inference_execution_detected = True
+
+        # Check if any markers were detected in preflight
+        for check in preflight_report.checks:
+            if check.check_type == IntegrationCheckType.NO_MODEL_LOADING:
+                if check.status == IntegrationCheckStatus.FAILED:
+                    no_model_loading_detected = False
+            elif check.check_type == IntegrationCheckType.NO_TRAINING_EXECUTION:
+                if check.status == IntegrationCheckStatus.FAILED:
+                    no_training_execution_detected = False
+            elif check.check_type == IntegrationCheckType.NO_INFERENCE_EXECUTION:
+                if check.status == IntegrationCheckStatus.FAILED:
+                    no_inference_execution_detected = False
+
         return NoExecutionIntegrationReport(
             report_id=f"integration_report_{config.integration_id}",
             integration_config_id=config.integration_id,
             preflight_report=preflight_report,
             dependencies_declared_not_loaded=True,
             boundaries_defined_not_implemented=True,
-            no_model_loading_detected=True,
-            no_training_execution_detected=True,
-            no_inference_execution_detected=True,
+            no_model_loading_detected=no_model_loading_detected,
+            no_training_execution_detected=no_training_execution_detected,
+            no_inference_execution_detected=no_inference_execution_detected,
             integration_contract_valid=preflight_report.all_checks_passed,
         )
 

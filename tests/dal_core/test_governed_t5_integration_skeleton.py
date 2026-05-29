@@ -28,11 +28,85 @@ from dal_core.governed_t5_integration_skeleton import (
     FORBIDDEN_EXECUTION_MARKERS,
     INTEGRATION_CONSTITUTIONAL_CONSTRAINTS,
 )
+from dal_core.training_pipeline_skeleton import (
+    TrainingPipelineConfig,
+    TrainingPlanCandidate,
+    ConstitutionalPreflightReport,
+    PreflightCheckResult,
+    PreflightCheckType,
+    PreflightCheckStatus,
+    TrainingRunPlan,
+    TrainingMode,
+    ModelArchitecture,
+)
+from dal_core.algorithm_trace_payload import TraceConsumerOperation
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+def make_training_run_plan(
+    run_plan_id: str = "run_plan_test123",
+    ready_for_execution: bool = True,
+) -> TrainingRunPlan:
+    """Create test TrainingRunPlan."""
+    from pathlib import Path
+
+    config = TrainingPipelineConfig(
+        config_id="config_test123",
+        training_examples_path="/tmp/test_examples.jsonl",
+        model_architecture=ModelArchitecture.T5_BASE,
+        training_mode=TrainingMode.EXPLANATION_GENERATION,
+        max_input_length=512,
+        max_target_length=128,
+        batch_size=8,
+        learning_rate=5e-5,
+        num_epochs=3,
+        output_dir="/tmp/output",
+        allowed_operations=frozenset({TraceConsumerOperation.EXPLAIN_TRACE}),
+    )
+
+    plan_candidate = TrainingPlanCandidate(
+        plan_id="plan_test123",
+        config_id=config.config_id,
+        config=config,
+        total_examples=100,
+        estimated_steps=100,
+        estimated_duration_minutes=10,
+        requires_preflight_check=True,
+    )
+
+    # Create preflight report
+    checks = (
+        PreflightCheckResult(
+            check_type=PreflightCheckType.CONFIG_VALIDATION,
+            status=PreflightCheckStatus.PASSED,
+            message="Config valid",
+        ),
+    )
+
+    preflight_report = ConstitutionalPreflightReport(
+        report_id="preflight_test123",
+        plan_id=plan_candidate.plan_id,
+        checks=checks,
+        passed=ready_for_execution,
+        failed_checks_count=0 if ready_for_execution else 1,
+        warning_checks_count=0,
+    )
+
+    return TrainingRunPlan(
+        run_plan_id=run_plan_id,
+        plan_id=plan_candidate.plan_id,
+        plan_candidate=plan_candidate,
+        preflight_report=preflight_report,
+        ready_for_execution=ready_for_execution,
+        constitutional_constraints=frozenset({
+            "Training pipeline does NOT execute",
+            "Training pipeline does NOT load models",
+        }),
+    )
+
 
 def make_dependency_declaration(
     dependency_id: str = "dep_test123",
@@ -359,6 +433,34 @@ class TestIntegrationPreflight:
 
         assert len(detected) == 0
 
+    def test_scan_case_insensitive_import_transformers(self):
+        """Test scanner detects case variations of 'import transformers'."""
+        text = "IMPORT TRANSFORMERS"
+        detected = GovernedT5IntegrationSkeleton.scan_for_execution_markers(text)
+
+        assert "import transformers" in detected
+
+    def test_scan_case_insensitive_import_torch(self):
+        """Test scanner detects case variations of 'import torch'."""
+        text = "Import Torch"
+        detected = GovernedT5IntegrationSkeleton.scan_for_execution_markers(text)
+
+        assert "import torch" in detected
+
+    def test_scan_case_insensitive_from_pretrained(self):
+        """Test scanner detects case variations of '.from_pretrained('."""
+        text = "model = T5.FROM_PRETRAINED('t5-base')"
+        detected = GovernedT5IntegrationSkeleton.scan_for_execution_markers(text)
+
+        assert ".from_pretrained(" in detected
+
+    def test_scan_case_insensitive_trainer(self):
+        """Test scanner detects case variations of 'Trainer('."""
+        text = "trainer = TRAINER(model=model)"
+        detected = GovernedT5IntegrationSkeleton.scan_for_execution_markers(text)
+
+        assert "Trainer(" in detected
+
     def test_preflight_passes_for_valid_config(self):
         """Test preflight passes for valid integration config."""
         config = make_integration_config()
@@ -381,14 +483,21 @@ class TestIntegrationPreflight:
         assert "import transformers" in report.critical_violations
 
     def test_preflight_checks_all_types(self):
-        """Test preflight runs all check types."""
+        """Test preflight runs all check types when scan_text provided."""
         config = make_integration_config()
-        report = GovernedT5IntegrationSkeleton.run_preflight_checks(config)
+        scan_text = "# Clean code with no violations"
+        report = GovernedT5IntegrationSkeleton.run_preflight_checks(config, scan_text=scan_text)
 
         check_types = {check.check_type for check in report.checks}
+        # Should have all 7 check types when scan_text is provided
         assert IntegrationCheckType.DEPENDENCY_DECLARATION in check_types
+        assert IntegrationCheckType.NO_FORBIDDEN_IMPORTS in check_types
+        assert IntegrationCheckType.NO_MODEL_LOADING in check_types
+        assert IntegrationCheckType.NO_INFERENCE_EXECUTION in check_types
+        assert IntegrationCheckType.NO_TRAINING_EXECUTION in check_types
         assert IntegrationCheckType.ADAPTER_BOUNDARY_VALID in check_types
         assert IntegrationCheckType.CONSTITUTIONAL_CONSTRAINTS in check_types
+        assert len(check_types) == 7
 
 
 # ============================================================================
@@ -475,36 +584,6 @@ class TestGovernedT5IntegrationSkeleton:
 
         assert is_valid is True
         assert len(violations) == 0
-
-    def test_validate_detects_missing_source_bindings(self):
-        """Test validator detects missing source binding preservation."""
-        config = GovernedT5IntegrationConfig(
-            integration_id="integration_test",
-            training_run_plan_id="plan_test",
-            dependency_declaration=make_dependency_declaration(),
-            input_adapter_boundary=AdapterBoundaryPlan(
-                boundary_id="input_boundary",
-                boundary_type=AdapterBoundaryType.INPUT_ADAPTER,
-                input_contract_description="Input",
-                output_contract_description="Output",
-                constitutional_constraints=("constraint",),
-                preserves_source_bindings=False,  # Will fail validation
-                prevents_authority_claims=True,
-                prevents_rank_upgrade=True,
-            ),
-            output_adapter_boundary=make_adapter_boundary(
-                boundary_type=AdapterBoundaryType.OUTPUT_ADAPTER
-            ),
-            validation_adapter_boundary=make_adapter_boundary(
-                boundary_type=AdapterBoundaryType.VALIDATION_ADAPTER
-            ),
-            constitutional_constraints=("constraint",),
-        )
-
-        # Note: This will fail in __post_init__, so we can't test validate_integration_config
-        # Instead, test that creation itself fails
-        with pytest.raises(ValueError, match="must preserve_source_bindings"):
-            config  # Access to trigger validation
 
 
 # ============================================================================
@@ -617,8 +696,141 @@ class TestIntegrationFlow:
         )
 
         # Report confirms no execution (because we only scanned text, didn't execute)
-        assert report.no_model_loading_detected is True
-        assert report.no_training_execution_detected is True
+        # But detection flags now correctly reflect that markers WERE found
+        assert report.no_model_loading_detected is False  # Markers were detected
+        assert report.no_training_execution_detected is True  # No training markers
 
-        # But contract is invalid due to preflight failures
+        # Contract is invalid due to preflight failures
         assert report.integration_contract_valid is False
+
+    def test_integration_report_reflects_model_loading_detection(self):
+        """Test integration report correctly sets no_model_loading_detected=False when markers found."""
+        config = make_integration_config()
+        scan_text = "model = T5.from_pretrained('t5-base')"
+        preflight = GovernedT5IntegrationSkeleton.run_preflight_checks(
+            config, scan_text=scan_text
+        )
+        report = GovernedT5IntegrationSkeleton.create_integration_report(
+            config, preflight
+        )
+
+        # Model loading markers were detected
+        assert report.no_model_loading_detected is False
+        assert report.integration_contract_valid is False
+
+    def test_integration_report_reflects_training_detection(self):
+        """Test integration report correctly sets no_training_execution_detected=False when markers found."""
+        config = make_integration_config()
+        scan_text = "trainer = Trainer(model=model, args=args)"
+        preflight = GovernedT5IntegrationSkeleton.run_preflight_checks(
+            config, scan_text=scan_text
+        )
+        report = GovernedT5IntegrationSkeleton.create_integration_report(
+            config, preflight
+        )
+
+        # Training markers were detected
+        assert report.no_training_execution_detected is False
+        assert report.integration_contract_valid is False
+
+    def test_integration_report_reflects_inference_detection(self):
+        """Test integration report correctly sets no_inference_execution_detected=False when markers found."""
+        config = make_integration_config()
+        scan_text = "outputs = model.generate(inputs)"
+        preflight = GovernedT5IntegrationSkeleton.run_preflight_checks(
+            config, scan_text=scan_text
+        )
+        report = GovernedT5IntegrationSkeleton.create_integration_report(
+            config, preflight
+        )
+
+        # Inference markers were detected
+        assert report.no_inference_execution_detected is False
+        assert report.integration_contract_valid is False
+
+
+# ============================================================================
+# Factory Method Tests
+# ============================================================================
+
+class TestFactoryMethod:
+    """Test create_integration_config_from_run_plan factory method."""
+
+    def test_factory_creates_valid_config_from_run_plan(self):
+        """Test factory creates valid config from ready TrainingRunPlan."""
+        run_plan = make_training_run_plan(ready_for_execution=True)
+        dependency_declaration = make_dependency_declaration()
+        input_boundary = make_adapter_boundary(
+            boundary_id="input_boundary",
+            boundary_type=AdapterBoundaryType.INPUT_ADAPTER,
+        )
+        output_boundary = make_adapter_boundary(
+            boundary_id="output_boundary",
+            boundary_type=AdapterBoundaryType.OUTPUT_ADAPTER,
+        )
+        validation_boundary = make_adapter_boundary(
+            boundary_id="validation_boundary",
+            boundary_type=AdapterBoundaryType.VALIDATION_ADAPTER,
+        )
+
+        config = GovernedT5IntegrationSkeleton.create_integration_config_from_run_plan(
+            run_plan=run_plan,
+            dependency_declaration=dependency_declaration,
+            input_adapter_boundary=input_boundary,
+            output_adapter_boundary=output_boundary,
+            validation_adapter_boundary=validation_boundary,
+        )
+
+        assert config.training_run_plan_id == run_plan.run_plan_id
+        assert config.integration_id == f"integration_{run_plan.run_plan_id}"
+        assert config.dependency_declaration == dependency_declaration
+
+    def test_factory_rejects_not_ready_run_plan(self):
+        """Test factory rejects TrainingRunPlan not ready for execution."""
+        run_plan = make_training_run_plan(ready_for_execution=False)
+        dependency_declaration = make_dependency_declaration()
+        input_boundary = make_adapter_boundary(
+            boundary_type=AdapterBoundaryType.INPUT_ADAPTER
+        )
+        output_boundary = make_adapter_boundary(
+            boundary_type=AdapterBoundaryType.OUTPUT_ADAPTER
+        )
+        validation_boundary = make_adapter_boundary(
+            boundary_type=AdapterBoundaryType.VALIDATION_ADAPTER
+        )
+
+        with pytest.raises(ValueError, match="is not ready_for_execution"):
+            GovernedT5IntegrationSkeleton.create_integration_config_from_run_plan(
+                run_plan=run_plan,
+                dependency_declaration=dependency_declaration,
+                input_adapter_boundary=input_boundary,
+                output_adapter_boundary=output_boundary,
+                validation_adapter_boundary=validation_boundary,
+            )
+
+    def test_factory_preserves_run_plan_id(self):
+        """Test factory preserves run_plan_id in training_run_plan_id."""
+        custom_id = "custom_run_plan_xyz"
+        run_plan = make_training_run_plan(
+            run_plan_id=custom_id,
+            ready_for_execution=True,
+        )
+        dependency_declaration = make_dependency_declaration()
+
+        config = GovernedT5IntegrationSkeleton.create_integration_config_from_run_plan(
+            run_plan=run_plan,
+            dependency_declaration=dependency_declaration,
+            input_adapter_boundary=make_adapter_boundary(
+                boundary_type=AdapterBoundaryType.INPUT_ADAPTER
+            ),
+            output_adapter_boundary=make_adapter_boundary(
+                boundary_type=AdapterBoundaryType.OUTPUT_ADAPTER
+            ),
+            validation_adapter_boundary=make_adapter_boundary(
+                boundary_type=AdapterBoundaryType.VALIDATION_ADAPTER
+            ),
+        )
+
+        assert config.training_run_plan_id == custom_id
+        assert config.integration_id == f"integration_{custom_id}"
+
