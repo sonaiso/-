@@ -398,8 +398,8 @@ class TestConstitutionalPreflightCheck:
             assert len(binding_check) == 1
             assert binding_check[0].status == PreflightCheckStatus.FAILED
 
-    def test_preflight_warns_about_forbidden_phrases(self):
-        """Test preflight warns about forbidden authority phrases."""
+    def test_preflight_fails_on_forbidden_phrases(self):
+        """Test preflight fails on forbidden authority phrases (not just warning)."""
         with TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
             training_file = tmpdir_path / "examples.jsonl"
@@ -420,16 +420,84 @@ class TestConstitutionalPreflightCheck:
 
             preflight = TrainingPipelineSkeleton.run_preflight_checks(plan, examples)
 
-            # Should have warning (not failure) since this is sample check
-            assert preflight.warning_checks_count >= 1
+            # Should FAIL (not just warn) - forbidden phrases are boundary violations
+            assert preflight.passed is False
+            assert preflight.failed_checks_count >= 1
 
-            # Check for NO_FORBIDDEN_PHRASES warning
+            # Check for NO_FORBIDDEN_PHRASES failure
             phrase_check = [
                 c for c in preflight.checks
                 if c.check_type == PreflightCheckType.NO_FORBIDDEN_PHRASES
             ]
             assert len(phrase_check) == 1
-            assert phrase_check[0].status == PreflightCheckStatus.WARNING
+            assert phrase_check[0].status == PreflightCheckStatus.FAILED
+
+    def test_preflight_checks_all_examples_for_forbidden_phrases(self):
+        """Test preflight checks ALL examples, not just first 10."""
+        with TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            training_file = tmpdir_path / "examples.jsonl"
+            training_file.write_text("", encoding="utf-8")
+
+            config = make_training_config(
+                training_examples_path=str(training_file),
+                output_dir=str(tmpdir_path / "output"),
+            )
+
+            # Create 15 examples with forbidden phrase in example #12
+            examples = []
+            for i in range(15):
+                if i == 11:  # 12th example (index 11)
+                    example = make_training_example(
+                        example_id=f"ex_{i}",
+                        target_text="The final_answer is that this is correct"
+                    )
+                else:
+                    example = make_training_example(example_id=f"ex_{i}")
+                examples.append(example)
+
+            examples = tuple(examples)
+            plan = TrainingPipelineSkeleton.create_training_plan(config, examples)
+
+            preflight = TrainingPipelineSkeleton.run_preflight_checks(plan, examples)
+
+            # Should FAIL because example #12 has forbidden phrase (beyond first 10)
+            assert preflight.passed is False
+            assert preflight.failed_checks_count >= 1
+
+            # Check for NO_FORBIDDEN_PHRASES failure
+            phrase_check = [
+                c for c in preflight.checks
+                if c.check_type == PreflightCheckType.NO_FORBIDDEN_PHRASES
+            ]
+            assert len(phrase_check) == 1
+            assert phrase_check[0].status == PreflightCheckStatus.FAILED
+
+    def test_preflight_does_not_create_output_directory(self):
+        """Test preflight checks directory writability without creating it."""
+        with TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            training_file = tmpdir_path / "examples.jsonl"
+            training_file.write_text("", encoding="utf-8")
+
+            # Use non-existent output directory
+            output_dir = tmpdir_path / "nonexistent_output"
+            assert not output_dir.exists()  # Verify it doesn't exist before
+
+            config = make_training_config(
+                training_examples_path=str(training_file),
+                output_dir=str(output_dir),
+            )
+            examples = tuple(make_training_example(f"ex_{i}") for i in range(10))
+            plan = TrainingPipelineSkeleton.create_training_plan(config, examples)
+
+            preflight = TrainingPipelineSkeleton.run_preflight_checks(plan, examples)
+
+            # Preflight should pass (parent directory exists and is writable)
+            assert preflight.passed is True
+
+            # CRITICAL: Output directory should still NOT exist after preflight
+            assert not output_dir.exists(), "Preflight must NOT create output directory"
 
 
 # ============================================================================
