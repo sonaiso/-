@@ -119,7 +119,14 @@ class PreSyntaxMufradVector:
     trace_id: str
     """Trace identifier for witness chain"""
 
+    competitors_count: int
+    """Number of unresolved morphological competitors"""
+
+    composition_readiness: CompositionReadiness
+    """Explicit readiness level for composition"""
+
     # PR #159: Separate linguistic identity from trace provenance
+    # (default values to maintain backward compatibility)
     identity_ids: tuple[str, ...] = ()
     """
     Linguistic identity IDs (form, root, pattern, clitic).
@@ -141,12 +148,6 @@ class PreSyntaxMufradVector:
 
     Constitutional law: Text fallback is residual, not full provenance.
     """
-
-    competitors_count: int
-    """Number of unresolved morphological competitors"""
-
-    composition_readiness: CompositionReadiness
-    """Explicit readiness level for composition"""
 
     # =========================================================================
     # Classified mufrad axes (PR-F)
