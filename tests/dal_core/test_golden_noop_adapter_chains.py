@@ -34,11 +34,7 @@ import pytest
 from dataclasses import fields, FrozenInstanceError
 
 # Import golden fixtures
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../fixtures/dal_core'))
-
-from golden_noop_adapter_chains import (
+from tests.fixtures.dal_core.golden_noop_adapter_chains import (
     GoldenNoOpChainFixture,
     make_valid_explanation_chain_fixture,
     make_authority_violation_chain_fixture,
@@ -49,7 +45,7 @@ from golden_noop_adapter_chains import (
     all_golden_noop_chain_fixtures,
 )
 
-from noop_adapter_fixtures import (
+from tests.fixtures.dal_core.noop_adapter_fixtures import (
     NoOpInputAdapter,
     NoOpOutputAdapter,
     NoOpValidationAdapter,
@@ -708,6 +704,51 @@ def test_all_fixtures_have_unique_ids():
 
     # Verify uniqueness
     assert len(fixture_ids) == len(set(fixture_ids))
+
+
+# ============================================================================
+# Test: Fixture Import Hygiene (PR #156)
+# ============================================================================
+
+def test_fixture_files_do_not_modify_sys_path():
+    """
+    Verify fixture files do NOT modify sys.path.
+
+    Constitutional Requirement (PR #156):
+        Fixture imports MUST use package paths, NOT sys.path mutation.
+    """
+    import golden_noop_adapter_chains
+    import noop_adapter_fixtures
+
+    # Read source files
+    import inspect
+    golden_source = inspect.getsource(golden_noop_adapter_chains)
+    noop_source = inspect.getsource(noop_adapter_fixtures)
+
+    # Check that sys.path.insert is NOT present in executable code
+    for source, module_name in [(golden_source, "golden_noop_adapter_chains"),
+                                  (noop_source, "noop_adapter_fixtures")]:
+        lines = source.split('\n')
+        in_docstring = False
+        for line_num, line in enumerate(lines, 1):
+            # Track docstring state
+            if '"""' in line:
+                in_docstring = not in_docstring
+                continue
+            if in_docstring:
+                continue
+
+            # Skip comment lines
+            if line.strip().startswith('#'):
+                continue
+
+            # Check for sys.path.insert in executable code
+            if 'sys.path.insert' in line:
+                pytest.fail(
+                    f"Found sys.path.insert in {module_name}:{line_num}\n"
+                    f"Line: {line}\n"
+                    f"Constitutional Requirement: Fixture imports MUST use package paths"
+                )
 
 
 # ============================================================================

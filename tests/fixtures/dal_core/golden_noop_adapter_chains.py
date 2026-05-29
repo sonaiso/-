@@ -62,10 +62,7 @@ from dal_core.algorithm_trace_payload import TraceConsumerOperation
 from dal_core.trace_explanation_dataset_generator import OutputType, ValidationStatus
 
 # Import chain registry types from noop adapter fixtures
-import sys
-import os
-sys.path.insert(0, os.path.dirname(__file__))
-from noop_adapter_fixtures import (
+from tests.fixtures.dal_core.noop_adapter_fixtures import (
     AdapterChainLink,
     AdapterChainRegistry,
     NoOpInputAdapter,
