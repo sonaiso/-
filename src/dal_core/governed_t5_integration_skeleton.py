@@ -716,7 +716,14 @@ class GovernedT5IntegrationSkeleton:
                     message="No forbidden imports detected",
                     detected_violations=(),
                 )
-            checks.append(import_check)
+        else:
+            import_check = IntegrationPreflightCheck(
+                check_type=IntegrationCheckType.NO_FORBIDDEN_IMPORTS,
+                status=IntegrationCheckStatus.PASSED,
+                message="No scan text provided; declaration-only preflight",
+                detected_violations=(),
+            )
+        checks.append(import_check)
 
         # Check 3: No model loading
         if scan_text:
@@ -735,7 +742,14 @@ class GovernedT5IntegrationSkeleton:
                     message="No model loading markers detected",
                     detected_violations=(),
                 )
-            checks.append(loading_check)
+        else:
+            loading_check = IntegrationPreflightCheck(
+                check_type=IntegrationCheckType.NO_MODEL_LOADING,
+                status=IntegrationCheckStatus.PASSED,
+                message="No scan text provided; declaration-only preflight",
+                detected_violations=(),
+            )
+        checks.append(loading_check)
 
         # Check 4: No inference execution
         if scan_text:
@@ -754,7 +768,14 @@ class GovernedT5IntegrationSkeleton:
                     message="No inference execution markers detected",
                     detected_violations=(),
                 )
-            checks.append(inference_check)
+        else:
+            inference_check = IntegrationPreflightCheck(
+                check_type=IntegrationCheckType.NO_INFERENCE_EXECUTION,
+                status=IntegrationCheckStatus.PASSED,
+                message="No scan text provided; declaration-only preflight",
+                detected_violations=(),
+            )
+        checks.append(inference_check)
 
         # Check 5: No training execution
         if scan_text:
@@ -773,7 +794,14 @@ class GovernedT5IntegrationSkeleton:
                     message="No training execution markers detected",
                     detected_violations=(),
                 )
-            checks.append(training_check)
+        else:
+            training_check = IntegrationPreflightCheck(
+                check_type=IntegrationCheckType.NO_TRAINING_EXECUTION,
+                status=IntegrationCheckStatus.PASSED,
+                message="No scan text provided; declaration-only preflight",
+                detected_violations=(),
+            )
+        checks.append(training_check)
 
         # Check 6: Adapter boundaries valid
         is_valid, violations = GovernedT5IntegrationSkeleton.validate_integration_config(config)

@@ -483,7 +483,7 @@ class TestIntegrationPreflight:
         assert "import transformers" in report.critical_violations
 
     def test_preflight_checks_all_types(self):
-        """Test preflight runs all check types when scan_text provided."""
+        """Test preflight runs all check types (with scan_text)."""
         config = make_integration_config()
         scan_text = "# Clean code with no violations"
         report = GovernedT5IntegrationSkeleton.run_preflight_checks(config, scan_text=scan_text)
@@ -498,6 +498,33 @@ class TestIntegrationPreflight:
         assert IntegrationCheckType.ADAPTER_BOUNDARY_VALID in check_types
         assert IntegrationCheckType.CONSTITUTIONAL_CONSTRAINTS in check_types
         assert len(check_types) == 7
+
+    def test_preflight_checks_all_types_without_scan_text(self):
+        """Test preflight runs all check types even without scan_text."""
+        config = make_integration_config()
+        report = GovernedT5IntegrationSkeleton.run_preflight_checks(config, scan_text=None)
+
+        check_types = {check.check_type for check in report.checks}
+        # Should have all 7 check types even without scan_text
+        assert IntegrationCheckType.DEPENDENCY_DECLARATION in check_types
+        assert IntegrationCheckType.NO_FORBIDDEN_IMPORTS in check_types
+        assert IntegrationCheckType.NO_MODEL_LOADING in check_types
+        assert IntegrationCheckType.NO_INFERENCE_EXECUTION in check_types
+        assert IntegrationCheckType.NO_TRAINING_EXECUTION in check_types
+        assert IntegrationCheckType.ADAPTER_BOUNDARY_VALID in check_types
+        assert IntegrationCheckType.CONSTITUTIONAL_CONSTRAINTS in check_types
+        assert len(check_types) == 7
+
+        # Execution-scan checks should be PASSED with declaration-only message
+        for check in report.checks:
+            if check.check_type in (
+                IntegrationCheckType.NO_FORBIDDEN_IMPORTS,
+                IntegrationCheckType.NO_MODEL_LOADING,
+                IntegrationCheckType.NO_INFERENCE_EXECUTION,
+                IntegrationCheckType.NO_TRAINING_EXECUTION,
+            ):
+                assert check.status == IntegrationCheckStatus.PASSED
+                assert "declaration-only preflight" in check.message
 
 
 # ============================================================================
