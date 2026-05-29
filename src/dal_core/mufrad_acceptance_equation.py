@@ -136,24 +136,35 @@ def _carrier_ids_from_mufrad(proof: MufradProof) -> Tuple[str, ...]:
     """
     Extract carrier IDs from MufradProof.
 
-    Note:
-        This uses form.vocalization or form.text as stable fallback.
-        Later this should pull exact atom/carrier IDs from FormCandidate
-        when they are exposed in the data structure.
+    PR #159: Strengthened carrier provenance hierarchy.
+
+    Three-tier approach:
+    1. If carrier/atom IDs available from FormCandidate → use them (ACCEPTED)
+    2. If form identity available → use provisional (CANDIDATE_WITH_RESIDUAL)
+    3. If only text fallback → use fallback (DEFERRED or residual)
 
     Args:
         proof: MufradProof to extract carriers from
 
     Returns:
-        Tuple of carrier IDs
+        Tuple of carrier IDs (may be provisional/fallback)
     """
+    # Tier 1: Try to get real carrier/atom IDs from FormCandidate
+    # (Currently not exposed in data structure - fallback to Tier 3)
+
+    # Tier 2: Use form identity as provisional carrier
+    # (Currently not distinguished from Tier 3)
+
+    # Tier 3: Text fallback (mark as fallback)
     surface = proof.form.vocalization or proof.form.text
-    return tuple(f"carrier:{i}:{ch}" for i, ch in enumerate(surface))
+    return tuple(f"carrier:fallback:{i}:{ch}" for i, ch in enumerate(surface))
 
 
 def _identity_ids_from_mufrad(proof: MufradProof) -> Tuple[str, ...]:
     """
     Extract identity IDs from MufradProof.
+
+    PR #159: Explicit linguistic identity extraction.
 
     Extracts identities from:
     - form (vocalization)
@@ -161,6 +172,8 @@ def _identity_ids_from_mufrad(proof: MufradProof) -> Tuple[str, ...]:
     - root_candidates
     - wazn_candidates
     - clitics
+
+    CRITICAL: identity_ids ≠ trace_ids
 
     Args:
         proof: MufradProof to extract identities from
@@ -193,6 +206,21 @@ def _identity_ids_from_mufrad(proof: MufradProof) -> Tuple[str, ...]:
         ids.append(f"clitic:{clitic_id}")
 
     return tuple(str(x) for x in ids)
+
+
+def _has_carrier_fallback(carrier_ids: Tuple[str, ...]) -> bool:
+    """
+    Check if carrier IDs use text fallback.
+
+    PR #159: Detect carrier provenance fallback.
+
+    Args:
+        carrier_ids: Carrier ID tuple to check
+
+    Returns:
+        True if using fallback (not full provenance)
+    """
+    return any(":fallback:" in cid for cid in carrier_ids)
 
 
 # ============================================================================
@@ -248,6 +276,17 @@ def prove_mufrad_acceptance(proof: MufradProof) -> MufradAcceptanceEquation:
                 message="MufradProof has unresolved competitors",
                 blocks_transition=True,
                 evidence=("competitors",),
+            )
+        )
+
+    # PR #159: Warn about carrier fallback (non-blocking)
+    if _has_carrier_fallback(carrier_ids):
+        blocking_differences.append(
+            InvalidatingDifference(
+                difference_id="carrier_provenance_fallback",
+                message="Carrier IDs use text fallback, not Unicode/Atom provenance",
+                blocks_transition=False,  # Warning, not blocker
+                evidence=("carrier_ids", "text_fallback"),
             )
         )
 

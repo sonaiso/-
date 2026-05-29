@@ -31,6 +31,8 @@ Reference:
     PR: Bridge Arabic Composition Chain
     Builds on: PreSyntaxVector, CaseSignPotential
 
+PR #159: Strengthened factor source (no bare string)
+
 Created: 2026-05-29
 """
 
@@ -42,6 +44,7 @@ from typing import Optional
 
 from dal_core.presyntax_vector import PreSyntaxMufradVector
 from dal_core.case_signs import CaseSignPotential
+from dal_core.ranks import LughaRank
 from dal_core.transition_proof_kernel import (
     EffectiveDescription,
     IdentityNeutralCheck,
@@ -49,6 +52,58 @@ from dal_core.transition_proof_kernel import (
     QiyasProof,
     TransitionProof,
 )
+
+
+# ============================================================================
+# Factor Source (PR #159)
+# ============================================================================
+
+class FactorSourceKind(Enum):
+    """
+    نوع مصدر العامل (Factor Source Kind)
+
+    Classification of where the factor candidate originates.
+    """
+    RELATION_CANDIDATE = "relation_candidate"
+    """Factor from RelationCandidate (ISNAD/TADMIN/TAQYID)"""
+
+    OPERATOR_CANDIDATE = "operator_candidate"
+    """Factor from NahwOperatorCandidate"""
+
+    ANCHOR = "anchor"
+    """Factor from algebraic Anchor"""
+
+    PREPOSITION = "preposition"
+    """Factor from preposition/particle"""
+
+
+@dataclass(frozen=True)
+class FactorSourceCandidate:
+    """
+    مرشح مصدر العامل (Factor Source Candidate)
+
+    PR #159: Structured factor source (NOT bare string).
+
+    Constitutional Law:
+        Factor must be preserved as structured candidate with:
+        - source_id (unique identifier)
+        - source_kind (classification)
+        - identity_ids (linguistic identities)
+        - trace_ids (provenance)
+        - rank (authority level)
+
+    Fields:
+        source_id: Unique identifier of factor source
+        source_kind: Kind of factor source
+        identity_ids: Linguistic identity IDs
+        trace_ids: Provenance trace IDs
+        rank: Rank of factor candidate
+    """
+    source_id: str
+    source_kind: FactorSourceKind
+    identity_ids: tuple[str, ...]
+    trace_ids: tuple[str, ...]
+    rank: LughaRank
 
 
 # ============================================================================
@@ -95,9 +150,11 @@ class FactorMarkEquation:
         It does NOT produce case_effect.
         It only establishes the potential relationship.
 
+    PR #159: Factor is structured FactorSourceCandidate, not bare string.
+
     Fields:
         equation_id: Unique identifier
-        factor_trace_id: Trace ID of factor (operator/relation)
+        factor_source: Structured factor source candidate (PR #159)
         affected_trace_id: Trace ID of affected mufrad
         affected_vector: Preserved PreSyntaxMufradVector
         mark_potential: Observed case sign potential (or None if deferred)
@@ -109,7 +166,7 @@ class FactorMarkEquation:
         produces_hukm: Whether produces hukm (ALWAYS False)
     """
     equation_id: str
-    factor_trace_id: str
+    factor_source: FactorSourceCandidate  # PR #159: structured, not string
     affected_trace_id: str
 
     affected_vector: PreSyntaxMufradVector
@@ -131,7 +188,7 @@ class FactorMarkEquation:
 
 def build_factor_mark_equation(
     *,
-    factor_trace_id: str,
+    factor_source: FactorSourceCandidate,  # PR #159: structured, not string
     affected_vector: PreSyntaxMufradVector,
     mark_potential: Optional[CaseSignPotential],
     equation_type: FactorMarkEquationType,
@@ -139,16 +196,18 @@ def build_factor_mark_equation(
     """
     Build factor-mark candidate equation.
 
+    PR #159: Factor is structured FactorSourceCandidate, not bare string.
+
     Constitutional Requirements:
         1. Verify affected_vector allows operator consumption
         2. Build qiyas proof linking factor → affected
-        3. Preserve identities (factor + affected traces)
+        3. Preserve identities (factor + affected)
         4. Check minimal completeness
         5. Build transition proof
         6. NO case_effect production
 
     Args:
-        factor_trace_id: Trace ID of factor (operator/relation)
+        factor_source: Structured factor source candidate (NOT string)
         affected_vector: PreSyntaxMufradVector being affected
         mark_potential: Observed case sign potential (or None)
         equation_type: Type of candidate equation
@@ -160,8 +219,15 @@ def build_factor_mark_equation(
         ValueError: If affected_vector not ready for consumption
 
     Example:
+        >>> factor = FactorSourceCandidate(
+        ...     source_id="rel:123",
+        ...     source_kind=FactorSourceKind.RELATION_CANDIDATE,
+        ...     identity_ids=("form:xyz",),
+        ...     trace_ids=("trace:123",),
+        ...     rank=LughaRank.CANDIDATE
+        ... )
         >>> equation = build_factor_mark_equation(
-        ...     factor_trace_id="trace:operator_123",
+        ...     factor_source=factor,
         ...     affected_vector=presyntax_vector,
         ...     mark_potential=case_sign_potential,
         ...     equation_type=FactorMarkEquationType.RAFʿ_CANDIDATE
@@ -178,7 +244,7 @@ def build_factor_mark_equation(
     effective = EffectiveDescription(
         description_id=f"effective:factor_mark:{affected_trace_id}",
         description_type="factor_mark_candidate_equation",
-        evidence=("PreSyntaxMufradVector", "CaseSignPotential"),
+        evidence=("FactorSourceCandidate", "PreSyntaxMufradVector", "CaseSignPotential"),
     )
 
     qiyas = QiyasProof(
@@ -186,14 +252,18 @@ def build_factor_mark_equation(
         origin_id=f"origin:factor_mark:{equation_type.value}",
         branch_id=affected_trace_id,
         effective_description=effective,
-        shared_cause="operator/factor trace licenses candidate mark relation without producing case effect",
+        shared_cause="factor source candidate licenses potential mark relation without producing case effect",
         invalidating_differences=(),
     )
 
+    # PR #159: Use factor identity_ids + affected identity_ids
+    factor_identity_ids = factor_source.identity_ids
+    affected_identity_ids = affected_vector.identity_ids or (affected_trace_id,)
+
     neutral = IdentityNeutralCheck(
         check_id=f"id_neutral:factor_mark:{affected_trace_id}",
-        input_identity_ids=(factor_trace_id, affected_trace_id),
-        output_identity_ids=(factor_trace_id, affected_trace_id),
+        input_identity_ids=factor_identity_ids + affected_identity_ids,
+        output_identity_ids=factor_identity_ids + affected_identity_ids,
         preserved=True,
     )
 
@@ -206,7 +276,7 @@ def build_factor_mark_equation(
         check_id=f"minimum:factor_mark:{affected_trace_id}",
         target_layer="FACTOR_MARK_EQUATION",
         required_conditions=(
-            "factor_trace_present",
+            "factor_source_structured",  # PR #159
             "affected_trace_present",
             "affected_ready",
             "mark_potential_present_or_deferred",
@@ -216,7 +286,7 @@ def build_factor_mark_equation(
             "no_hukm",
         ),
         satisfied_conditions=(
-            "factor_trace_present",
+            "factor_source_structured",  # PR #159
             "affected_trace_present",
             "affected_ready",
             "no_case_effect",
@@ -228,6 +298,10 @@ def build_factor_mark_equation(
         passed=not missing,
     )
 
+    # PR #159: Combine factor trace_ids + affected trace_ids
+    factor_trace_ids = factor_source.trace_ids
+    affected_trace_ids = (affected_trace_id,)
+
     transition = TransitionProof(
         proof_id=f"transition:factor_mark:{affected_trace_id}",
         source_layer="PRESYNTAX_MUFRAD_VECTOR",
@@ -235,15 +309,15 @@ def build_factor_mark_equation(
         qiyas=qiyas,
         identity_neutral=neutral,
         minimal_completeness=minimum,
-        preserved_trace_ids=(factor_trace_id, affected_trace_id),
+        preserved_trace_ids=factor_trace_ids + affected_trace_ids,
         residual_ids=tuple(str(r) for r in affected_vector.residuals),
         rank_name=affected_vector.final_rank.name if hasattr(affected_vector.final_rank, 'name') else str(affected_vector.final_rank),
     )
 
     # Build and return equation
     return FactorMarkEquation(
-        equation_id=f"factor_mark:{factor_trace_id}:{affected_trace_id}",
-        factor_trace_id=factor_trace_id,
+        equation_id=f"factor_mark:{factor_source.source_id}:{affected_trace_id}",
+        factor_source=factor_source,  # PR #159: structured object
         affected_trace_id=affected_trace_id,
         affected_vector=affected_vector,
         mark_potential=mark_potential,
