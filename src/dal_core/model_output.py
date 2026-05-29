@@ -97,22 +97,24 @@ class ModelOutput:
         """
         Validate ModelOutput constitutional requirements.
 
+        Constitutional Design:
+            ModelOutput is a container for model predictions that may be malformed.
+            The evaluator (ConstitutionalEvaluator) is the guardian that detects violations.
+
+            Therefore:
+            - We validate only structural requirements (non-empty strings for non-binding fields)
+            - We allow empty source_trace_id and source_training_example_id
+            - The evaluator will detect missing bindings as CRITICAL violations
+
         Raises:
-            ValueError: If constitutional requirements are violated
+            ValueError: If structural requirements are violated
         """
-        # Validate required fields
+        # Validate structural fields only (not constitutional bindings)
         if not self.model_output_id:
             raise ValueError("ModelOutput requires model_output_id")
 
-        if not self.source_training_example_id:
-            raise ValueError(
-                "Constitutional violation: ModelOutput MUST preserve source_training_example_id"
-            )
-
-        if not self.source_trace_id:
-            raise ValueError(
-                "Constitutional violation: ModelOutput MUST preserve source_trace_id"
-            )
+        # Note: source_training_example_id and source_trace_id may be empty
+        # ConstitutionalEvaluator will detect missing bindings as violations
 
         if not self.predicted_text:
             raise ValueError("ModelOutput requires predicted_text")

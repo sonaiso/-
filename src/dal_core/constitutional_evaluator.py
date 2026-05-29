@@ -553,50 +553,64 @@ class ConstitutionalEvaluator:
         violations = []
 
         # Extract candidate references from predicted text
-        candidate_pattern = r'candidate[_\s]([a-z0-9]{6,16})'
+        # Pattern matches full ID: "candidate_abc123" or "candidate abc123"
+        candidate_pattern = r'\bcandidate[_\s]([a-z0-9]{6,16})\b'
         found_candidates = set(re.findall(candidate_pattern, predicted_text.lower()))
-        valid_candidates = set(source_example.referenced_candidate_ids)
+        # TrainingExample stores full IDs like "candidate_abc123"
+        # We need to compare the suffix only (abc123) or reconstruct full ID
+        valid_candidate_suffixes = set(
+            cid.replace('candidate_', '').replace('candidate ', '')
+            for cid in source_example.referenced_candidate_ids
+        )
 
-        for candidate_id in found_candidates:
-            if candidate_id not in valid_candidates:
+        for candidate_suffix in found_candidates:
+            if candidate_suffix not in valid_candidate_suffixes:
                 violations.append(
                     ConstitutionalViolation(
                         violation_type=ConstitutionalViolationType.INVENTED_CANDIDATE_REFERENCE,
                         severity=ConstitutionalViolationSeverity.CRITICAL,
-                        message=f"Reference to non-existent candidate: '{candidate_id}'",
-                        detected_reference=candidate_id,
+                        message=f"Reference to non-existent candidate: 'candidate_{candidate_suffix}'",
+                        detected_reference=f"candidate_{candidate_suffix}",
                     )
                 )
 
         # Extract residual references
-        residual_pattern = r'residual[_\s]([a-z0-9]{6,16})'
+        # Pattern matches full ID: "residual_xyz789" or "residual xyz789"
+        residual_pattern = r'\bresidual[_\s]([a-z0-9]{6,16})\b'
         found_residuals = set(re.findall(residual_pattern, predicted_text.lower()))
-        valid_residuals = set(source_example.referenced_residual_ids)
+        valid_residual_suffixes = set(
+            rid.replace('residual_', '').replace('residual ', '')
+            for rid in source_example.referenced_residual_ids
+        )
 
-        for residual_id in found_residuals:
-            if residual_id not in valid_residuals:
+        for residual_suffix in found_residuals:
+            if residual_suffix not in valid_residual_suffixes:
                 violations.append(
                     ConstitutionalViolation(
                         violation_type=ConstitutionalViolationType.INVENTED_RESIDUAL_REFERENCE,
                         severity=ConstitutionalViolationSeverity.CRITICAL,
-                        message=f"Reference to non-existent residual: '{residual_id}'",
-                        detected_reference=residual_id,
+                        message=f"Reference to non-existent residual: 'residual_{residual_suffix}'",
+                        detected_reference=f"residual_{residual_suffix}",
                     )
                 )
 
         # Extract gate references
-        gate_pattern = r'gate[_\s]([a-z0-9]{6,16})'
+        # Pattern matches full ID: "gate_def456" or "gate def456"
+        gate_pattern = r'\bgate[_\s]([a-z0-9]{6,16})\b'
         found_gates = set(re.findall(gate_pattern, predicted_text.lower()))
-        valid_gates = set(source_example.referenced_gate_ids)
+        valid_gate_suffixes = set(
+            gid.replace('gate_', '').replace('gate ', '')
+            for gid in source_example.referenced_gate_ids
+        )
 
-        for gate_id in found_gates:
-            if gate_id not in valid_gates:
+        for gate_suffix in found_gates:
+            if gate_suffix not in valid_gate_suffixes:
                 violations.append(
                     ConstitutionalViolation(
                         violation_type=ConstitutionalViolationType.INVENTED_GATE_REFERENCE,
                         severity=ConstitutionalViolationSeverity.CRITICAL,
-                        message=f"Reference to non-existent gate: '{gate_id}'",
-                        detected_reference=gate_id,
+                        message=f"Reference to non-existent gate: 'gate_{gate_suffix}'",
+                        detected_reference=f"gate_{gate_suffix}",
                     )
                 )
 
