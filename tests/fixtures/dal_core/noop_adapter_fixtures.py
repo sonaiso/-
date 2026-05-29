@@ -66,14 +66,278 @@ from dal_core.training_example import TrainingExample
 from dal_core.model_output import ModelOutput
 from dal_core.governed_t5_integration_skeleton import GovernedT5IntegrationConfig
 
-from dataclasses import fields
-from typing import Tuple
+from dataclasses import dataclass, fields
+from typing import Tuple, Optional, Dict
+
+
+# ============================================================================
+# Adapter Chain Registry (Source Binding Preservation)
+# ============================================================================
+
+@dataclass(frozen=True)
+class AdapterChainLink:
+    """
+    Immutable link in adapter transformation chain.
+
+    Constitutional Requirements:
+        - Preserves source_trace_id through transformation
+        - Preserves source_training_example_id through transformation
+        - Records transformation steps for audit trail
+        - Does NOT execute transformations (only records bindings)
+
+    Fields:
+        link_id: Unique identifier for this chain link
+        source_training_example_id: Original TrainingExample ID
+        source_trace_id: Original trace ID
+        adapter_input_id: Optional AdapterInput ID (if input prepared)
+        adapter_output_id: Optional AdapterRawOutput ID (if output generated)
+        model_output_id: Optional ModelOutput ID (if output parsed)
+        transformation_steps: Tuple of transformation step names
+    """
+    link_id: str
+    source_training_example_id: str
+    source_trace_id: str
+    adapter_input_id: Optional[str] = None
+    adapter_output_id: Optional[str] = None
+    model_output_id: Optional[str] = None
+    transformation_steps: Tuple[str, ...] = ()
+
+    def __post_init__(self):
+        """Validate chain link requirements."""
+        if not self.link_id:
+            raise ValueError("AdapterChainLink requires link_id")
+        if not self.source_training_example_id:
+            raise ValueError("AdapterChainLink requires source_training_example_id")
+        if not self.source_trace_id:
+            raise ValueError("AdapterChainLink requires source_trace_id")
+
+
+@dataclass(frozen=True)
+class AdapterChainRegistry:
+    """
+    Immutable registry of adapter transformation chains.
+
+    Constitutional Requirements:
+        - Maintains audit trail of transformations
+        - Preserves source bindings through chain
+        - Enables verification of binding preservation
+        - Does NOT modify transformations (read-only registry)
+
+    Constitutional Formula:
+        TrainingExample → AdapterInput → AdapterRawOutput → ModelOutput
+        (all steps recorded with preserved bindings)
+
+    Fields:
+        registry_id: Unique registry identifier
+        chains: Tuple of registered chain links
+    """
+    registry_id: str
+    chains: Tuple[AdapterChainLink, ...] = ()
+
+    def __post_init__(self):
+        """Validate registry requirements."""
+        if not self.registry_id:
+            raise ValueError("AdapterChainRegistry requires registry_id")
+
+    def with_chain(self, chain: AdapterChainLink) -> "AdapterChainRegistry":
+        """
+        Create new registry with added chain link.
+
+        Args:
+            chain: AdapterChainLink to add
+
+        Returns:
+            New AdapterChainRegistry with added chain (immutable operation)
+        """
+        return AdapterChainRegistry(
+            registry_id=self.registry_id,
+            chains=self.chains + (chain,)
+        )
+
+    def find_by_trace_id(self, source_trace_id: str) -> Tuple[AdapterChainLink, ...]:
+        """
+        Find all chains by source_trace_id.
+
+        Args:
+            source_trace_id: Trace ID to search for
+
+        Returns:
+            Tuple of matching chain links
+        """
+        return tuple(
+            chain for chain in self.chains
+            if chain.source_trace_id == source_trace_id
+        )
+
+    def find_by_training_example_id(
+        self,
+        source_training_example_id: str
+    ) -> Tuple[AdapterChainLink, ...]:
+        """
+        Find all chains by source_training_example_id.
+
+        Args:
+            source_training_example_id: TrainingExample ID to search for
+
+        Returns:
+            Tuple of matching chain links
+        """
+        return tuple(
+            chain for chain in self.chains
+            if chain.source_training_example_id == source_training_example_id
+        )
+
+    def verify_binding_preservation(self, chain_link: AdapterChainLink) -> bool:
+        """
+        Verify that chain link preserves source bindings.
+
+        Args:
+            chain_link: Chain link to verify
+
+        Returns:
+            True if bindings preserved, False otherwise
+        """
+        # Verify required fields present
+        if not chain_link.source_training_example_id:
+            return False
+        if not chain_link.source_trace_id:
+            return False
+
+        # Bindings preserved if both required fields present
+        return True
+
+
+def create_adapter_chain_registry(registry_id: str = "default_registry") -> AdapterChainRegistry:
+    """
+    Create new adapter chain registry.
+
+    Args:
+        registry_id: Unique registry identifier
+
+    Returns:
+        AdapterChainRegistry instance (empty, immutable)
+    """
+    return AdapterChainRegistry(registry_id=registry_id)
+
+
+def create_chain_link_from_training_example(
+    training_example: TrainingExample,
+    link_id: str,
+) -> AdapterChainLink:
+    """
+    Create chain link from TrainingExample (start of chain).
+
+    Args:
+        training_example: TrainingExample to create link from
+        link_id: Unique link identifier
+
+    Returns:
+        AdapterChainLink with source bindings from TrainingExample
+    """
+    return AdapterChainLink(
+        link_id=link_id,
+        source_training_example_id=training_example.training_example_id,
+        source_trace_id=training_example.source_trace_id,
+        transformation_steps=("training_example_created",),
+    )
+
+
+def add_adapter_input_to_chain(
+    chain: AdapterChainLink,
+    adapter_input: AdapterInput,
+) -> AdapterChainLink:
+    """
+    Add AdapterInput to chain link (next step in chain).
+
+    Args:
+        chain: Existing chain link
+        adapter_input: AdapterInput to add
+
+    Returns:
+        New AdapterChainLink with adapter_input_id added (immutable operation)
+    """
+    # Verify binding preservation
+    if adapter_input.source_training_example_id != chain.source_training_example_id:
+        raise ValueError("AdapterInput lost source_training_example_id binding")
+    if adapter_input.source_trace_id != chain.source_trace_id:
+        raise ValueError("AdapterInput lost source_trace_id binding")
+
+    return AdapterChainLink(
+        link_id=chain.link_id,
+        source_training_example_id=chain.source_training_example_id,
+        source_trace_id=chain.source_trace_id,
+        adapter_input_id=adapter_input.adapter_input_id,
+        adapter_output_id=chain.adapter_output_id,
+        model_output_id=chain.model_output_id,
+        transformation_steps=chain.transformation_steps + ("adapter_input_prepared",),
+    )
+
+
+def add_adapter_output_to_chain(
+    chain: AdapterChainLink,
+    adapter_raw_output: AdapterRawOutput,
+) -> AdapterChainLink:
+    """
+    Add AdapterRawOutput to chain link (next step in chain).
+
+    Args:
+        chain: Existing chain link
+        adapter_raw_output: AdapterRawOutput to add
+
+    Returns:
+        New AdapterChainLink with adapter_output_id added (immutable operation)
+    """
+    # Verify link to adapter_input
+    if chain.adapter_input_id != adapter_raw_output.source_adapter_input_id:
+        raise ValueError("AdapterRawOutput does not reference correct AdapterInput")
+
+    return AdapterChainLink(
+        link_id=chain.link_id,
+        source_training_example_id=chain.source_training_example_id,
+        source_trace_id=chain.source_trace_id,
+        adapter_input_id=chain.adapter_input_id,
+        adapter_output_id=adapter_raw_output.adapter_output_id,
+        model_output_id=chain.model_output_id,
+        transformation_steps=chain.transformation_steps + ("adapter_raw_output_generated",),
+    )
+
+
+def add_model_output_to_chain(
+    chain: AdapterChainLink,
+    model_output: ModelOutput,
+) -> AdapterChainLink:
+    """
+    Add ModelOutput to chain link (final step in chain).
+
+    Args:
+        chain: Existing chain link
+        model_output: ModelOutput to add
+
+    Returns:
+        New AdapterChainLink with model_output_id added (immutable operation)
+    """
+    # Verify binding preservation
+    if model_output.source_training_example_id != chain.source_training_example_id:
+        raise ValueError("ModelOutput lost source_training_example_id binding")
+    if model_output.source_trace_id != chain.source_trace_id:
+        raise ValueError("ModelOutput lost source_trace_id binding")
+
+    return AdapterChainLink(
+        link_id=chain.link_id,
+        source_training_example_id=chain.source_training_example_id,
+        source_trace_id=chain.source_trace_id,
+        adapter_input_id=chain.adapter_input_id,
+        adapter_output_id=chain.adapter_output_id,
+        model_output_id=model_output.model_output_id,
+        transformation_steps=chain.transformation_steps + ("model_output_parsed",),
+    )
 
 
 # ============================================================================
 # NoOpInputAdapter (Fixture Only)
 # ============================================================================
 
+@dataclass(frozen=True)
 class NoOpInputAdapter:
     """
     No-op input adapter (TEST FIXTURE ONLY).
@@ -85,12 +349,14 @@ class NoOpInputAdapter:
         - Does NOT create tensors
         - Preserves source bindings
         - Is identity-like transformation (minimal formatting)
+        - Is IMMUTABLE (frozen dataclass, no mutable state)
 
     Forbidden Operations:
         ❌ tokenize(): Does NOT tokenize
         ❌ encode(): Does NOT encode
         ❌ to_tensor(): Does NOT create tensors
         ❌ load_model(): Does NOT load models
+        ❌ Mutable state: Does NOT have mutable attributes
 
     Permitted Operations:
         ✅ prepare_input(): Format abstract text (no tokenization)
@@ -99,17 +365,14 @@ class NoOpInputAdapter:
     Supreme Law:
         NoOpInputAdapter is TEST FIXTURE proving contract implementability.
         NoOpInputAdapter is NOT production T5 implementation.
+        NoOpInputAdapter is STATELESS (immutable, no side effects).
+
+    Fields:
+        adapter_name: Immutable adapter name
+        version: Immutable version string
     """
-
-    def __init__(self):
-        """
-        Initialize no-op input adapter.
-
-        Constitutional Note:
-            No model loading, no tokenizer initialization.
-        """
-        self.adapter_name = "NoOpInputAdapter"
-        self.version = "fixture_1.0"
+    adapter_name: str = "NoOpInputAdapter"
+    version: str = "fixture_1.0"
 
     def prepare_input(self, training_example: TrainingExample) -> AdapterInput:
         """
@@ -215,6 +478,7 @@ class NoOpInputAdapter:
 # NoOpOutputAdapter (Fixture Only)
 # ============================================================================
 
+@dataclass(frozen=True)
 class NoOpOutputAdapter:
     """
     No-op output adapter (TEST FIXTURE ONLY).
@@ -226,12 +490,14 @@ class NoOpOutputAdapter:
         - Does NOT execute inference
         - Preserves source bindings
         - Is identity-like transformation (minimal parsing)
+        - Is IMMUTABLE (frozen dataclass, no mutable state)
 
     Forbidden Operations:
         ❌ model.generate(): Does NOT generate
         ❌ decode_tensor(): Does NOT decode tensors
         ❌ load_model(): Does NOT load models
         ❌ upgrade_rank(): Does NOT upgrade rank
+        ❌ Mutable state: Does NOT have mutable attributes
 
     Permitted Operations:
         ✅ parse_output(): Parse abstract text to ModelOutput
@@ -240,17 +506,14 @@ class NoOpOutputAdapter:
     Supreme Law:
         NoOpOutputAdapter is TEST FIXTURE proving contract implementability.
         NoOpOutputAdapter is NOT production T5 implementation.
+        NoOpOutputAdapter is STATELESS (immutable, no side effects).
+
+    Fields:
+        adapter_name: Immutable adapter name
+        version: Immutable version string
     """
-
-    def __init__(self):
-        """
-        Initialize no-op output adapter.
-
-        Constitutional Note:
-            No model loading, no decoder initialization.
-        """
-        self.adapter_name = "NoOpOutputAdapter"
-        self.version = "fixture_1.0"
+    adapter_name: str = "NoOpOutputAdapter"
+    version: str = "fixture_1.0"
 
     def parse_output(
         self,
@@ -364,6 +627,7 @@ class NoOpOutputAdapter:
 # NoOpValidationAdapter (Fixture Only)
 # ============================================================================
 
+@dataclass(frozen=True)
 class NoOpValidationAdapter(ValidationAdapterContract):
     """
     No-op validation adapter (TEST FIXTURE ONLY).
@@ -374,12 +638,14 @@ class NoOpValidationAdapter(ValidationAdapterContract):
         - Does NOT train models
         - Does NOT resolve violations (only detects)
         - Produces reports, NOT corrections
+        - Is IMMUTABLE (frozen dataclass, no mutable state)
 
     Forbidden Operations:
         ❌ repair_violations(): Does NOT repair
         ❌ resolve_residuals(): Does NOT resolve
         ❌ load_model(): Does NOT load models
         ❌ execute_inference(): Does NOT execute inference
+        ❌ Mutable state: Does NOT have mutable attributes
 
     Permitted Operations:
         ✅ validate_adapter_boundaries(): Check boundary compliance
@@ -388,17 +654,14 @@ class NoOpValidationAdapter(ValidationAdapterContract):
     Supreme Law:
         NoOpValidationAdapter is TEST FIXTURE proving contract implementability.
         NoOpValidationAdapter is NOT production T5 implementation.
+        NoOpValidationAdapter is STATELESS (immutable, no side effects).
+
+    Fields:
+        adapter_name: Immutable adapter name
+        version: Immutable version string
     """
-
-    def __init__(self):
-        """
-        Initialize no-op validation adapter.
-
-        Constitutional Note:
-            No model loading, no validator initialization.
-        """
-        self.adapter_name = "NoOpValidationAdapter"
-        self.version = "fixture_1.0"
+    adapter_name: str = "NoOpValidationAdapter"
+    version: str = "fixture_1.0"
 
     def validate_adapter_boundaries(
         self,
@@ -532,7 +795,7 @@ def create_noop_input_adapter() -> NoOpInputAdapter:
     Create no-op input adapter fixture.
 
     Returns:
-        NoOpInputAdapter instance
+        NoOpInputAdapter instance (frozen dataclass)
     """
     return NoOpInputAdapter()
 
@@ -542,7 +805,7 @@ def create_noop_output_adapter() -> NoOpOutputAdapter:
     Create no-op output adapter fixture.
 
     Returns:
-        NoOpOutputAdapter instance
+        NoOpOutputAdapter instance (frozen dataclass)
     """
     return NoOpOutputAdapter()
 
@@ -552,7 +815,7 @@ def create_noop_validation_adapter() -> NoOpValidationAdapter:
     Create no-op validation adapter fixture.
 
     Returns:
-        NoOpValidationAdapter instance
+        NoOpValidationAdapter instance (frozen dataclass)
     """
     return NoOpValidationAdapter()
 
