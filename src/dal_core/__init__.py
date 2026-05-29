@@ -283,6 +283,8 @@ from .relation_candidate_builder import (
     build_relation_candidate,
 )
 from .factor_mark_equation import (
+    FactorSourceKind,  # PR #159
+    FactorSourceCandidate,  # PR #159
     FactorMarkEquationType,
     FactorMarkEquation,
     build_factor_mark_equation,
@@ -476,6 +478,8 @@ __all__ = [
     "RelationCandidate",
     "build_relation_candidate",
     # FactorMarkEquation (Factor/mark candidates)
+    "FactorSourceKind",  # PR #159
+    "FactorSourceCandidate",  # PR #159
     "FactorMarkEquationType",
     "FactorMarkEquation",
     "build_factor_mark_equation",

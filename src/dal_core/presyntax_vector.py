@@ -125,6 +125,30 @@ class PreSyntaxMufradVector:
     composition_readiness: CompositionReadiness
     """Explicit readiness level for composition"""
 
+    # PR #159: Separate linguistic identity from trace provenance
+    # (default values to maintain backward compatibility)
+    identity_ids: tuple[str, ...] = ()
+    """
+    Linguistic identity IDs (form, root, pattern, clitic).
+
+    CRITICAL: identity_ids ≠ trace_ids
+    - identity_ids: linguistic features preserved through transitions
+    - trace_ids: provenance witness chain
+
+    Constitutional law: Do NOT use trace_ids as substitute for identity.
+    """
+
+    carrier_ids: tuple[str, ...] = ()
+    """
+    Carrier IDs from Unicode/Atom layer.
+
+    CRITICAL: carrier_ids ≠ text_fallback
+    - carrier_ids: explicit Unicode/Atom provenance
+    - text fallback: provisional when carrier_ids unavailable
+
+    Constitutional law: Text fallback is residual, not full provenance.
+    """
+
     # =========================================================================
     # Classified mufrad axes (PR-F)
     # =========================================================================
