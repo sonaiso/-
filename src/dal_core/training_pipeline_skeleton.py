@@ -578,23 +578,54 @@ class TrainingPipelineSkeleton:
                 )
             )
 
-        # Check 4: Output directory writable
+        # Check 4: Output directory writable (check only, do NOT create)
+        import os
         output_dir = Path(plan.config.output_dir)
         try:
-            output_dir.mkdir(parents=True, exist_ok=True)
-            checks.append(
-                PreflightCheckResult(
-                    check_type=PreflightCheckType.OUTPUT_DIR_WRITABLE,
-                    status=PreflightCheckStatus.PASSED,
-                    message=f"Output directory accessible: {output_dir}",
-                )
-            )
+            # Check if directory exists and is writable, or parent exists and is writable
+            if output_dir.exists():
+                # Directory exists - check if writable
+                if os.access(output_dir, os.W_OK):
+                    checks.append(
+                        PreflightCheckResult(
+                            check_type=PreflightCheckType.OUTPUT_DIR_WRITABLE,
+                            status=PreflightCheckStatus.PASSED,
+                            message=f"Output directory accessible: {output_dir}",
+                        )
+                    )
+                else:
+                    checks.append(
+                        PreflightCheckResult(
+                            check_type=PreflightCheckType.OUTPUT_DIR_WRITABLE,
+                            status=PreflightCheckStatus.FAILED,
+                            message=f"Output directory exists but not writable: {output_dir}",
+                        )
+                    )
+            else:
+                # Directory doesn't exist - check if parent exists and is writable
+                parent_dir = output_dir.parent
+                if parent_dir.exists() and os.access(parent_dir, os.W_OK):
+                    checks.append(
+                        PreflightCheckResult(
+                            check_type=PreflightCheckType.OUTPUT_DIR_WRITABLE,
+                            status=PreflightCheckStatus.PASSED,
+                            message=f"Output directory parent accessible (can be created): {output_dir}",
+                        )
+                    )
+                else:
+                    checks.append(
+                        PreflightCheckResult(
+                            check_type=PreflightCheckType.OUTPUT_DIR_WRITABLE,
+                            status=PreflightCheckStatus.FAILED,
+                            message=f"Output directory parent not accessible: {output_dir}",
+                        )
+                    )
         except (OSError, PermissionError) as e:
             checks.append(
                 PreflightCheckResult(
                     check_type=PreflightCheckType.OUTPUT_DIR_WRITABLE,
                     status=PreflightCheckStatus.FAILED,
-                    message=f"Output directory not writable: {str(e)}",
+                    message=f"Output directory check failed: {str(e)}",
                 )
             )
 
@@ -621,12 +652,12 @@ class TrainingPipelineSkeleton:
                     )
                 )
 
-        # Check 6: No forbidden phrases (sample check on first 10 examples)
-        sample_examples = examples[:10] if len(examples) > 10 else examples
+        # Check 6: No forbidden phrases (check ALL examples, FAIL if found)
         forbidden_found = []
         from dal_core.constitutional_evaluator import FORBIDDEN_AUTHORITY_PHRASES
 
-        for example in sample_examples:
+        # Check ALL examples, not just first 10
+        for example in examples:
             input_lower = example.input_text.lower()
             target_lower = example.target_text.lower()
 
@@ -639,16 +670,17 @@ class TrainingPipelineSkeleton:
                 PreflightCheckResult(
                     check_type=PreflightCheckType.NO_FORBIDDEN_PHRASES,
                     status=PreflightCheckStatus.PASSED,
-                    message="No forbidden authority phrases in sample examples",
+                    message="No forbidden authority phrases found in examples",
                 )
             )
         else:
+            # FAILED status (not WARNING) - forbidden phrases are boundary violations
             checks.append(
                 PreflightCheckResult(
                     check_type=PreflightCheckType.NO_FORBIDDEN_PHRASES,
-                    status=PreflightCheckStatus.WARNING,
-                    message=f"Found {len(forbidden_found)} forbidden phrases in sample",
-                    details=str(forbidden_found[:3]),  # Show first 3
+                    status=PreflightCheckStatus.FAILED,
+                    message=f"Found {len(forbidden_found)} forbidden authority phrases",
+                    details=str(forbidden_found[:5]),  # Show first 5
                 )
             )
 
