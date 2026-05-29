@@ -261,6 +261,32 @@ from .relation_slot_readiness import (
     SemiSentenceFrameSlotGeometry,
     RelationSlotVector,
 )
+from .transition_proof_kernel import (
+    TransitionDecision,
+    EffectiveDescription,
+    InvalidatingDifference,
+    QiyasProof,
+    IdentityNeutralCheck,
+    MinimalCompletenessCheck,
+    TransitionProof,
+)
+from .mufrad_acceptance_equation import (
+    MufradAcceptanceEquation,
+    prove_mufrad_acceptance,
+)
+from .relation_slot_to_anchor_adapter import (
+    RelationSlotAnchorBundle,
+    adapt_slot_to_anchors,
+)
+from .relation_candidate_builder import (
+    RelationCandidate,
+    build_relation_candidate,
+)
+from .factor_mark_equation import (
+    FactorMarkEquationType,
+    FactorMarkEquation,
+    build_factor_mark_equation,
+)
 
 __all__ = [
     "Rank",
@@ -432,4 +458,25 @@ __all__ = [
     "VerbalFrameSlotGeometry",
     "SemiSentenceFrameSlotGeometry",
     "RelationSlotVector",
+    # TransitionProofKernel (Unified transition proof foundation)
+    "TransitionDecision",
+    "EffectiveDescription",
+    "InvalidatingDifference",
+    "QiyasProof",
+    "IdentityNeutralCheck",
+    "MinimalCompletenessCheck",
+    "TransitionProof",
+    # MufradAcceptanceEquation (LHS ≡ RHS proof)
+    "MufradAcceptanceEquation",
+    "prove_mufrad_acceptance",
+    # RelationSlotToAnchorAdapter (Critical bridge)
+    "RelationSlotAnchorBundle",
+    "adapt_slot_to_anchors",
+    # RelationCandidateBuilder (Complete composition chain)
+    "RelationCandidate",
+    "build_relation_candidate",
+    # FactorMarkEquation (Factor/mark candidates)
+    "FactorMarkEquationType",
+    "FactorMarkEquation",
+    "build_factor_mark_equation",
 ]
