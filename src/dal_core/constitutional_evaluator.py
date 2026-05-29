@@ -553,7 +553,7 @@ class ConstitutionalEvaluator:
         violations = []
 
         # Extract candidate references from predicted text
-        candidate_pattern = r'candidate[_\s]([a-f0-9]{8,16})'
+        candidate_pattern = r'candidate[_\s]([a-z0-9]{6,16})'
         found_candidates = set(re.findall(candidate_pattern, predicted_text.lower()))
         valid_candidates = set(source_example.referenced_candidate_ids)
 
@@ -569,7 +569,7 @@ class ConstitutionalEvaluator:
                 )
 
         # Extract residual references
-        residual_pattern = r'residual[_\s]([a-f0-9]{8,16})'
+        residual_pattern = r'residual[_\s]([a-z0-9]{6,16})'
         found_residuals = set(re.findall(residual_pattern, predicted_text.lower()))
         valid_residuals = set(source_example.referenced_residual_ids)
 
@@ -585,7 +585,7 @@ class ConstitutionalEvaluator:
                 )
 
         # Extract gate references
-        gate_pattern = r'gate[_\s]([a-f0-9]{8,16})'
+        gate_pattern = r'gate[_\s]([a-z0-9]{6,16})'
         found_gates = set(re.findall(gate_pattern, predicted_text.lower()))
         valid_gates = set(source_example.referenced_gate_ids)
 
