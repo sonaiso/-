@@ -441,6 +441,94 @@ def test_passed_output_has_zero_violations():
     assert len(report.violations) == 0
 
 
+def test_valid_candidate_reference_not_flagged_as_invented():
+    """
+    Regression Test: Valid candidate reference is NOT flagged as invented.
+
+    Bug Fix (PR #148 prereq):
+        Previously regex extracted only suffix (abc123) instead of full ID (candidate_abc123).
+        This caused valid references to be incorrectly flagged as invented.
+
+    Constitutional Requirement:
+        ModelOutput referencing valid candidate_abc123 MUST pass validation.
+    """
+    example = create_valid_training_example(
+        referenced_candidate_ids=("candidate_abc123",)
+    )
+    output = create_valid_model_output(
+        predicted_text="The algorithm generated candidate_abc123 during processing"
+    )
+
+    report = ConstitutionalEvaluator.evaluate_model_output(output, example)
+
+    # Must pass with zero violations
+    assert report.passed
+    assert report.total_violations_count == 0
+    # Must NOT flag valid reference as invented
+    assert not any(
+        v.violation_type == ConstitutionalViolationType.INVENTED_CANDIDATE_REFERENCE
+        for v in report.violations
+    )
+
+
+def test_valid_residual_reference_not_flagged_as_invented():
+    """
+    Regression Test: Valid residual reference is NOT flagged as invented.
+
+    Bug Fix (PR #148 prereq):
+        Previously regex extracted only suffix (xyz789) instead of full ID (residual_xyz789).
+
+    Constitutional Requirement:
+        ModelOutput referencing valid residual_xyz789 MUST pass validation.
+    """
+    example = create_valid_training_example(
+        referenced_residual_ids=("residual_xyz789",)
+    )
+    output = create_valid_model_output(
+        predicted_text="Explaining residual_xyz789 that remains pending"
+    )
+
+    report = ConstitutionalEvaluator.evaluate_model_output(output, example)
+
+    # Must pass with zero violations
+    assert report.passed
+    assert report.total_violations_count == 0
+    # Must NOT flag valid reference as invented
+    assert not any(
+        v.violation_type == ConstitutionalViolationType.INVENTED_RESIDUAL_REFERENCE
+        for v in report.violations
+    )
+
+
+def test_valid_gate_reference_not_flagged_as_invented():
+    """
+    Regression Test: Valid gate reference is NOT flagged as invented.
+
+    Bug Fix (PR #148 prereq):
+        Previously regex extracted only suffix (def456) instead of full ID (gate_def456).
+
+    Constitutional Requirement:
+        ModelOutput referencing valid gate_def456 MUST pass validation.
+    """
+    example = create_valid_training_example(
+        referenced_gate_ids=("gate_def456",)
+    )
+    output = create_valid_model_output(
+        predicted_text="The gate_def456 was applied during validation"
+    )
+
+    report = ConstitutionalEvaluator.evaluate_model_output(output, example)
+
+    # Must pass with zero violations
+    assert report.passed
+    assert report.total_violations_count == 0
+    # Must NOT flag valid reference as invented
+    assert not any(
+        v.violation_type == ConstitutionalViolationType.INVENTED_GATE_REFERENCE
+        for v in report.violations
+    )
+
+
 def test_failed_output_has_nonzero_violations():
     """
     Test: Invalid output fails with nonzero violations.

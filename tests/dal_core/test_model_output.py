@@ -111,40 +111,56 @@ def test_model_output_requires_model_output_id():
 
 def test_model_output_requires_source_trace_id():
     """
-    Test: ModelOutput requires source_trace_id.
+    Test: ModelOutput allows empty source_trace_id (evaluator detects violation).
 
-    Constitutional Requirement:
-        ModelOutput MUST preserve source_trace_id.
-        Missing source_trace_id is constitutional violation.
+    Constitutional Design Change:
+        ModelOutput is a container for model predictions that may be malformed.
+        The evaluator (ConstitutionalEvaluator) is the guardian that detects violations.
+
+        Therefore:
+        - ModelOutput construction MUST succeed even with empty source_trace_id
+        - ConstitutionalEvaluator detects missing binding as CRITICAL violation
     """
-    with pytest.raises(ValueError, match="source_trace_id"):
-        ModelOutput(
-            model_output_id="output_001",
-            source_training_example_id="example_001",
-            source_trace_id="",  # Missing binding
-            predicted_text="Test prediction",
-            model_name="test_model",
-            generation_timestamp="2026-05-29T00:00:00Z",
-        )
+    # ModelOutput construction succeeds with empty binding
+    output = ModelOutput(
+        model_output_id="output_001",
+        source_training_example_id="example_001",
+        source_trace_id="",  # Empty binding allowed at construction
+        predicted_text="Test prediction",
+        model_name="test_model",
+        generation_timestamp="2026-05-29T00:00:00Z",
+    )
+
+    # Verify object created successfully
+    assert output.source_trace_id == ""
+    # Note: ConstitutionalEvaluator will detect this as CRITICAL violation
 
 
 def test_model_output_requires_source_training_example_id():
     """
-    Test: ModelOutput requires source_training_example_id.
+    Test: ModelOutput allows empty source_training_example_id (evaluator detects violation).
 
-    Constitutional Requirement:
-        ModelOutput MUST preserve source_training_example_id.
-        Missing source_training_example_id is constitutional violation.
+    Constitutional Design Change:
+        ModelOutput is a container for model predictions that may be malformed.
+        The evaluator (ConstitutionalEvaluator) is the guardian that detects violations.
+
+        Therefore:
+        - ModelOutput construction MUST succeed even with empty source_training_example_id
+        - ConstitutionalEvaluator detects missing binding as CRITICAL violation
     """
-    with pytest.raises(ValueError, match="source_training_example_id"):
-        ModelOutput(
-            model_output_id="output_001",
-            source_training_example_id="",  # Missing binding
-            source_trace_id="trace_001",
-            predicted_text="Test prediction",
-            model_name="test_model",
-            generation_timestamp="2026-05-29T00:00:00Z",
-        )
+    # ModelOutput construction succeeds with empty binding
+    output = ModelOutput(
+        model_output_id="output_001",
+        source_training_example_id="",  # Empty binding allowed at construction
+        source_trace_id="trace_001",
+        predicted_text="Test prediction",
+        model_name="test_model",
+        generation_timestamp="2026-05-29T00:00:00Z",
+    )
+
+    # Verify object created successfully
+    assert output.source_training_example_id == ""
+    # Note: ConstitutionalEvaluator will detect this as CRITICAL violation
 
 
 def test_model_output_requires_predicted_text():
@@ -271,34 +287,44 @@ def test_create_from_prediction_generates_timestamp():
 
 def test_create_from_prediction_rejects_missing_source_trace_id():
     """
-    Test: create_from_prediction rejects missing source_trace_id.
+    Test: create_from_prediction allows empty source_trace_id (evaluator detects violation).
 
-    Constitutional Requirement:
-        Factory method MUST enforce source_trace_id preservation.
+    Constitutional Design Change:
+        Factory method creates ModelOutput even with empty bindings.
+        ConstitutionalEvaluator will detect missing binding as CRITICAL violation.
     """
-    with pytest.raises(ValueError, match="source_trace_id"):
-        ModelOutput.create_from_prediction(
-            source_training_example_id="example_001",
-            source_trace_id="",  # Missing binding
-            predicted_text="Test prediction",
-            model_name="test_model",
-        )
+    # Factory method succeeds with empty binding
+    output = ModelOutput.create_from_prediction(
+        source_training_example_id="example_001",
+        source_trace_id="",  # Empty binding allowed
+        predicted_text="Test prediction",
+        model_name="test_model",
+    )
+
+    # Verify object created successfully
+    assert output.source_trace_id == ""
+    # Note: ConstitutionalEvaluator will detect this as CRITICAL violation
 
 
 def test_create_from_prediction_rejects_missing_source_training_example_id():
     """
-    Test: create_from_prediction rejects missing source_training_example_id.
+    Test: create_from_prediction allows empty source_training_example_id (evaluator detects violation).
 
-    Constitutional Requirement:
-        Factory method MUST enforce source_training_example_id preservation.
+    Constitutional Design Change:
+        Factory method creates ModelOutput even with empty bindings.
+        ConstitutionalEvaluator will detect missing binding as CRITICAL violation.
     """
-    with pytest.raises(ValueError, match="source_training_example_id"):
-        ModelOutput.create_from_prediction(
-            source_training_example_id="",  # Missing binding
-            source_trace_id="trace_001",
-            predicted_text="Test prediction",
-            model_name="test_model",
-        )
+    # Factory method succeeds with empty binding
+    output = ModelOutput.create_from_prediction(
+        source_training_example_id="",  # Empty binding allowed
+        source_trace_id="trace_001",
+        predicted_text="Test prediction",
+        model_name="test_model",
+    )
+
+    # Verify object created successfully
+    assert output.source_training_example_id == ""
+    # Note: ConstitutionalEvaluator will detect this as CRITICAL violation
 
 
 # ============================================================================
