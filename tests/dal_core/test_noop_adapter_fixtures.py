@@ -41,6 +41,15 @@ from tests.fixtures.dal_core.noop_adapter_fixtures import (
     create_noop_output_adapter,
     create_noop_validation_adapter,
     create_sample_adapter_raw_output,
+
+    # Adapter chain registry
+    AdapterChainLink,
+    AdapterChainRegistry,
+    create_adapter_chain_registry,
+    create_chain_link_from_training_example,
+    add_adapter_input_to_chain,
+    add_adapter_output_to_chain,
+    add_model_output_to_chain,
 )
 
 from dal_core.t5_adapter_interface_contracts import (
@@ -176,39 +185,24 @@ def test_noop_input_adapter_does_not_tokenize():
     assert "Test input text" in adapter_input.input_text  # Original text preserved
 
 
-def test_noop_input_adapter_validate_input_detects_missing_bindings():
+def test_noop_input_adapter_is_immutable():
     """
-    Test: NoOpInputAdapter.validate_input detects missing source bindings.
+    Test: NoOpInputAdapter is immutable (frozen dataclass).
 
     Constitutional Requirement:
-        validate_input MUST detect missing source_trace_id and source_training_example_id.
+        NoOpInputAdapter MUST be immutable to prevent state mutations.
     """
     adapter = NoOpInputAdapter()
 
-    # Create AdapterInput with missing source_trace_id
-    # (using empty string to bypass __post_init__ validation)
-    try:
-        adapter_input = AdapterInput(
-            adapter_input_id="input_001",
-            source_training_example_id="example_001",
-            source_trace_id="",  # Empty
-            input_text="Test input",
-            metadata=(),
-        )
-    except ValueError:
-        # If __post_init__ catches it, create valid input and manually test validation
-        adapter_input = AdapterInput(
-            adapter_input_id="input_001",
-            source_training_example_id="example_001",
-            source_trace_id="trace_001",
-            input_text="Test input",
-            metadata=(),
-        )
+    # Verify it's a frozen dataclass
+    assert hasattr(adapter, '__dataclass_fields__')
 
-        # Manually test with empty trace_id (simulated)
-        # Create a mock input with empty source_trace_id for validation testing
-        # Note: This is a conceptual test; actual implementation prevents empty bindings
-        pass  # Skip this specific test case if __post_init__ enforces
+    # Verify cannot modify attributes
+    with pytest.raises(AttributeError):
+        adapter.adapter_name = "ModifiedName"  # type: ignore
+
+    with pytest.raises(AttributeError):
+        adapter.version = "modified_version"  # type: ignore
 
 
 def test_noop_input_adapter_factory():
@@ -314,6 +308,26 @@ def test_noop_output_adapter_does_not_generate():
     assert "Pre-existing output text" in model_output.predicted_text
 
 
+def test_noop_output_adapter_is_immutable():
+    """
+    Test: NoOpOutputAdapter is immutable (frozen dataclass).
+
+    Constitutional Requirement:
+        NoOpOutputAdapter MUST be immutable to prevent state mutations.
+    """
+    adapter = NoOpOutputAdapter()
+
+    # Verify it's a frozen dataclass
+    assert hasattr(adapter, '__dataclass_fields__')
+
+    # Verify cannot modify attributes
+    with pytest.raises(AttributeError):
+        adapter.adapter_name = "ModifiedName"  # type: ignore
+
+    with pytest.raises(AttributeError):
+        adapter.version = "modified_version"  # type: ignore
+
+
 def test_noop_output_adapter_validate_output_detects_missing_bindings():
     """
     Test: NoOpOutputAdapter.validate_output detects missing source bindings.
@@ -377,6 +391,26 @@ def test_noop_validation_adapter_implements_validation_adapter_contract():
 
     # Verify it's a subclass of ABC
     assert isinstance(adapter, ValidationAdapterContract)
+
+
+def test_noop_validation_adapter_is_immutable():
+    """
+    Test: NoOpValidationAdapter is immutable (frozen dataclass).
+
+    Constitutional Requirement:
+        NoOpValidationAdapter MUST be immutable to prevent state mutations.
+    """
+    adapter = NoOpValidationAdapter()
+
+    # Verify it's a frozen dataclass
+    assert hasattr(adapter, '__dataclass_fields__')
+
+    # Verify cannot modify attributes
+    with pytest.raises(AttributeError):
+        adapter.adapter_name = "ModifiedName"  # type: ignore
+
+    with pytest.raises(AttributeError):
+        adapter.version = "modified_version"  # type: ignore
 
 
 def test_noop_validation_adapter_validate_boundaries():
@@ -704,6 +738,66 @@ def test_no_execution_markers_in_noop_fixtures_module():
     assert "to_tensor(" not in code_text
 
 
+def test_noop_fixtures_not_exported_from_src_dal_core():
+    """
+    Test: No-op fixtures are NOT exported from src/dal_core.
+
+    Constitutional Requirement:
+        No-op adapters MUST remain test fixtures only.
+        They MUST NOT appear in src/dal_core/__init__.py or any production module.
+    """
+    # Check src/dal_core/__init__.py does NOT export no-op adapters
+    import dal_core
+
+    dal_core_exports = dir(dal_core)
+
+    # Verify no-op adapters NOT in dal_core exports
+    assert "NoOpInputAdapter" not in dal_core_exports
+    assert "NoOpOutputAdapter" not in dal_core_exports
+    assert "NoOpValidationAdapter" not in dal_core_exports
+    assert "create_noop_input_adapter" not in dal_core_exports
+    assert "create_noop_output_adapter" not in dal_core_exports
+    assert "create_noop_validation_adapter" not in dal_core_exports
+
+
+def test_noop_fixtures_only_in_tests_directory():
+    """
+    Test: No-op fixtures only exist in tests/ directory.
+
+    Constitutional Requirement:
+        No-op adapter implementations MUST only exist in tests/fixtures/.
+        They MUST NOT exist anywhere in src/dal_core/.
+    """
+    import os
+    import glob
+
+    # Get repository root
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+    src_dal_core_path = os.path.join(repo_root, 'src/dal_core')
+
+    # Search for NoOp* classes in src/dal_core
+    search_patterns = [
+        'NoOpInputAdapter',
+        'NoOpOutputAdapter',
+        'NoOpValidationAdapter',
+    ]
+
+    for root, dirs, files in os.walk(src_dal_core_path):
+        for file in files:
+            if file.endswith('.py'):
+                filepath = os.path.join(root, file)
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                    # Check for class definitions (not just imports)
+                    for pattern in search_patterns:
+                        # Look for "class NoOp*" definitions
+                        class_def = f"class {pattern}"
+                        assert class_def not in content, (
+                            f"Found {pattern} class definition in production code: {filepath}"
+                        )
+
+
 def test_noop_adapters_have_no_forbidden_methods():
     """
     Test: No-op adapter classes have no forbidden methods.
@@ -805,3 +899,241 @@ def test_contract_implementability_proof():
     assert model_output.source_training_example_id == training_example.training_example_id
 
     # QED: Contracts are implementable without T5
+
+
+# ============================================================================
+# Adapter Chain Registry Tests
+# ============================================================================
+
+def test_adapter_chain_link_creation():
+    """
+    Test: AdapterChainLink can be created from TrainingExample.
+
+    Constitutional Requirement:
+        Chain link MUST preserve source bindings.
+    """
+    # Create TrainingExample
+    training_example = TrainingExample(
+        training_example_id="chain_example_001",
+        source_dataset_row_id="chain_row_001",
+        source_trace_id="chain_trace_001",
+        source_algorithm="chain_algorithm",
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        input_text="Chain test input",
+        target_text="Chain test target",
+        referenced_candidate_ids=(),
+        referenced_residual_ids=(),
+        referenced_gate_ids=(),
+        referenced_rank_values=(),
+        output_type=OutputType.EXPLANATION,
+        requires_algorithm_rerun=False,
+        validation_status=ValidationStatus.VALID,
+    )
+
+    # Create chain link
+    chain = create_chain_link_from_training_example(
+        training_example=training_example,
+        link_id="link_001",
+    )
+
+    # Verify bindings preserved
+    assert chain.source_training_example_id == training_example.training_example_id
+    assert chain.source_trace_id == training_example.source_trace_id
+    assert chain.link_id == "link_001"
+    assert "training_example_created" in chain.transformation_steps
+
+
+def test_adapter_chain_registry_creation():
+    """
+    Test: AdapterChainRegistry can be created and is immutable.
+
+    Constitutional Requirement:
+        Registry MUST be immutable (frozen dataclass).
+    """
+    registry = create_adapter_chain_registry("test_registry")
+
+    # Verify immutability
+    assert hasattr(registry, '__dataclass_fields__')
+
+    with pytest.raises(AttributeError):
+        registry.registry_id = "modified"  # type: ignore
+
+    # Verify initial state
+    assert registry.registry_id == "test_registry"
+    assert len(registry.chains) == 0
+
+
+def test_adapter_chain_preserves_bindings_through_full_chain():
+    """
+    Test: Adapter chain preserves bindings through full transformation.
+
+    Constitutional Requirement:
+        Source bindings MUST be preserved through entire chain:
+        TrainingExample → AdapterInput → AdapterRawOutput → ModelOutput
+    """
+    # 1. Create TrainingExample
+    training_example = TrainingExample(
+        training_example_id="full_chain_001",
+        source_dataset_row_id="full_chain_row_001",
+        source_trace_id="full_chain_trace_001",
+        source_algorithm="full_chain_algorithm",
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        input_text="Full chain input",
+        target_text="Full chain target",
+        referenced_candidate_ids=(),
+        referenced_residual_ids=(),
+        referenced_gate_ids=(),
+        referenced_rank_values=(),
+        output_type=OutputType.EXPLANATION,
+        requires_algorithm_rerun=False,
+        validation_status=ValidationStatus.VALID,
+    )
+
+    # 2. Create initial chain link
+    chain = create_chain_link_from_training_example(
+        training_example=training_example,
+        link_id="full_chain_link_001",
+    )
+
+    # 3. Add AdapterInput
+    input_adapter = create_noop_input_adapter()
+    adapter_input = input_adapter.prepare_input(training_example)
+    chain = add_adapter_input_to_chain(chain, adapter_input)
+
+    # Verify bindings preserved
+    assert chain.adapter_input_id == adapter_input.adapter_input_id
+    assert "adapter_input_prepared" in chain.transformation_steps
+
+    # 4. Add AdapterRawOutput
+    adapter_raw_output = create_sample_adapter_raw_output(
+        adapter_output_id="full_chain_output_001",
+        source_adapter_input_id=adapter_input.adapter_input_id,
+        raw_text="Full chain output",
+    )
+    chain = add_adapter_output_to_chain(chain, adapter_raw_output)
+
+    # Verify bindings preserved
+    assert chain.adapter_output_id == adapter_raw_output.adapter_output_id
+    assert "adapter_raw_output_generated" in chain.transformation_steps
+
+    # 5. Add ModelOutput
+    output_adapter = create_noop_output_adapter()
+    model_output = output_adapter.parse_output(
+        adapter_raw_output=adapter_raw_output,
+        source_training_example_id=training_example.training_example_id,
+        source_trace_id=training_example.source_trace_id,
+    )
+    chain = add_model_output_to_chain(chain, model_output)
+
+    # Verify bindings preserved through entire chain
+    assert chain.model_output_id == model_output.model_output_id
+    assert chain.source_training_example_id == training_example.training_example_id
+    assert chain.source_trace_id == training_example.source_trace_id
+    assert "model_output_parsed" in chain.transformation_steps
+
+    # Verify all transformation steps recorded
+    assert len(chain.transformation_steps) == 4
+    assert chain.transformation_steps == (
+        "training_example_created",
+        "adapter_input_prepared",
+        "adapter_raw_output_generated",
+        "model_output_parsed",
+    )
+
+
+def test_adapter_chain_registry_find_operations():
+    """
+    Test: AdapterChainRegistry can find chains by trace_id and training_example_id.
+
+    Constitutional Requirement:
+        Registry MUST enable verification of binding preservation.
+    """
+    # Create registry
+    registry = create_adapter_chain_registry("find_test_registry")
+
+    # Create TrainingExample
+    training_example = TrainingExample(
+        training_example_id="find_example_001",
+        source_dataset_row_id="find_row_001",
+        source_trace_id="find_trace_001",
+        source_algorithm="find_algorithm",
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        input_text="Find test input",
+        target_text="Find test target",
+        referenced_candidate_ids=(),
+        referenced_residual_ids=(),
+        referenced_gate_ids=(),
+        referenced_rank_values=(),
+        output_type=OutputType.EXPLANATION,
+        requires_algorithm_rerun=False,
+        validation_status=ValidationStatus.VALID,
+    )
+
+    # Create chain link
+    chain = create_chain_link_from_training_example(
+        training_example=training_example,
+        link_id="find_link_001",
+    )
+
+    # Add to registry
+    registry = registry.with_chain(chain)
+
+    # Find by trace_id
+    found_by_trace = registry.find_by_trace_id("find_trace_001")
+    assert len(found_by_trace) == 1
+    assert found_by_trace[0].link_id == "find_link_001"
+
+    # Find by training_example_id
+    found_by_example = registry.find_by_training_example_id("find_example_001")
+    assert len(found_by_example) == 1
+    assert found_by_example[0].link_id == "find_link_001"
+
+    # Verify not found for non-existent IDs
+    not_found = registry.find_by_trace_id("nonexistent_trace")
+    assert len(not_found) == 0
+
+
+def test_adapter_chain_detects_binding_loss():
+    """
+    Test: Adapter chain detects when source bindings are lost.
+
+    Constitutional Requirement:
+        Chain MUST reject transformations that lose source bindings.
+    """
+    # Create TrainingExample
+    training_example = TrainingExample(
+        training_example_id="binding_loss_001",
+        source_dataset_row_id="binding_loss_row_001",
+        source_trace_id="binding_loss_trace_001",
+        source_algorithm="binding_loss_algorithm",
+        operation=TraceConsumerOperation.EXPLAIN_TRACE,
+        input_text="Binding loss test",
+        target_text="Binding loss target",
+        referenced_candidate_ids=(),
+        referenced_residual_ids=(),
+        referenced_gate_ids=(),
+        referenced_rank_values=(),
+        output_type=OutputType.EXPLANATION,
+        requires_algorithm_rerun=False,
+        validation_status=ValidationStatus.VALID,
+    )
+
+    # Create chain link
+    chain = create_chain_link_from_training_example(
+        training_example=training_example,
+        link_id="binding_loss_link_001",
+    )
+
+    # Create AdapterInput with WRONG bindings
+    adapter_input_wrong_bindings = AdapterInput(
+        adapter_input_id="wrong_input_001",
+        source_training_example_id="WRONG_EXAMPLE_ID",  # Wrong!
+        source_trace_id=training_example.source_trace_id,
+        input_text="Test input",
+        metadata=(),
+    )
+
+    # Verify chain rejects AdapterInput with wrong bindings
+    with pytest.raises(ValueError, match="lost source_training_example_id binding"):
+        add_adapter_input_to_chain(chain, adapter_input_wrong_bindings)
+
