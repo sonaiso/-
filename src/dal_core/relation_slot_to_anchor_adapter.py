@@ -68,6 +68,30 @@ from dal_core.transition_proof_kernel import (
     QiyasProof,
     TransitionProof,
 )
+from dal_core.ranks import LughaRank
+from fvafk.algebra.core import Rank
+
+
+# ============================================================================
+# Rank Conversion (PR #163 Integration)
+# ============================================================================
+
+def _lugha_rank_to_fvafk_rank(lugha_rank: LughaRank) -> Rank:
+    """
+    Convert LughaRank to fvafk.algebra.Rank.
+
+    Conservative mapping to prevent rank inflation (same as factor_mark_equation).
+
+    Args:
+        lugha_rank: LughaRank enum value
+
+    Returns:
+        Corresponding fvafk.algebra.Rank value (conservative mapping)
+    """
+    if lugha_rank == LughaRank.ZERO:
+        return Rank.UNRESOLVED
+    else:
+        return Rank.CANDIDATE
 
 
 # ============================================================================
@@ -354,7 +378,7 @@ def adapt_slot_to_anchors(slot: RelationSlotVector) -> RelationSlotAnchorBundle:
         minimal_completeness=minimum,
         preserved_trace_ids=tuple(slot.preserved_trace_ids),
         residual_ids=tuple(str(r) for r in slot.residuals),
-        rank_name=slot.rank.name if hasattr(slot.rank, 'name') else str(slot.rank),
+        rank=_lugha_rank_to_fvafk_rank(slot.rank),
     )
 
     # Return bundle

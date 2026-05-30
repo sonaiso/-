@@ -52,6 +52,41 @@ from dal_core.transition_proof_kernel import (
     QiyasProof,
     TransitionProof,
 )
+from fvafk.algebra.core import Rank
+
+
+# ============================================================================
+# Rank Conversion (PR #163 Integration)
+# ============================================================================
+
+def _lugha_rank_to_fvafk_rank(lugha_rank: LughaRank) -> Rank:
+    """
+    Convert LughaRank to fvafk.algebra.Rank.
+
+    Conservative mapping to prevent rank inflation:
+    - ZERO/FORM → CANDIDATE (not yet licensed)
+    - QIYAS → CANDIDATE (conservative, pending evidence validation)
+    - SAMA/AHAD/TAWATUR → CANDIDATE (conservative ceiling per PR #163)
+
+    Constitutional Law:
+        Per PR #163, TransitionProof.to_result() applies rank ceiling.
+        Until Evidence objects are fully validated (not just strings),
+        all transitions stay at CANDIDATE max.
+
+    Args:
+        lugha_rank: LughaRank enum value
+
+    Returns:
+        Corresponding fvafk.algebra.Rank value (conservative mapping)
+    """
+    # Conservative mapping: all ranks → CANDIDATE until evidence validated
+    # This prevents rank inflation identified in PR #163 review
+    if lugha_rank == LughaRank.ZERO:
+        return Rank.UNRESOLVED
+    else:
+        # FORM, QIYAS, SAMA, AHAD, TAWATUR all map to CANDIDATE
+        # Rank ceiling in TransitionProof.to_result() enforces this anyway
+        return Rank.CANDIDATE
 
 
 # ============================================================================
@@ -311,7 +346,7 @@ def build_factor_mark_equation(
         minimal_completeness=minimum,
         preserved_trace_ids=factor_trace_ids + affected_trace_ids,
         residual_ids=tuple(str(r) for r in affected_vector.residuals),
-        rank_name=affected_vector.final_rank.name if hasattr(affected_vector.final_rank, 'name') else str(affected_vector.final_rank),
+        rank=_lugha_rank_to_fvafk_rank(affected_vector.final_rank),
     )
 
     # Build and return equation

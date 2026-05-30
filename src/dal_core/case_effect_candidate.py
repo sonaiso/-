@@ -87,6 +87,7 @@ from dal_core.residuals import (
     make_info,
     make_warning,
 )
+from fvafk.algebra.core import Rank
 
 
 # ---------------------------------------------------------------------------
@@ -813,27 +814,48 @@ def _determine_effect_type(
 
 def _get_rank_from_transition_proof(transition_proof) -> LughaRank:
     """
-    Extract LughaRank from TransitionProof.rank_name.
+    Extract LughaRank from TransitionProof.rank (fvafk.algebra.Rank).
 
-    TransitionProof stores rank as string name (e.g., "QIYAS", "SAMA").
-    Convert back to LughaRank enum.
+    PR #163: TransitionProof now stores rank as fvafk.algebra.Rank enum.
+    Convert back to LughaRank enum for legacy compatibility.
+
+    Conservative mapping (reverse of factor_mark_equation._lugha_rank_to_fvafk_rank):
+    - UNRESOLVED → ZERO
+    - CANDIDATE → FORM (conservative)
+    - LICENSED → QIYAS (requires evidence)
+    - CERTIFIED → SAMA (requires certified evidence)
+    - REFUTED → ZERO (refuted = not attested)
 
     Args:
-        transition_proof: TransitionProof with rank_name field
+        transition_proof: TransitionProof with rank field (fvafk.algebra.Rank)
 
     Returns:
         LughaRank enum member
 
     Raises:
-        ValueError: If rank_name is not a valid LughaRank member
+        ValueError: If rank is not a valid Rank member
     """
-    rank_name = transition_proof.rank_name
-    try:
-        return LughaRank[rank_name]
-    except KeyError:
+    rank = transition_proof.rank
+    if not isinstance(rank, Rank):
         raise ValueError(
-            f"TransitionProof.rank_name '{rank_name}' is not a valid LughaRank member. "
-            f"Valid members: {[r.name for r in LughaRank]}"
+            f"TransitionProof.rank must be fvafk.algebra.Rank, got {type(rank).__name__}"
+        )
+
+    # Conservative reverse mapping
+    if rank == Rank.UNRESOLVED:
+        return LughaRank.ZERO
+    elif rank == Rank.CANDIDATE:
+        return LughaRank.FORM  # Conservative: candidate = form only
+    elif rank == Rank.LICENSED:
+        return LughaRank.QIYAS  # Licensed by evidence = qiyas level
+    elif rank == Rank.CERTIFIED:
+        return LughaRank.SAMA  # Certified = specific attestation
+    elif rank == Rank.REFUTED:
+        return LughaRank.ZERO  # Refuted = not attested
+    else:
+        raise ValueError(
+            f"Unknown Rank value: {rank}. "
+            f"Valid values: {[r for r in Rank]}"
         )
 
 

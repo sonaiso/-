@@ -200,7 +200,7 @@ def build_relation_candidate(slot: RelationSlotVector) -> RelationCandidate:
         minimal_completeness=minimum,
         preserved_trace_ids=input_trace_ids,
         residual_ids=tuple(str(r) for r in result.residuals.residuals),
-        rank_name=result.rank.name if hasattr(result.rank, 'name') else str(result.rank),
+        rank=result.rank,  # PR #163: Use Rank directly, not rank_name
     )
 
     # Step 5: Build and return RelationCandidate
@@ -212,6 +212,6 @@ def build_relation_candidate(slot: RelationSlotVector) -> RelationCandidate:
         preserved_trace_ids=input_trace_ids,
         added_loads=result.added_loads,
         residual_ids=tuple(str(r) for r in result.residuals.residuals),
-        rank_name=result.rank.name if hasattr(result.rank, 'name') else str(result.rank),
+        rank_name=result.rank.name,  # Keep rank_name for RelationCandidate compatibility
         transition_proof=transition,
     )
