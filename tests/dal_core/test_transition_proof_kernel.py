@@ -15,6 +15,9 @@ from dal_core.transition_proof_kernel import (
     TransitionProof,
 )
 
+# CRITICAL FIX (PR #163): Import Rank from fvafk.algebra
+from fvafk.algebra.core import Rank, Result, Evidence, Residual, Failure
+
 
 # ============================================================================
 # EffectiveDescription Tests
@@ -305,7 +308,7 @@ def test_transition_proof_accepted():
         minimal_completeness=minimum,
         preserved_trace_ids=("trace:001",),
         residual_ids=(),
-        rank_name="CANDIDATE",
+        rank=Rank.CANDIDATE,  # CRITICAL FIX (PR #163): Use typed Rank
     )
 
     assert transition.decision == TransitionDecision.ACCEPTED
@@ -327,7 +330,7 @@ def test_transition_proof_rejected_by_forbidden_output():
         minimal_completeness=minimum,
         preserved_trace_ids=(),
         residual_ids=(),
-        rank_name="CANDIDATE",
+        rank=Rank.CANDIDATE,  # CRITICAL FIX (PR #163): Use typed Rank
         produces_meaning=True,  # FORBIDDEN
     )
 
@@ -355,7 +358,7 @@ def test_transition_proof_rejected_by_blocking_difference():
         minimal_completeness=minimum,
         preserved_trace_ids=(),
         residual_ids=(),
-        rank_name="CANDIDATE",
+        rank=Rank.CANDIDATE,  # CRITICAL FIX (PR #163): Use typed Rank
     )
 
     assert transition.decision == TransitionDecision.REJECTED
@@ -380,7 +383,7 @@ def test_transition_proof_deferred_by_missing_conditions():
         minimal_completeness=minimum,
         preserved_trace_ids=(),
         residual_ids=(),
-        rank_name="CANDIDATE",
+        rank=Rank.CANDIDATE,  # CRITICAL FIX (PR #163): Use typed Rank
     )
 
     assert transition.decision == TransitionDecision.DEFERRED
@@ -406,7 +409,7 @@ def test_transition_proof_rejected_by_identity_loss():
         minimal_completeness=minimum,
         preserved_trace_ids=(),
         residual_ids=(),
-        rank_name="CANDIDATE",
+        rank=Rank.CANDIDATE,  # CRITICAL FIX (PR #163): Use typed Rank
     )
 
     assert transition.decision == TransitionDecision.REJECTED
@@ -421,3 +424,216 @@ def test_transition_decision_values():
     assert TransitionDecision.ACCEPTED.value == "accepted"
     assert TransitionDecision.REJECTED.value == "rejected"
     assert TransitionDecision.DEFERRED.value == "deferred"
+
+
+# ============================================================================
+# TransitionProof.to_result() Tests (PR #163)
+# ============================================================================
+
+
+def test_to_result_accepted_with_licensed_rank():
+    """Test to_result() with ACCEPTED decision and LICENSED rank."""
+    effective = EffectiveDescription(
+        "eff", "morphological", ("evidence:form", "evidence:surface")
+    )
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+    neutral = IdentityNeutralCheck("neutral", ("id:a",), ("id:a",), True)
+    minimum = MinimalCompletenessCheck("min", "TARGET", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        proof_id="proof:test",
+        source_layer="SOURCE",
+        target_layer="TARGET",
+        qiyas=qiyas,
+        identity_neutral=neutral,
+        minimal_completeness=minimum,
+        preserved_trace_ids=("trace:001",),
+        residual_ids=(),
+        rank=Rank.LICENSED,
+    )
+
+    result = transition.to_result("test_value", operation="test_transition")
+
+    assert result.value == "test_value"
+    assert result.rank == Rank.LICENSED
+    assert len(result.evidence) == 2  # From effective description evidence
+    assert len(result.residuals) == 0  # No residuals
+    assert len(result.failures) == 0  # No failures
+    assert result.trace.operation == "test_transition"
+    assert "trace:001" in result.trace.parents
+
+
+def test_to_result_rejected_with_blocking_difference():
+    """Test to_result() with REJECTED decision due to blocking difference."""
+    effective = EffectiveDescription("eff", "test", ("ev",))
+    blocking = InvalidatingDifference(
+        "diff", "Composition not ready", blocks_transition=True, evidence=("test",)
+    )
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", (blocking,))
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        "proof", "SOURCE", "TARGET", qiyas, neutral, minimum, (), (), Rank.CANDIDATE
+    )
+
+    result = transition.to_result(42)
+
+    assert result.value == 42
+    assert result.rank == Rank.REFUTED  # REJECTED → REFUTED
+    assert len(result.failures) == 1
+    assert result.failures[0].kind == "blocking_difference"
+    assert result.failures[0].fatal is True
+
+
+def test_to_result_rejected_with_constitutional_prohibition():
+    """Test to_result() with REJECTED due to forbidden output."""
+    effective = EffectiveDescription("eff", "test", ("ev",))
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        "proof",
+        "SOURCE",
+        "TARGET",
+        qiyas,
+        neutral,
+        minimum,
+        (),
+        (),
+        Rank.CANDIDATE,
+        produces_meaning=True,  # FORBIDDEN
+    )
+
+    result = transition.to_result("value")
+
+    assert result.rank == Rank.REFUTED
+    assert len(result.failures) == 1
+    assert result.failures[0].kind == "constitutional_prohibition"
+    assert "forbidden meaning" in result.failures[0].description
+    assert result.failures[0].fatal is True
+
+
+def test_to_result_deferred_with_missing_conditions():
+    """Test to_result() with DEFERRED decision due to missing conditions."""
+    effective = EffectiveDescription("eff", "test", ("ev",))
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck(
+        "min", "TEST", ("a", "b"), ("a",), ("b",), passed=False
+    )
+
+    transition = TransitionProof(
+        "proof", "SOURCE", "TARGET", qiyas, neutral, minimum, (), (), Rank.CANDIDATE
+    )
+
+    result = transition.to_result("deferred_value")
+
+    assert result.value == "deferred_value"
+    assert result.rank == Rank.CANDIDATE  # DEFERRED with evidence → CANDIDATE
+    assert len(result.residuals) == 1  # Missing condition "b"
+    assert result.residuals[0].kind == "missing_condition"
+    assert "b" in result.residuals[0].description
+
+
+def test_to_result_with_non_blocking_differences_as_residuals():
+    """Test that non-blocking differences become residuals."""
+    effective = EffectiveDescription("eff", "test", ("ev",))
+    warning = InvalidatingDifference(
+        "diff", "Low confidence", blocks_transition=False, evidence=("conf",)
+    )
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", (warning,))
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        "proof", "SOURCE", "TARGET", qiyas, neutral, minimum, (), (), Rank.CANDIDATE
+    )
+
+    result = transition.to_result("value")
+
+    assert result.rank == Rank.CANDIDATE
+    assert len(result.residuals) == 1
+    assert result.residuals[0].kind == "non_blocking_difference"
+    assert "Low confidence" in result.residuals[0].description
+
+
+def test_to_result_with_residual_ids():
+    """Test that residual_ids are converted to Residual objects."""
+    effective = EffectiveDescription("eff", "test", ("ev",))
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        "proof",
+        "SOURCE",
+        "TARGET",
+        qiyas,
+        neutral,
+        minimum,
+        (),
+        ("residual:001", "residual:002"),  # residual_ids
+        Rank.CANDIDATE,
+    )
+
+    result = transition.to_result("value")
+
+    assert len(result.residuals) == 2
+    assert result.residuals[0].kind == "residual_id"
+    assert "residual:001" in result.residuals[0].description
+
+
+def test_to_result_raises_for_licensed_without_evidence():
+    """Test that LICENSED rank without evidence raises ValueError."""
+    # Create TransitionProof with LICENSED rank but no evidence
+    effective = EffectiveDescription("eff", "test", ())  # NO evidence
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        "proof",
+        "SOURCE",
+        "TARGET",
+        qiyas,
+        neutral,
+        minimum,
+        (),
+        (),
+        Rank.LICENSED,  # LICENSED but no evidence
+    )
+
+    with pytest.raises(ValueError, match="rank LICENSED but no evidence"):
+        transition.to_result("value")
+
+
+def test_to_result_trace_metadata():
+    """Test that trace metadata includes proof details."""
+    effective = EffectiveDescription("eff", "test", ("ev",))
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        "proof:metadata_test",
+        "LAYER_A",
+        "LAYER_B",
+        qiyas,
+        neutral,
+        minimum,
+        ("parent:001", "parent:002"),
+        (),
+        Rank.CANDIDATE,
+    )
+
+    result = transition.to_result("value", operation="custom_op")
+
+    assert result.trace.operation == "custom_op"
+    assert result.trace.metadata["proof_id"] == "proof:metadata_test"
+    assert result.trace.metadata["source_layer"] == "LAYER_A"
+    assert result.trace.metadata["target_layer"] == "LAYER_B"
+    assert result.trace.metadata["decision"] == "accepted"
+    assert "parent:001" in result.trace.parents
+    assert "parent:002" in result.trace.parents

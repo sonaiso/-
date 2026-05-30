@@ -34,17 +34,30 @@ Architecture Position:
             → FactorMarkEquation
 
 Reference:
-    PR: Bridge Arabic Composition Chain
+    PR #163: Harden TransitionProofKernel with fvafk.algebra.Result
     Builds on: dal_algebra.py, fvafk/algebra/core.py
 
 Created: 2026-05-29
+Updated: 2026-05-30 (PR #163: Connect to fvafk.algebra.Result)
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple, Optional
+from typing import Tuple, Optional, TypeVar, Generic
+
+# CRITICAL FIX (PR #163): Import fvafk.algebra types for typed Results
+from fvafk.algebra.core import (
+    Result,
+    Rank,
+    Evidence,
+    Residual,
+    Failure,
+    Trace,
+)
+
+T = TypeVar("T")
 
 
 # ============================================================================
@@ -257,7 +270,7 @@ class TransitionProof:
         minimal_completeness: Minimum conditions check
         preserved_trace_ids: Trace IDs preserved through transition
         residual_ids: Residual IDs carried forward
-        rank_name: Rank name (NOT upgraded by transition)
+        rank: Epistemic rank (from fvafk.algebra.Rank, NOT upgraded by transition)
         produces_meaning: Whether transition produces meaning (FORBIDDEN)
         produces_ifadah: Whether transition produces ifadah (FORBIDDEN)
         produces_hukm: Whether transition produces hukm (FORBIDDEN)
@@ -272,7 +285,9 @@ class TransitionProof:
 
     preserved_trace_ids: Tuple[str, ...]
     residual_ids: Tuple[str, ...]
-    rank_name: str
+
+    # CRITICAL FIX (PR #163): Use typed Rank, not string
+    rank: Rank
 
     produces_meaning: bool = False
     produces_ifadah: bool = False
@@ -316,3 +331,182 @@ class TransitionProof:
 
         # All checks passed
         return TransitionDecision.ACCEPTED
+
+    def to_result(self, value: T, *, operation: str = "transition") -> Result[T]:
+        """
+        Convert TransitionProof to fvafk.algebra.Result[T].
+
+        Constitutional Law:
+            1. ACCEPTED → Result with LICENSED or CANDIDATE (depending on evidence)
+            2. DEFERRED → Result with CANDIDATE or UNRESOLVED + residuals
+            3. REJECTED → Result with REFUTED + failures
+
+        Conversion Rules:
+            - InvalidatingDifference(blocks_transition=True) → Failure(fatal=True)
+            - InvalidatingDifference(blocks_transition=False) → Residual
+            - QiyasProof.effective_description.evidence → Evidence items
+            - rank preserved from TransitionProof.rank
+            - If rank >= LICENSED and no Evidence → raises ValueError
+
+        Args:
+            value: The value to wrap in Result
+            operation: Operation name for trace (defaults to "transition")
+
+        Returns:
+            Result[T] with proper rank, evidence, residuals, failures
+
+        Raises:
+            ValueError: If rank >= LICENSED but no evidence available
+
+        Example:
+            >>> proof = TransitionProof(..., rank=Rank.LICENSED)
+            >>> result = proof.to_result(my_value, operation="mufrad_transition")
+            >>> assert result.rank == Rank.LICENSED
+        """
+        decision = self.decision
+
+        # Build evidence from effective description
+        evidence_items = tuple(
+            Evidence(
+                kind="effective_description",
+                source=ev_ref,
+                detail=self.qiyas.effective_description.description_type,
+                weight=1.0,
+            )
+            for ev_ref in self.qiyas.effective_description.evidence
+        )
+
+        # Build residuals from non-blocking differences and residual_ids
+        residual_items = []
+
+        # Add non-blocking invalidating differences as residuals
+        for diff in self.qiyas.invalidating_differences:
+            if not diff.blocks_transition:
+                residual_items.append(
+                    Residual(
+                        kind="non_blocking_difference",
+                        description=diff.message,
+                    )
+                )
+
+        # Add minimal completeness missing conditions as residuals
+        for missing in self.minimal_completeness.missing_conditions:
+            residual_items.append(
+                Residual(
+                    kind="missing_condition",
+                    description=f"Missing required condition: {missing}",
+                )
+            )
+
+        # Add residual_ids as residuals
+        for residual_id in self.residual_ids:
+            residual_items.append(
+                Residual(
+                    kind="residual_id",
+                    description=f"Residual from previous layer: {residual_id}",
+                )
+            )
+
+        residuals = tuple(residual_items)
+
+        # Build failures from blocking differences and constitutional violations
+        failure_items = []
+
+        # Add blocking invalidating differences as fatal failures
+        for diff in self.qiyas.invalidating_differences:
+            if diff.blocks_transition:
+                failure_items.append(
+                    Failure(
+                        kind="blocking_difference",
+                        description=diff.message,
+                        fatal=True,
+                    )
+                )
+
+        # Add constitutional prohibition failures
+        if self.produces_meaning:
+            failure_items.append(
+                Failure(
+                    kind="constitutional_prohibition",
+                    description="Transition produces forbidden meaning (لا معنى)",
+                    fatal=True,
+                )
+            )
+
+        if self.produces_ifadah:
+            failure_items.append(
+                Failure(
+                    kind="constitutional_prohibition",
+                    description="Transition produces forbidden ifadah (لا إفادة)",
+                    fatal=True,
+                )
+            )
+
+        if self.produces_hukm:
+            failure_items.append(
+                Failure(
+                    kind="constitutional_prohibition",
+                    description="Transition produces forbidden hukm (لا حكم)",
+                    fatal=True,
+                )
+            )
+
+        # Add identity loss as fatal failure
+        if not self.identity_neutral.preserved:
+            failure_items.append(
+                Failure(
+                    kind="identity_loss",
+                    description="Input identities not preserved in output",
+                    fatal=True,
+                )
+            )
+
+        failures = tuple(failure_items)
+
+        # Build trace
+        trace = Trace(
+            operation=operation,
+            source_span=(0, 0),  # To be filled by caller if needed
+            parents=self.preserved_trace_ids,
+            metadata={
+                "proof_id": self.proof_id,
+                "source_layer": self.source_layer,
+                "target_layer": self.target_layer,
+                "decision": decision.value,
+            },
+        )
+
+        # Determine final rank based on decision
+        if decision == TransitionDecision.REJECTED:
+            # REJECTED → REFUTED (fatal failures present)
+            final_rank = Rank.REFUTED
+        elif decision == TransitionDecision.DEFERRED:
+            # DEFERRED → CANDIDATE or UNRESOLVED
+            # If we have evidence, use CANDIDATE
+            # If no evidence, use UNRESOLVED
+            if evidence_items:
+                final_rank = Rank.CANDIDATE
+            else:
+                final_rank = Rank.UNRESOLVED
+        else:  # ACCEPTED
+            # ACCEPTED → use proof's rank, but validate
+            # If rank >= LICENSED, evidence is required
+            if self.rank in (Rank.LICENSED, Rank.CERTIFIED) and not evidence_items:
+                raise ValueError(
+                    f"TransitionProof has rank {self.rank.name} but no evidence. "
+                    f"Cannot create Result with rank >= LICENSED without evidence. "
+                    f"Effective description must provide evidence."
+                )
+            final_rank = self.rank
+
+        # Construct Result
+        result = Result(
+            value=value,
+            rank=final_rank,
+            evidence=evidence_items,
+            residuals=residuals,
+            failures=failures,
+            trace=trace,
+        )
+
+        return result
