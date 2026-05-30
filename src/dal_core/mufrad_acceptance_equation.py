@@ -332,11 +332,23 @@ def prove_mufrad_acceptance(proof: MufradProof) -> MufradAcceptanceEquation:
     )
 
     # Build identity neutral check
+    # PR #166: Empty identity_ids cannot be considered "identity preserved"
+    has_missing_identity = not identity_ids
+    # Empty → empty IS preserved (trivially), but flagged as missing
+    preserved_flag = True  # Empty set ⊆ empty set = true
+
+    # If identity is missing, add residual
+    residual_ids_list = list(str(r) for r in proof.collect_all_residuals())
+    if has_missing_identity:
+        missing_identity_residual_id = f"residual:missing_identity:mufrad:{id(proof)}"
+        residual_ids_list.append(missing_identity_residual_id)
+
     neutral = IdentityNeutralCheck(
         check_id=f"id_neutral:mufrad:{id(proof)}",
         input_identity_ids=identity_ids,
         output_identity_ids=identity_ids,  # MufradProof preserves all identities
-        preserved=True,
+        preserved=preserved_flag,
+        has_missing_identity=has_missing_identity,
     )
 
     # Build minimal completeness check
@@ -370,6 +382,7 @@ def prove_mufrad_acceptance(proof: MufradProof) -> MufradAcceptanceEquation:
     )
 
     # Build transition proof
+    # PR #166: Use residual_ids_list (includes missing_identity if needed)
     transition = TransitionProof(
         proof_id=f"transition:mufrad:{id(proof)}",
         source_layer="MUFRAD_PROOF",
@@ -378,7 +391,7 @@ def prove_mufrad_acceptance(proof: MufradProof) -> MufradAcceptanceEquation:
         identity_neutral=neutral,
         minimal_completeness=minimum,
         preserved_trace_ids=(trace_id,),
-        residual_ids=tuple(str(r) for r in proof.collect_all_residuals()),
+        residual_ids=tuple(residual_ids_list),
         rank=_lugha_rank_to_fvafk_rank(proof.rank),
     )
 

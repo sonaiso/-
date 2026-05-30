@@ -184,27 +184,51 @@ class IdentityNeutralCheck:
 
     Verifies that transition preserves input identities.
 
-    Constitutional Law:
+    Constitutional Law (PR #166):
         All input identity IDs MUST appear in output identity IDs.
         Transitions may ADD identities but MUST NOT lose them.
+
+        CRITICAL: Empty identity_ids cannot be considered "preserved".
+        If identity_ids are empty, identity preservation fails.
+        This requires creating missing_identity residual.
 
     Fields:
         check_id: Unique identifier
         input_identity_ids: Identity IDs before transition
         output_identity_ids: Identity IDs after transition
         preserved: Whether all inputs are preserved in outputs
+        has_missing_identity: Whether identity_ids are empty (PR #166)
     """
     check_id: str
     input_identity_ids: Tuple[str, ...]
     output_identity_ids: Tuple[str, ...]
     preserved: bool
+    has_missing_identity: bool = False
 
     def __post_init__(self):
-        """Validate that preserved flag matches actual preservation."""
+        """
+        Validate that preserved flag matches actual preservation.
+
+        PR #166: Empty identity_ids is NOT considered preserved.
+        """
         missing = set(self.input_identity_ids) - set(self.output_identity_ids)
         if self.preserved and missing:
             raise ValueError(
                 f"Identity neutral check claims preservation but lost: {missing}"
+            )
+
+        # PR #166: Validate has_missing_identity matches reality
+        is_empty = (not self.input_identity_ids) or (not self.output_identity_ids)
+        if is_empty and not self.has_missing_identity:
+            raise ValueError(
+                f"Identity neutral check has empty identity_ids but "
+                f"has_missing_identity=False. Empty identities cannot be preserved. "
+                f"input={self.input_identity_ids}, output={self.output_identity_ids}"
+            )
+        if not is_empty and self.has_missing_identity:
+            raise ValueError(
+                f"Identity neutral check claims missing identity but has non-empty IDs: "
+                f"input={self.input_identity_ids}, output={self.output_identity_ids}"
             )
 
 
@@ -302,9 +326,10 @@ class TransitionProof:
             1. If produces_meaning/ifadah/hukm → REJECTED
             2. If qiyas has blocking difference → REJECTED
             3. If identity not preserved → REJECTED
-            4. If minimal completeness not passed → DEFERRED
-            5. If qiyas not accepted → DEFERRED
-            6. Otherwise → ACCEPTED
+            4. If identity missing (PR #166) → DEFERRED (requires residual)
+            5. If minimal completeness not passed → DEFERRED
+            6. If qiyas not accepted → DEFERRED
+            7. Otherwise → ACCEPTED
 
         Returns:
             TransitionDecision enum value
@@ -320,6 +345,11 @@ class TransitionProof:
         # Identity preservation check
         if not self.identity_neutral.preserved:
             return TransitionDecision.REJECTED
+
+        # PR #166: Missing identity check (DEFERRED, not REJECTED)
+        # Empty identity_ids requires residual, but doesn't block transition
+        if self.identity_neutral.has_missing_identity:
+            return TransitionDecision.DEFERRED
 
         # Minimal completeness check (deferred if not complete)
         if not self.minimal_completeness.passed:
