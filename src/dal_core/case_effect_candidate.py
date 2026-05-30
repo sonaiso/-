@@ -937,13 +937,27 @@ def build_case_effect_candidate(
     # Generate IDs
     case_effect_id = f"case-effect-{uuid.uuid4().hex[:12]}"
 
-    # Collect identity_ids (PR #161: explicit identity preservation)
+    # Collect identity_ids (PR #161/#163: explicit identity preservation)
     # Identity sources:
-    # 1. operator registry entry ID (operator identity)
+    # 1. operator linguistic identity (name, source, school) - NOT registry_entry_id UUID
     # 2. factor_source.identity_ids (factor linguistic identities)
-    # 3. affected_vector identity (if available via mufrad_id or similar)
+    # 3. affected_vector identity (if available via identity_ids)
+    from dal_core.identity_trace_utils import (
+        make_operator_identity,
+        validate_identity_trace_separation,
+    )
+
     identity_ids_set = set()
-    identity_ids_set.add(operator_candidate.registry_entry_id)
+
+    # CRITICAL FIX (PR #163): Use stable operator identity, NOT registry_entry_id
+    # registry_entry_id is a generated UUID (trace), not linguistic identity
+    operator_identity = make_operator_identity(
+        operator_candidate.registry_entry.display_name_ar,
+        operator_candidate.registry_entry.source,
+        operator_candidate.registry_entry.school,
+    )
+    identity_ids_set.add(operator_identity)
+
     identity_ids_set.update(factor_source.identity_ids)
     # Note: affected_vector.mufrad_id is a trace, not an identity
     # If affected_vector has explicit identity_ids, add them
@@ -951,13 +965,18 @@ def build_case_effect_candidate(
         identity_ids_set.update(affected_vector.identity_ids)
     identity_ids = tuple(sorted(identity_ids_set))
 
-    # Collect trace_ids (PR #161: explicit trace tracking)
+    # Collect trace_ids (PR #161/#163: explicit trace tracking)
     # Trace sources:
-    # 1. operator_candidate trace IDs
-    # 2. factor_source.trace_ids
-    # 3. affected_vector traces
-    # 4. matrix_row trace (row_trace_id if available)
+    # 1. registry_entry_id (operator UUID - trace, NOT identity)
+    # 2. operator_candidate trace IDs
+    # 3. factor_source.trace_ids
+    # 4. affected_vector traces
+    # 5. matrix_row trace (row_trace_id if available)
     trace_ids_set = set()
+
+    # CRITICAL FIX (PR #163): registry_entry_id is TRACE, not identity
+    trace_ids_set.add(operator_candidate.registry_entry_id)
+
     trace_ids_set.update(factor_source.trace_ids)
     # Add operator candidate trace
     if hasattr(operator_candidate, 'trace') and hasattr(operator_candidate.trace, 'candidate_id'):
@@ -969,6 +988,9 @@ def build_case_effect_candidate(
     if hasattr(matrix_row, 'row_trace_id'):
         trace_ids_set.add(matrix_row.row_trace_id)
     trace_ids = tuple(sorted(trace_ids_set))
+
+    # CONSTITUTIONAL VALIDATION (PR #163): Enforce identity/trace separation
+    validate_identity_trace_separation(identity_ids, trace_ids)
 
     # Create trace
     trace = CaseEffectCandidateTrace(
