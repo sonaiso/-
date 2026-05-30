@@ -60,7 +60,7 @@ def minimal_surface_effect():
         raw_span=(0, 5),
         observed_text="الكتاب",
         observed_diacritics="",
-        evidence=Evidence(span_id="span-001", raw_span=(0, 5)),
+        evidence=Evidence(source="test", reason="minimal fixture"),
         trace_id="trace-surface-001",
     )
 
@@ -73,8 +73,8 @@ def minimal_case_sign_potential(minimal_surface_effect):
         sign_family=CaseSignFamily.ORIGINAL,
         sign_value=CaseSignValue.DAMMA,
         compatible_case_effects=("rafa_candidate",),
-        evidence=Evidence(span_id="span-001", raw_span=(0, 5)),
-        rank=LughaRank.CANDIDATE,
+        evidence=Evidence(source="test", reason="minimal fixture"),
+        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
         residuals=(),
         trace_id="trace-case-sign-001",
     )
@@ -89,7 +89,7 @@ def minimal_presyntax_vector(minimal_case_sign_potential):
         raw_text="الكتاب",
         type_value="ISM_COMMON",
         type_id=None,
-        final_rank=LughaRank.CANDIDATE,
+        final_rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
         case_sign_potentials=(minimal_case_sign_potential,),
         residuals=(),
         trace_id="trace-mufrad-001",
@@ -115,7 +115,7 @@ def minimal_matrix_row(minimal_presyntax_vector, minimal_case_sign_potential):
         type_id="ISM_COMMON",
         surface_observations=(obs,),
         compatibility_families=(CaseCompatibilityFamily.RAFA_COMPATIBLE,),
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
         residuals=(),
         row_trace_id="trace-matrix-row-001",
     )
@@ -129,7 +129,7 @@ def minimal_factor_source():
         source_kind=FactorSourceKind.RELATION_CANDIDATE,
         identity_ids=("factor-identity-001",),
         trace_ids=("factor-trace-001",),
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
     )
 
 
@@ -178,7 +178,7 @@ def minimal_operator_candidate(minimal_trigger_source):
         display_name_ar="الابتداء",
         source=OperatorSource.KITAB_SIBAWAYH,
         school=NahwSchool.BASRI,
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
         family=OperatorTriggerFamily.POSSIBLE_IBTIDAA_FAMILY,
         input_signature=OperatorInputSignature(
             expected_arity=2,
@@ -218,7 +218,7 @@ def minimal_operator_candidate(minimal_trigger_source):
         trigger_source=minimal_trigger_source,
         registry_entry_id=registry_entry.operator_id,
         registry_entry=registry_entry,
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
         inherited_residuals=(),
         candidate_residuals=(),
         trace=trace,
@@ -439,7 +439,7 @@ def test_build_case_effect_candidate_compatibility_conflict(
         type_id="ISM_COMMON",
         surface_observations=(obs,),
         compatibility_families=(CaseCompatibilityFamily.NASB_COMPATIBLE,),
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,
         residuals=(),
         row_trace_id="trace-matrix-row-nasb-001",
     )
@@ -462,7 +462,7 @@ def test_build_case_effect_candidate_compatibility_conflict(
         display_name_ar="رافع فقط",
         source=OperatorSource.KITAB_SIBAWAYH,
         school=NahwSchool.BASRI,
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,
         family=OperatorTriggerFamily.POSSIBLE_IBTIDAA_FAMILY,
         input_signature=OperatorInputSignature(
             expected_arity=1,
@@ -496,7 +496,7 @@ def test_build_case_effect_candidate_compatibility_conflict(
         trigger_source=minimal_operator_candidate.trigger_source,
         registry_entry_id=registry_entry_rafi_only.operator_id,
         registry_entry=registry_entry_rafi_only,
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,
         inherited_residuals=(),
         candidate_residuals=(),
         trace=trace,
@@ -584,7 +584,7 @@ def test_build_case_effect_candidate_building_compatible(
         type_id="ISM_COMMON",
         surface_observations=(obs,),
         compatibility_families=(CaseCompatibilityFamily.BUILDING_COMPATIBLE,),
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,
         residuals=(),
         row_trace_id="trace-matrix-row-building-001",
     )
@@ -720,7 +720,7 @@ def test_build_case_effect_candidate_rejects_mismatched_vector_row(
         type_id="ISM_COMMON",
         surface_observations=(obs,),
         compatibility_families=(CaseCompatibilityFamily.RAFA_COMPATIBLE,),
-        rank=LughaRank.CANDIDATE,
+        rank=LughaRank.QIYAS,
         residuals=(),
         row_trace_id="trace-matrix-row-different-001",
     )
