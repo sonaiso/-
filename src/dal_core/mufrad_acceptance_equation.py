@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from typing import Tuple
 
 from dal_core.mufrad_proof import MufradProof
+from dal_core.ranks import LughaRank
 from dal_core.transition_proof_kernel import (
     EffectiveDescription,
     IdentityNeutralCheck,
@@ -48,6 +49,29 @@ from dal_core.transition_proof_kernel import (
     QiyasProof,
     TransitionProof,
 )
+from fvafk.algebra.core import Rank
+
+
+# ============================================================================
+# Rank Conversion (PR #163 Integration)
+# ============================================================================
+
+def _lugha_rank_to_fvafk_rank(lugha_rank: LughaRank) -> Rank:
+    """
+    Convert LughaRank to fvafk.algebra.Rank.
+
+    Conservative mapping to prevent rank inflation (same as factor_mark_equation).
+
+    Args:
+        lugha_rank: LughaRank enum value
+
+    Returns:
+        Corresponding fvafk.algebra.Rank value (conservative mapping)
+    """
+    if lugha_rank == LughaRank.ZERO:
+        return Rank.UNRESOLVED
+    else:
+        return Rank.CANDIDATE
 
 
 # ============================================================================
@@ -355,7 +379,7 @@ def prove_mufrad_acceptance(proof: MufradProof) -> MufradAcceptanceEquation:
         minimal_completeness=minimum,
         preserved_trace_ids=(trace_id,),
         residual_ids=tuple(str(r) for r in proof.collect_all_residuals()),
-        rank_name=proof.rank.name,
+        rank=_lugha_rank_to_fvafk_rank(proof.rank),
     )
 
     # Build surface string
