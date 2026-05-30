@@ -210,7 +210,8 @@ class IdentityNeutralCheck:
         """
         Validate that preserved flag matches actual preservation.
 
-        PR #166: Empty identity_ids is NOT considered preserved.
+        PR #166: Empty identity_ids are trivially preserved set-theoretically,
+        but constitutionally incomplete and require has_missing_identity=True.
         """
         missing = set(self.input_identity_ids) - set(self.output_identity_ids)
         if self.preserved and missing:
