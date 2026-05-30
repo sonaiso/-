@@ -170,6 +170,7 @@ def test_identity_neutral_preserved():
         input_identity_ids=("form:كتاب", "type:noun"),
         output_identity_ids=("form:كتاب", "type:noun", "root:كتب"),
         preserved=True,
+        has_missing_identity=False,
     )
 
     assert check.preserved
@@ -195,9 +196,62 @@ def test_identity_neutral_honest_non_preservation():
         input_identity_ids=("form:كتاب", "type:noun"),
         output_identity_ids=("form:كتاب",),
         preserved=False,  # Honestly states non-preservation
+        has_missing_identity=False,
     )
 
     assert not check.preserved
+
+
+def test_identity_neutral_missing_identity_empty_input():
+    """
+    Test missing identity detection with empty input (PR #166).
+
+    Constitutional Law: Empty identity_ids linguistically means "missing identity".
+    Mathematically preserved (∅ ⊆ ∅), but flagged for linguistic resolution.
+    """
+    check = IdentityNeutralCheck(
+        check_id="id_neutral:missing_001",
+        input_identity_ids=(),
+        output_identity_ids=(),
+        preserved=True,  # ∅ ⊆ ∅ = true (mathematically)
+        has_missing_identity=True,  # Linguistically missing
+    )
+
+    assert check.preserved  # Trivially preserved
+    assert check.has_missing_identity  # But flagged as missing
+
+
+def test_identity_neutral_missing_identity_validation_failure():
+    """
+    Test that empty identity_ids requires has_missing_identity=True (PR #166).
+
+    Constitutional Violation: Cannot have empty identity_ids with
+    has_missing_identity=False.
+    """
+    with pytest.raises(ValueError, match="empty identity_ids"):
+        IdentityNeutralCheck(
+            check_id="id_neutral:invalid_missing",
+            input_identity_ids=(),
+            output_identity_ids=(),
+            preserved=True,  # Can be True (∅ ⊆ ∅)
+            has_missing_identity=False,  # Violation: empty but claims not missing
+        )
+
+
+def test_identity_neutral_non_empty_with_missing_flag():
+    """
+    Test that non-empty identity_ids cannot have has_missing_identity=True (PR #166).
+
+    Constitutional Violation: Cannot claim missing identity when IDs present.
+    """
+    with pytest.raises(ValueError, match="claims missing identity but has non-empty"):
+        IdentityNeutralCheck(
+            check_id="id_neutral:invalid_flag",
+            input_identity_ids=("form:كتاب",),
+            output_identity_ids=("form:كتاب",),
+            preserved=True,
+            has_missing_identity=True,  # Violation: has IDs but claims missing
+        )
 
 
 # ============================================================================
@@ -288,6 +342,7 @@ def test_transition_proof_accepted():
         input_identity_ids=("id:a",),
         output_identity_ids=("id:a",),
         preserved=True,
+        has_missing_identity=False,
     )
 
     minimum = MinimalCompletenessCheck(
@@ -318,7 +373,7 @@ def test_transition_proof_rejected_by_forbidden_output():
     """Test transition rejected by constitutional prohibition."""
     effective = EffectiveDescription("eff", "test", ("test",))
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -346,7 +401,7 @@ def test_transition_proof_rejected_by_blocking_difference():
     )
 
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", (blocking,))
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -368,7 +423,7 @@ def test_transition_proof_deferred_by_missing_conditions():
     """Test transition deferred when minimal completeness not satisfied."""
     effective = EffectiveDescription("eff", "test", ("test",))
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
 
     minimum = MinimalCompletenessCheck(
         "min", "TEST", ("a", "b"), ("a",), ("b",), passed=False
@@ -395,7 +450,7 @@ def test_transition_proof_rejected_by_identity_loss():
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
 
     neutral = IdentityNeutralCheck(
-        "neutral", ("a", "b"), ("a",), preserved=False
+        "neutral", ("a", "b"), ("a",), preserved=False, has_missing_identity=False
     )
 
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
@@ -413,6 +468,41 @@ def test_transition_proof_rejected_by_identity_loss():
     )
 
     assert transition.decision == TransitionDecision.REJECTED
+
+
+def test_transition_proof_deferred_by_missing_identity():
+    """
+    Test transition deferred when identity_ids are empty (PR #166).
+
+    Constitutional Law: Empty identity_ids requires residual and DEFERRED decision.
+
+    Semantic Note: Empty → empty IS preserved (trivially: ∅ ⊆ ∅),
+    but has_missing_identity=True flags it for deferral.
+    """
+    effective = EffectiveDescription("eff", "test", ("test",))
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+
+    # Empty identity_ids → has_missing_identity=True, but preserved=True (∅ ⊆ ∅)
+    neutral = IdentityNeutralCheck(
+        "neutral", (), (), preserved=True, has_missing_identity=True
+    )
+
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        proof_id="transition:missing_identity",
+        source_layer="SOURCE",
+        target_layer="TARGET",
+        qiyas=qiyas,
+        identity_neutral=neutral,
+        minimal_completeness=minimum,
+        preserved_trace_ids=(),
+        residual_ids=("residual:missing_identity:test",),  # Residual added
+        rank=Rank.CANDIDATE,
+    )
+
+    # Decision should be DEFERRED (not REJECTED) because missing identity is recoverable
+    assert transition.decision == TransitionDecision.DEFERRED
 
 
 # ============================================================================
@@ -437,7 +527,7 @@ def test_to_result_accepted_with_licensed_rank():
         "eff", "morphological", ("evidence:form", "evidence:surface")
     )
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("id:a",), ("id:a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("id:a",), ("id:a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TARGET", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -470,7 +560,7 @@ def test_to_result_rejected_with_blocking_difference():
         "diff", "Composition not ready", blocks_transition=True, evidence=("test",)
     )
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", (blocking,))
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -490,7 +580,7 @@ def test_to_result_rejected_with_constitutional_prohibition():
     """Test to_result() with REJECTED due to forbidden output."""
     effective = EffectiveDescription("eff", "test", ("ev",))
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -519,7 +609,7 @@ def test_to_result_deferred_with_missing_conditions():
     """Test to_result() with DEFERRED decision due to missing conditions."""
     effective = EffectiveDescription("eff", "test", ("ev",))
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck(
         "min", "TEST", ("a", "b"), ("a",), ("b",), passed=False
     )
@@ -544,7 +634,7 @@ def test_to_result_with_non_blocking_differences_as_residuals():
         "diff", "Low confidence", blocks_transition=False, evidence=("conf",)
     )
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", (warning,))
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -563,7 +653,7 @@ def test_to_result_with_residual_ids():
     """Test that residual_ids are converted to Residual objects."""
     effective = EffectiveDescription("eff", "test", ("ev",))
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -590,7 +680,7 @@ def test_to_result_raises_for_licensed_without_evidence():
     # Create TransitionProof with LICENSED rank but no evidence
     effective = EffectiveDescription("eff", "test", ())  # NO evidence
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -613,7 +703,7 @@ def test_to_result_trace_metadata():
     """Test that trace metadata includes proof details."""
     effective = EffectiveDescription("eff", "test", ("ev",))
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -651,7 +741,7 @@ def test_to_result_rank_ceiling_prevents_inflation():
         "eff", "test", ("evidence:weak1", "evidence:weak2")
     )
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(
@@ -682,7 +772,7 @@ def test_to_result_weak_evidence_creates_residual():
         "eff", "test", ("some random string", "evidence:valid_one")
     )
     qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
-    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True, False)
     minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
 
     transition = TransitionProof(

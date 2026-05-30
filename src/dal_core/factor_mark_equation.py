@@ -292,14 +292,27 @@ def build_factor_mark_equation(
     )
 
     # PR #159: Use factor identity_ids + affected identity_ids
+    # PR #166: Empty identity_ids cannot be considered "identity preserved"
     factor_identity_ids = factor_source.identity_ids
-    affected_identity_ids = affected_vector.identity_ids or (affected_trace_id,)
+    affected_identity_ids = affected_vector.identity_ids or ()
+
+    combined_identity_ids = factor_identity_ids + affected_identity_ids
+    has_missing_identity = not combined_identity_ids
+    # Empty → empty IS preserved (trivially), but flagged as missing
+    preserved_flag = True  # Empty set ⊆ empty set = true
+
+    # If identity is missing, add residual
+    residual_ids_list = list(str(r) for r in affected_vector.residuals)
+    if has_missing_identity:
+        missing_identity_residual_id = f"residual:missing_identity:factor_mark:{affected_trace_id}"
+        residual_ids_list.append(missing_identity_residual_id)
 
     neutral = IdentityNeutralCheck(
         check_id=f"id_neutral:factor_mark:{affected_trace_id}",
-        input_identity_ids=factor_identity_ids + affected_identity_ids,
-        output_identity_ids=factor_identity_ids + affected_identity_ids,
-        preserved=True,
+        input_identity_ids=combined_identity_ids,
+        output_identity_ids=combined_identity_ids,
+        preserved=preserved_flag,
+        has_missing_identity=has_missing_identity,
     )
 
     # Check for missing conditions
@@ -334,6 +347,7 @@ def build_factor_mark_equation(
     )
 
     # PR #159: Combine factor trace_ids + affected trace_ids
+    # PR #166: Use residual_ids_list (includes missing_identity if needed)
     factor_trace_ids = factor_source.trace_ids
     affected_trace_ids = (affected_trace_id,)
 
@@ -345,7 +359,7 @@ def build_factor_mark_equation(
         identity_neutral=neutral,
         minimal_completeness=minimum,
         preserved_trace_ids=factor_trace_ids + affected_trace_ids,
-        residual_ids=tuple(str(r) for r in affected_vector.residuals),
+        residual_ids=tuple(residual_ids_list),
         rank=_lugha_rank_to_fvafk_rank(affected_vector.final_rank),
     )
 

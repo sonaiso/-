@@ -308,6 +308,7 @@ def adapt_slot_to_anchors(slot: RelationSlotVector) -> RelationSlotAnchorBundle:
 
     # Build identity preservation check
     # PR #163: Enforce identity_ids ≠ trace_ids constitutional law
+    # PR #166: Empty identity_ids cannot be considered "identity preserved"
     # Extract identity_ids from slot's vectors (NO fallback to trace_ids)
     input_identity_ids = []
     if slot.frame_type == CompositionFrameType.NOMINAL_SENTENCE:
@@ -335,11 +336,23 @@ def adapt_slot_to_anchors(slot: RelationSlotVector) -> RelationSlotAnchorBundle:
     # anchor.trace contains trace_ids, which MUST NOT be used as identity_ids
     output_identity_ids = input_identity_ids  # Identity-preserving: output = input
 
+    # PR #166: Check for missing identity (empty identity_ids)
+    has_missing_identity = not input_identity_ids
+    # Empty → empty IS preserved (trivially), but flagged as missing
+    preserved_flag = True  # Empty set ⊆ empty set = true
+
+    # If identity is missing, add residual
+    residual_ids_with_missing = list(str(r) for r in slot.residuals)
+    if has_missing_identity:
+        missing_identity_residual_id = f"residual:missing_identity:{slot.vector_id}"
+        residual_ids_with_missing.append(missing_identity_residual_id)
+
     neutral = IdentityNeutralCheck(
         check_id=f"id_neutral:slot_to_anchor:{slot.vector_id}",
         input_identity_ids=input_identity_ids,
         output_identity_ids=output_identity_ids,
-        preserved=True,  # Always preserved since output = input
+        preserved=preserved_flag,
+        has_missing_identity=has_missing_identity,
     )
 
     # Build minimal completeness check
@@ -369,6 +382,7 @@ def adapt_slot_to_anchors(slot: RelationSlotVector) -> RelationSlotAnchorBundle:
     )
 
     # Build complete transition proof
+    # PR #166: Use residual_ids_with_missing (includes missing_identity if needed)
     transition = TransitionProof(
         proof_id=f"transition:slot_to_anchor:{slot.vector_id}",
         source_layer="RELATION_SLOT_VECTOR",
@@ -377,7 +391,7 @@ def adapt_slot_to_anchors(slot: RelationSlotVector) -> RelationSlotAnchorBundle:
         identity_neutral=neutral,
         minimal_completeness=minimum,
         preserved_trace_ids=tuple(slot.preserved_trace_ids),
-        residual_ids=tuple(str(r) for r in slot.residuals),
+        residual_ids=tuple(residual_ids_with_missing),
         rank=_lugha_rank_to_fvafk_rank(slot.rank),
     )
 
