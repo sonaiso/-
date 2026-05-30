@@ -505,6 +505,82 @@ def test_transition_proof_deferred_by_missing_identity():
     assert transition.decision == TransitionDecision.DEFERRED
 
 
+def test_transition_proof_missing_identity_requires_residual():
+    """
+    Test that has_missing_identity=True requires residual:missing_identity.
+
+    Constitutional Law (PR #167 completion):
+        If identity_neutral.has_missing_identity is True,
+        residual_ids MUST contain at least one residual starting
+        with "residual:missing_identity".
+
+    This test ensures the gap identified in the PR #167 review is closed.
+    """
+    effective = EffectiveDescription("eff", "test", ("test",))
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+
+    # Empty identity_ids → has_missing_identity=True
+    neutral = IdentityNeutralCheck(
+        "neutral", (), (), preserved=True, has_missing_identity=True
+    )
+
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    # Attempt to create TransitionProof WITHOUT missing_identity residual
+    with pytest.raises(ValueError, match="residual:missing_identity"):
+        TransitionProof(
+            proof_id="transition:invalid_missing",
+            source_layer="SOURCE",
+            target_layer="TARGET",
+            qiyas=qiyas,
+            identity_neutral=neutral,
+            minimal_completeness=minimum,
+            preserved_trace_ids=(),
+            residual_ids=(),  # NO residual:missing_identity (violation!)
+            rank=Rank.CANDIDATE,
+        )
+
+
+def test_transition_proof_missing_identity_with_residual_is_deferred():
+    """
+    Test that missing identity WITH proper residual results in DEFERRED.
+
+    Constitutional Law:
+        has_missing_identity=True + residual:missing_identity → DEFERRED
+        (not REJECTED, because it's recoverable)
+
+    This confirms the intended behavior after closing the PR #167 gap.
+    """
+    effective = EffectiveDescription("eff", "test", ("test",))
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+
+    # Empty identity_ids with proper flag
+    neutral = IdentityNeutralCheck(
+        "neutral", (), (), preserved=True, has_missing_identity=True
+    )
+
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    # Create with proper residual
+    transition = TransitionProof(
+        proof_id="transition:missing_with_residual",
+        source_layer="SOURCE",
+        target_layer="TARGET",
+        qiyas=qiyas,
+        identity_neutral=neutral,
+        minimal_completeness=minimum,
+        preserved_trace_ids=(),
+        residual_ids=("residual:missing_identity:source:test",),  # Proper residual
+        rank=Rank.CANDIDATE,
+    )
+
+    # Should be DEFERRED (recoverable), not REJECTED
+    assert transition.decision == TransitionDecision.DEFERRED
+    assert transition.identity_neutral.preserved  # Trivially preserved (∅ ⊆ ∅)
+    assert transition.identity_neutral.has_missing_identity  # But flagged as missing
+    assert any("residual:missing_identity" in str(r) for r in transition.residual_ids)
+
+
 # ============================================================================
 # TransitionDecision Enum Tests
 # ============================================================================
