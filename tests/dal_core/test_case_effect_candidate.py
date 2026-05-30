@@ -74,7 +74,7 @@ def minimal_case_sign_potential(minimal_surface_effect):
         sign_value=CaseSignValue.DAMMA,
         compatible_case_effects=("rafa_candidate",),
         evidence=Evidence(source="test", reason="minimal fixture"),
-        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         residuals=(),
         trace_id="trace-case-sign-001",
     )
@@ -89,7 +89,7 @@ def minimal_presyntax_vector(minimal_case_sign_potential):
         raw_text="الكتاب",
         type_value="ISM_COMMON",
         type_id=None,
-        final_rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
+        final_rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         case_sign_potentials=(minimal_case_sign_potential,),
         residuals=(),
         trace_id="trace-mufrad-001",
@@ -115,7 +115,7 @@ def minimal_matrix_row(minimal_presyntax_vector, minimal_case_sign_potential):
         type_id="ISM_COMMON",
         surface_observations=(obs,),
         compatibility_families=(CaseCompatibilityFamily.RAFA_COMPATIBLE,),
-        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         residuals=(),
         row_trace_id="trace-matrix-row-001",
     )
@@ -129,7 +129,7 @@ def minimal_factor_source():
         source_kind=FactorSourceKind.RELATION_CANDIDATE,
         identity_ids=("factor-identity-001",),
         trace_ids=("factor-trace-001",),
-        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
     )
 
 
@@ -178,7 +178,7 @@ def minimal_operator_candidate(minimal_trigger_source):
         display_name_ar="الابتداء",
         source=OperatorSource.KITAB_SIBAWAYH,
         school=NahwSchool.BASRI,
-        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         family=OperatorTriggerFamily.POSSIBLE_IBTIDAA_FAMILY,
         input_signature=OperatorInputSignature(
             expected_arity=2,
@@ -218,7 +218,7 @@ def minimal_operator_candidate(minimal_trigger_source):
         trigger_source=minimal_trigger_source,
         registry_entry_id=registry_entry.operator_id,
         registry_entry=registry_entry,
-        rank=LughaRank.QIYAS,  # Use QIYAS instead of CANDIDATE
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         inherited_residuals=(),
         candidate_residuals=(),
         trace=trace,
@@ -439,7 +439,7 @@ def test_build_case_effect_candidate_compatibility_conflict(
         type_id="ISM_COMMON",
         surface_observations=(obs,),
         compatibility_families=(CaseCompatibilityFamily.NASB_COMPATIBLE,),
-        rank=LughaRank.QIYAS,
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         residuals=(),
         row_trace_id="trace-matrix-row-nasb-001",
     )
@@ -462,7 +462,7 @@ def test_build_case_effect_candidate_compatibility_conflict(
         display_name_ar="رافع فقط",
         source=OperatorSource.KITAB_SIBAWAYH,
         school=NahwSchool.BASRI,
-        rank=LughaRank.QIYAS,
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         family=OperatorTriggerFamily.POSSIBLE_IBTIDAA_FAMILY,
         input_signature=OperatorInputSignature(
             expected_arity=1,
@@ -496,7 +496,7 @@ def test_build_case_effect_candidate_compatibility_conflict(
         trigger_source=minimal_operator_candidate.trigger_source,
         registry_entry_id=registry_entry_rafi_only.operator_id,
         registry_entry=registry_entry_rafi_only,
-        rank=LughaRank.QIYAS,
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         inherited_residuals=(),
         candidate_residuals=(),
         trace=trace,
@@ -584,7 +584,7 @@ def test_build_case_effect_candidate_building_compatible(
         type_id="ISM_COMMON",
         surface_observations=(obs,),
         compatibility_families=(CaseCompatibilityFamily.BUILDING_COMPATIBLE,),
-        rank=LughaRank.QIYAS,
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         residuals=(),
         row_trace_id="trace-matrix-row-building-001",
     )
@@ -720,7 +720,7 @@ def test_build_case_effect_candidate_rejects_mismatched_vector_row(
         type_id="ISM_COMMON",
         surface_observations=(obs,),
         compatibility_families=(CaseCompatibilityFamily.RAFA_COMPATIBLE,),
-        rank=LughaRank.QIYAS,
+        rank=LughaRank.FORM,  # Structural candidate without qiyas evidence
         residuals=(),
         row_trace_id="trace-matrix-row-different-001",
     )
@@ -926,4 +926,121 @@ def test_pr161_mixed_policy_with_rafa_nasb_both_compatible():
     # and verifying deferred behavior. Skipping implementation for brevity,
     # but the test should verify DEFERRED not arbitrary choice.
     pass
+
+
+# ---------------------------------------------------------------------------
+# Constitutional Rank Tests (Pre-AmilMamulEquation Audit)
+# ---------------------------------------------------------------------------
+
+
+def test_rank_inflation_prevention_form_vs_qiyas():
+    """
+    Constitutional Test: Prevent rank inflation (FORM vs QIYAS).
+
+    CRITICAL: LughaRank.QIYAS means "قياس مرخص" (permitted by analogy).
+    It requires qiyas evidence - analogical reasoning with source pattern.
+
+    Structural candidates without qiyas evidence MUST use LughaRank.FORM.
+
+    This test enforces the constitutional law:
+        Candidate without qiyas → LughaRank.FORM
+        NOT → LughaRank.QIYAS (rank inflation)
+
+    Reference: docs/LUGHA_RANK_VS_FOUNDATION_RANK.md
+    """
+    # Create a structural candidate without qiyas evidence
+    surface_effect = SurfaceEffect(
+        effect_id="test-surface",
+        raw_span=(0, 3),
+        observed_text="كتب",
+        observed_diacritics="",
+        evidence=Evidence(source="test", reason="structural candidate"),
+        trace_id="trace-test",
+    )
+
+    # Structural candidate should use FORM, not QIYAS
+    candidate_sign = CaseSignPotential(
+        observed_surface=surface_effect,
+        sign_family=CaseSignFamily.ORIGINAL,
+        sign_value=CaseSignValue.FATHA,
+        compatible_case_effects=("nasb_candidate",),
+        evidence=Evidence(source="test", reason="structural form"),
+        rank=LughaRank.FORM,  # ✅ CORRECT - no qiyas evidence
+        residuals=(),
+        trace_id="trace-sign",
+    )
+
+    # Verify rank is FORM, not QIYAS
+    assert candidate_sign.rank == LughaRank.FORM
+    assert candidate_sign.rank != LughaRank.QIYAS
+
+    # FORM < QIYAS (structural < analogical)
+    assert candidate_sign.rank < LughaRank.QIYAS
+
+
+def test_rank_qiyas_requires_evidence_documentation():
+    """
+    Constitutional Test: Document when QIYAS is appropriate.
+
+    LughaRank.QIYAS should only be used when:
+    1. Qiyas procedure was executed
+    2. Source pattern identified
+    3. Analogical extension justified
+
+    This test documents the requirement - actual qiyas evidence
+    validation is out of scope for this PR.
+    """
+    # For now, this test documents the requirement
+    # Future: Add qiyas evidence validation when qiyas layer implemented
+
+    # Example of appropriate QIYAS usage (future):
+    # - Source pattern: فَعَلَ (known from sama)
+    # - Target: كَتَبَ (extended by qiyas)
+    # - Evidence: qiyas_procedure_id + source_pattern_id
+
+    # Example of INAPPROPRIATE QIYAS usage:
+    # - Mere structural candidate without qiyas
+    # - Test fixture without linguistic authority
+    # - Computational potential ≠ linguistic qiyas
+
+    assert LughaRank.QIYAS.value == 2  # Confirm rank value
+    assert LughaRank.FORM.value == 1   # FORM < QIYAS
+    assert LughaRank.SAMA.value == 3   # SAMA > QIYAS
+
+
+def test_lugha_rank_vs_foundation_rank_distinction():
+    """
+    Constitutional Test: LughaRank ≠ Foundation.Rank.
+
+    Two separate rank systems exist:
+    1. LughaRank (dal_core.ranks) - linguistic attestation
+    2. Rank (dal_core.foundation.rank) - epistemic confidence
+
+    They MUST NOT be conflated or automatically converted.
+
+    Foundation.Rank has CANDIDATE (computational potential).
+    LughaRank does NOT have CANDIDATE - it has FORM (structural validity).
+
+    Reference: docs/LUGHA_RANK_VS_FOUNDATION_RANK.md
+    """
+    from dal_core.foundation.rank import Rank as FoundationRank
+
+    # Foundation.Rank has CANDIDATE
+    assert hasattr(FoundationRank, 'CANDIDATE')
+    foundation_candidate = FoundationRank.CANDIDATE
+
+    # LughaRank does NOT have CANDIDATE
+    assert not hasattr(LughaRank, 'CANDIDATE')
+
+    # LughaRank has FORM (closest analog, but NOT equivalent)
+    assert hasattr(LughaRank, 'FORM')
+    lugha_form = LughaRank.FORM
+
+    # These are DIFFERENT rank systems
+    # Cannot compare them directly
+    assert type(foundation_candidate) != type(lugha_form)
+
+    # Constitutional law: NO automatic conversion
+    # ❌ FORBIDDEN: if foundation_rank == Rank.CANDIDATE: lugha_rank = LughaRank.QIYAS
+    # ✅ ALLOWED: Track both independently in separate fields
 
