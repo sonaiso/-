@@ -243,8 +243,10 @@ def is_stable_identity(value: str) -> bool:
     if has_trace_prefix(value):
         return False
 
-    # If none of the above, assume stable (e.g., enum value, name)
-    return True
+    # CRITICAL FIX (PR #163): Only accept explicit identity markers
+    # Do NOT assume any string is stable - require explicit markers
+    # This prevents accidental inclusion of generated IDs or arbitrary strings
+    return False  # Reject unless explicitly marked as identity
 
 
 def validate_identity_trace_separation(
