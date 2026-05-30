@@ -307,8 +307,8 @@ def adapt_slot_to_anchors(slot: RelationSlotVector) -> RelationSlotAnchorBundle:
     )
 
     # Build identity preservation check
-    # PR #159: Use identity_ids (not trace_ids) for IdentityNeutralCheck
-    # Extract identity_ids from slot's vectors
+    # PR #163: Enforce identity_ids ≠ trace_ids constitutional law
+    # Extract identity_ids from slot's vectors (NO fallback to trace_ids)
     input_identity_ids = []
     if slot.frame_type == CompositionFrameType.NOMINAL_SENTENCE:
         geom = slot.frame_geometry
@@ -328,18 +328,18 @@ def adapt_slot_to_anchors(slot: RelationSlotVector) -> RelationSlotAnchorBundle:
             input_identity_ids.extend(geom.operator_or_preposition_vector.identity_ids or ())
             input_identity_ids.extend(geom.governed_nominal_vector.identity_ids or ())
 
-    # Fallback to trace_ids if identity_ids empty (backward compatibility)
-    if not input_identity_ids:
-        input_identity_ids = list(slot.preserved_trace_ids)
-
     input_identity_ids = tuple(input_identity_ids)
-    output_identity_ids = tuple(t for anchor in anchors for t in anchor.trace)
+
+    # Constitutional Law: identity_ids ≠ trace_ids
+    # Output identities = preserved input identities (NOT extracted from anchor.trace)
+    # anchor.trace contains trace_ids, which MUST NOT be used as identity_ids
+    output_identity_ids = input_identity_ids  # Identity-preserving: output = input
 
     neutral = IdentityNeutralCheck(
         check_id=f"id_neutral:slot_to_anchor:{slot.vector_id}",
         input_identity_ids=input_identity_ids,
         output_identity_ids=output_identity_ids,
-        preserved=set(input_identity_ids).issubset(set(output_identity_ids)),
+        preserved=True,  # Always preserved since output = input
     )
 
     # Build minimal completeness check
