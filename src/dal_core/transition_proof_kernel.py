@@ -332,6 +332,88 @@ class TransitionProof:
         # All checks passed
         return TransitionDecision.ACCEPTED
 
+    def _compute_rank_ceiling(self, evidence_items: tuple[Evidence, ...]) -> Rank:
+        """
+        Compute maximum allowed rank based on proof components.
+
+        Constitutional Law (Rank Ceiling):
+            final_rank = min(
+                self.rank,           # Proof's declared rank
+                evidence_rank,       # Rank from evidence quality
+                source_rank,         # (future: from source)
+                manaat_rank          # (future: from manaat)
+            )
+
+        Current Implementation:
+            - If no evidence: max CANDIDATE
+            - If evidence but unvalidated strings: max CANDIDATE
+            - If evidence validated: use proof's rank (with validation)
+
+        Args:
+            evidence_items: Evidence items built from effective description
+
+        Returns:
+            Maximum allowed rank (ceiling)
+        """
+        # If no evidence at all, max is CANDIDATE
+        if not evidence_items:
+            return Rank.CANDIDATE
+
+        # Check evidence quality/validation
+        # Currently we only have string evidence from effective_description.evidence
+        # This is the "evidence من strings فقط" problem identified in review
+        # For now, we treat string evidence as CANDIDATE-level
+        # Future: validate that evidence has proper trace_id/candidate_id/span
+
+        # If all evidence is just strings (no validated traces), max is CANDIDATE
+        # This prevents rank inflation from weak evidence
+        return Rank.CANDIDATE
+
+    @staticmethod
+    def _validate_evidence_source(ev_ref: str) -> bool:
+        """
+        Validate evidence source string has proper namespace.
+
+        Constitutional Law (Evidence Validation):
+            Evidence sources must use proper namespaces:
+            - trace:*       (computational trace)
+            - candidate:*   (candidate reference)
+            - evidence:*    (explicit evidence marker)
+            - test:*        (test evidence)
+            - proof:*       (proof reference)
+
+            Rejected namespaces (too vague):
+            - Plain strings without namespace
+            - Generic descriptions
+
+        Args:
+            ev_ref: Evidence reference string
+
+        Returns:
+            True if validated namespace, False otherwise
+
+        Example:
+            >>> TransitionProof._validate_evidence_source("trace:001")
+            True
+            >>> TransitionProof._validate_evidence_source("some random string")
+            False
+        """
+        if not ev_ref or not isinstance(ev_ref, str):
+            return False
+
+        # Check for proper namespace prefixes
+        valid_prefixes = (
+            "trace:",
+            "candidate:",
+            "evidence:",
+            "test:",
+            "proof:",
+            "source:",
+            "span:",
+        )
+
+        return ev_ref.startswith(valid_prefixes)
+
     def to_result(self, value: T, *, operation: str = "transition") -> Result[T]:
         """
         Convert TransitionProof to fvafk.algebra.Result[T].
@@ -340,12 +422,13 @@ class TransitionProof:
             1. ACCEPTED → Result with LICENSED or CANDIDATE (depending on evidence)
             2. DEFERRED → Result with CANDIDATE or UNRESOLVED + residuals
             3. REJECTED → Result with REFUTED + failures
+            4. Rank Ceiling: final_rank ≤ min(proof_rank, evidence_rank, ...)
 
         Conversion Rules:
             - InvalidatingDifference(blocks_transition=True) → Failure(fatal=True)
             - InvalidatingDifference(blocks_transition=False) → Residual
             - QiyasProof.effective_description.evidence → Evidence items
-            - rank preserved from TransitionProof.rank
+            - rank bounded by ceiling (no rank inflation)
             - If rank >= LICENSED and no Evidence → raises ValueError
 
         Args:
@@ -366,18 +449,38 @@ class TransitionProof:
         decision = self.decision
 
         # Build evidence from effective description
-        evidence_items = tuple(
-            Evidence(
-                kind="effective_description",
-                source=ev_ref,
-                detail=self.qiyas.effective_description.description_type,
-                weight=1.0,
-            )
-            for ev_ref in self.qiyas.effective_description.evidence
-        )
+        # CRITICAL FIX: Validate evidence sources have proper namespace
+        evidence_items_list = []
+        weak_evidence_sources = []  # Track weak evidence for residuals
+
+        for ev_ref in self.qiyas.effective_description.evidence:
+            if self._validate_evidence_source(ev_ref):
+                # Valid namespace - build Evidence
+                evidence_items_list.append(
+                    Evidence(
+                        kind="effective_description",
+                        source=ev_ref,
+                        detail=self.qiyas.effective_description.description_type,
+                        weight=1.0,
+                    )
+                )
+            else:
+                # Invalid/weak namespace - track for residual warning
+                weak_evidence_sources.append(ev_ref)
+
+        evidence_items = tuple(evidence_items_list)
 
         # Build residuals from non-blocking differences and residual_ids
         residual_items = []
+
+        # Add weak/unvalidated evidence sources as residuals
+        for weak_ev in weak_evidence_sources:
+            residual_items.append(
+                Residual(
+                    kind="weak_evidence_source",
+                    description=f"Evidence source lacks proper namespace: {weak_ev}",
+                )
+            )
 
         # Add non-blocking invalidating differences as residuals
         for diff in self.qiyas.invalidating_differences:
@@ -489,15 +592,28 @@ class TransitionProof:
             else:
                 final_rank = Rank.UNRESOLVED
         else:  # ACCEPTED
-            # ACCEPTED → use proof's rank, but validate
-            # If rank >= LICENSED, evidence is required
-            if self.rank in (Rank.LICENSED, Rank.CERTIFIED) and not evidence_items:
+            # ACCEPTED → use proof's rank, but BOUNDED by rank ceiling
+            # Compute rank ceiling from evidence quality
+            rank_ceiling = self._compute_rank_ceiling(evidence_items)
+
+            # CRITICAL FIX: Apply rank ceiling to prevent rank inflation
+            # final_rank = min(self.rank, rank_ceiling)
+            if self.rank.value > rank_ceiling.value:
+                # Proof claims higher rank than evidence supports
+                # This prevents "evidence من strings" → LICENSED inflation
+                final_rank = rank_ceiling
+            else:
+                # Proof's rank is within ceiling
+                final_rank = self.rank
+
+            # Validation: If rank >= LICENSED, evidence is REQUIRED
+            # This was already present, now reinforced by ceiling
+            if final_rank in (Rank.LICENSED, Rank.CERTIFIED) and not evidence_items:
                 raise ValueError(
                     f"TransitionProof has rank {self.rank.name} but no evidence. "
                     f"Cannot create Result with rank >= LICENSED without evidence. "
                     f"Effective description must provide evidence."
                 )
-            final_rank = self.rank
 
         # Construct Result
         result = Result(

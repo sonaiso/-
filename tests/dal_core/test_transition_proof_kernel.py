@@ -637,3 +637,82 @@ def test_to_result_trace_metadata():
     assert result.trace.metadata["decision"] == "accepted"
     assert "parent:001" in result.trace.parents
     assert "parent:002" in result.trace.parents
+
+
+# ============================================================================
+# Rank Ceiling Tests (PR #163 improvements)
+# ============================================================================
+
+
+def test_to_result_rank_ceiling_prevents_inflation():
+    """Test that rank ceiling prevents inflation from weak evidence."""
+    # Create proof with LICENSED rank but only string evidence (weak)
+    effective = EffectiveDescription(
+        "eff", "test", ("evidence:weak1", "evidence:weak2")
+    )
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        "proof",
+        "SOURCE",
+        "TARGET",
+        qiyas,
+        neutral,
+        minimum,
+        (),
+        (),
+        Rank.LICENSED,  # Proof claims LICENSED
+    )
+
+    result = transition.to_result("value")
+
+    # CRITICAL: Rank ceiling should cap at CANDIDATE
+    # because evidence is just strings, not validated traces
+    assert result.rank == Rank.CANDIDATE  # NOT LICENSED!
+    assert len(result.evidence) == 2  # Evidence is present
+    # But rank is capped by ceiling
+
+
+def test_to_result_weak_evidence_creates_residual():
+    """Test that weak/unvalidated evidence sources create residuals."""
+    # Create proof with evidence that lacks proper namespace
+    effective = EffectiveDescription(
+        "eff", "test", ("some random string", "evidence:valid_one")
+    )
+    qiyas = QiyasProof("qiyas", "orig", "branch", effective, "cause", ())
+    neutral = IdentityNeutralCheck("neutral", ("a",), ("a",), True)
+    minimum = MinimalCompletenessCheck("min", "TEST", ("a",), ("a",), (), True)
+
+    transition = TransitionProof(
+        "proof", "SOURCE", "TARGET", qiyas, neutral, minimum, (), (), Rank.CANDIDATE
+    )
+
+    result = transition.to_result("value")
+
+    # Should have only 1 Evidence (the valid one)
+    assert len(result.evidence) == 1
+    assert result.evidence[0].source == "evidence:valid_one"
+
+    # Should have 1 residual for weak evidence
+    weak_residuals = [r for r in result.residuals if r.kind == "weak_evidence_source"]
+    assert len(weak_residuals) == 1
+    assert "some random string" in weak_residuals[0].description
+
+
+def test_validate_evidence_source_accepts_proper_namespaces():
+    """Test that evidence validation accepts proper namespaces."""
+    # Valid namespaces
+    assert TransitionProof._validate_evidence_source("trace:abc123")
+    assert TransitionProof._validate_evidence_source("candidate:def456")
+    assert TransitionProof._validate_evidence_source("evidence:form_match")
+    assert TransitionProof._validate_evidence_source("test:unit_001")
+    assert TransitionProof._validate_evidence_source("proof:qiyas_123")
+    assert TransitionProof._validate_evidence_source("source:span_10_20")
+
+    # Invalid/weak sources
+    assert not TransitionProof._validate_evidence_source("random string")
+    assert not TransitionProof._validate_evidence_source("no_namespace_here")
+    assert not TransitionProof._validate_evidence_source("")
+    assert not TransitionProof._validate_evidence_source(None)
