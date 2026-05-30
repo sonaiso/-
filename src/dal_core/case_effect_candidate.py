@@ -1,10 +1,10 @@
 """
 Case Effect Candidate (مرشح الأثر الإعرابي)
 
-PR #XXX: Post-operator-candidate, pre-relation applied-effect layer.
+PR #160/#161: Post-operator-candidate, pre-relation applied-effect layer.
 
 ARCHITECTURE POSITION:
-    OperatorCandidate + RelationCandidate + FactorMarkEquation + CaseSignMatrixRow
+    OperatorCandidate + FactorMarkEquation + CaseSignMatrixRow
             ↓
     CaseEffectCandidate                          (this module — typed case effect candidates)
             ↓
@@ -12,9 +12,16 @@ ARCHITECTURE POSITION:
           → RoleEquation
           → ParseCompetition
 
+DEFERRED COMPONENTS (PR #161):
+    RelationCandidate is NOT yet consumed at this layer. The case effect candidate
+    is built from OperatorCandidate + FactorMarkEquation + CaseSignMatrixRow only.
+    RelationCandidate integration is deferred to AmilMamulEquation layer where
+    relation types (ISN/TADMN/TAQYID) are needed to determine final case effects.
+
 GOVERNING RULES (do NOT relax):
-1. Inputs are ONLY OperatorCandidate, RelationCandidate (future), FactorMarkEquation,
-   and CaseSignMatrixRow. All must be typed. Anything else raises TypeError.
+1. Inputs are ONLY OperatorCandidate, FactorMarkEquation, and CaseSignMatrixRow.
+   RelationCandidate is deferred to AmilMamulEquation layer. All must be typed.
+   Anything else raises TypeError.
 2. Output is a *candidate case effect* NEVER:
      - a final case judgment (no marfoo/mansub/majroor/majzum without _candidate suffix),
      - a syntax role (no faail/mafool/mubtada/khabar without _candidate suffix),
@@ -50,6 +57,7 @@ Constitutional Law:
     لا meaning/ifadah/hukm
 
 Created: 2026-05-30
+Updated: 2026-05-30 (PR #161 hardening)
 """
 
 from __future__ import annotations
@@ -308,6 +316,31 @@ class CaseEffectCandidate:
 
     policy_family: CaseEffectPolicyFamily
     """The case effect policy family from operator registry entry."""
+
+    identity_ids: tuple[str, ...]
+    """
+    Linguistic identity IDs preserved through this case effect candidate.
+    Aggregates identities from:
+    - operator_candidate.registry_entry (operator identity)
+    - factor_source.identity_ids (factor linguistic identities)
+    - affected_vector.identity_ids (affected constituent identities)
+
+    PR #161: Explicit identity preservation following PR #159 pattern.
+    Constitutional Law: trace_id ≠ identity_id.
+    """
+
+    trace_ids: tuple[str, ...]
+    """
+    Provenance trace IDs linking back to computational chain.
+    Aggregates traces from:
+    - operator_candidate.trace (operator candidate trace)
+    - factor_source.trace_ids (factor source traces)
+    - affected_vector.trace_ids (affected constituent traces)
+    - matrix_row trace (row trace_id as trace only, NOT identity)
+
+    PR #161: Explicit trace tracking following PR #159 pattern.
+    Constitutional Law: trace_id ≠ identity_id.
+    """
 
     rank: LughaRank
     """
@@ -741,20 +774,21 @@ def _determine_effect_type(
             return CaseEffectCandidateType.BLOCKED_EFFECT_CANDIDATE, residuals
 
     if policy_family == CaseEffectPolicyFamily.MIXED_RAFI_NASB_POLICY_FAMILY:
-        # Mixed policy (e.g., kana/inna): check for either rafa or nasb compatibility
-        if CaseCompatibilityFamily.RAFA_COMPATIBLE in compatibility_families:
-            return CaseEffectCandidateType.RAFʿ_EFFECT_CANDIDATE, residuals
-        if CaseCompatibilityFamily.NASB_COMPATIBLE in compatibility_families:
-            return CaseEffectCandidateType.NASB_EFFECT_CANDIDATE, residuals
+        # Mixed policy (e.g., kana/inna): DANGEROUS without slot/frame info
+        # CRITICAL FIX (PR #161): Mixed policy should NOT choose based on
+        # compatibility alone. It requires slot/frame side information to
+        # determine which constituent gets which case (e.g., ism_kana vs khabar_kana).
+        # Without that information, defer the decision.
         residuals.append(
-            make_blocker(
-                ResidualType.CASE_EFFECT_COMPATIBILITY_CONFLICT,
-                f"Mixed policy requires RAFA or NASB but compatibility families "
-                f"are {[f.value for f in compatibility_families]}.",
+            make_warning(
+                ResidualType.CASE_EFFECT_MIXED_POLICY_REQUIRES_SLOT,
+                "Mixed rafi/nasb policy requires frame slot/role information to "
+                "determine which constituent gets which case. Producing deferred effect "
+                "until slot info available.",
                 location="case_effect_builder",
             )
         )
-        return CaseEffectCandidateType.BLOCKED_EFFECT_CANDIDATE, residuals
+        return CaseEffectCandidateType.DEFERRED_EFFECT_CANDIDATE, residuals
 
     if policy_family == CaseEffectPolicyFamily.NO_CASE_EFFECT_POLICY_FAMILY:
         residuals.append(
@@ -775,6 +809,32 @@ def _determine_effect_type(
         )
     )
     return CaseEffectCandidateType.DEFERRED_EFFECT_CANDIDATE, residuals
+
+
+def _get_rank_from_transition_proof(transition_proof) -> LughaRank:
+    """
+    Extract LughaRank from TransitionProof.rank_name.
+
+    TransitionProof stores rank as string name (e.g., "QIYAS", "SAMA").
+    Convert back to LughaRank enum.
+
+    Args:
+        transition_proof: TransitionProof with rank_name field
+
+    Returns:
+        LughaRank enum member
+
+    Raises:
+        ValueError: If rank_name is not a valid LughaRank member
+    """
+    rank_name = transition_proof.rank_name
+    try:
+        return LughaRank[rank_name]
+    except KeyError:
+        raise ValueError(
+            f"TransitionProof.rank_name '{rank_name}' is not a valid LughaRank member. "
+            f"Valid members: {[r.name for r in LughaRank]}"
+        )
 
 
 def build_case_effect_candidate(
@@ -865,15 +925,50 @@ def build_case_effect_candidate(
     case_effect_residuals = list(effect_residuals)
 
     # Rank ceiling: min(operator.rank, equation.rank, row.rank)
+    # CRITICAL FIX (PR #161): Extract rank from factor_equation.transition_proof
+    factor_equation_rank = _get_rank_from_transition_proof(factor_equation.transition_proof)
     candidate_rank = min(
         operator_candidate.rank,
-        LughaRank.CANDIDATE,  # factor_equation has transition_proof.rank_name
+        factor_equation_rank,
         matrix_row.rank,
         key=lambda r: r.value,
     )
 
     # Generate IDs
     case_effect_id = f"case-effect-{uuid.uuid4().hex[:12]}"
+
+    # Collect identity_ids (PR #161: explicit identity preservation)
+    # Identity sources:
+    # 1. operator registry entry ID (operator identity)
+    # 2. factor_source.identity_ids (factor linguistic identities)
+    # 3. affected_vector identity (if available via mufrad_id or similar)
+    identity_ids_set = set()
+    identity_ids_set.add(operator_candidate.registry_entry_id)
+    identity_ids_set.update(factor_source.identity_ids)
+    # Note: affected_vector.mufrad_id is a trace, not an identity
+    # If affected_vector has explicit identity_ids, add them
+    if hasattr(affected_vector, 'identity_ids'):
+        identity_ids_set.update(affected_vector.identity_ids)
+    identity_ids = tuple(sorted(identity_ids_set))
+
+    # Collect trace_ids (PR #161: explicit trace tracking)
+    # Trace sources:
+    # 1. operator_candidate trace IDs
+    # 2. factor_source.trace_ids
+    # 3. affected_vector traces
+    # 4. matrix_row trace (row_trace_id if available)
+    trace_ids_set = set()
+    trace_ids_set.update(factor_source.trace_ids)
+    # Add operator candidate trace
+    if hasattr(operator_candidate, 'trace') and hasattr(operator_candidate.trace, 'candidate_id'):
+        trace_ids_set.add(operator_candidate.trace.candidate_id)
+    # Add affected vector traces
+    if hasattr(affected_vector, 'trace_ids'):
+        trace_ids_set.update(affected_vector.trace_ids)
+    # Add matrix row trace (trace only, NOT identity)
+    if hasattr(matrix_row, 'row_trace_id'):
+        trace_ids_set.add(matrix_row.row_trace_id)
+    trace_ids = tuple(sorted(trace_ids_set))
 
     # Create trace
     trace = CaseEffectCandidateTrace(
@@ -903,6 +998,8 @@ def build_case_effect_candidate(
         factor_equation=factor_equation,
         compatibility_evidence=compatibility_families,
         policy_family=policy_family,
+        identity_ids=identity_ids,  # PR #161
+        trace_ids=trace_ids,  # PR #161
         rank=candidate_rank,
         inherited_residuals=inherited,
         case_effect_residuals=tuple(case_effect_residuals),
