@@ -12,10 +12,12 @@ CONSTITUTIONAL LAWS TESTED:
 6. Operator identity is stable tuple, not UUID
 
 Created: 2026-05-30
+Updated: 2026-05-30 (Real tests, not placeholders)
 """
 
 import pytest
 
+from dal_core.case_effect_candidate import build_case_effect_candidate
 from dal_core.identity_trace_utils import (
     diagnose_identity_ids,
     format_diagnosis_report,
@@ -27,6 +29,11 @@ from dal_core.identity_trace_utils import (
     validate_identity_preservation,
     validate_identity_trace_separation,
 )
+
+
+# Import fixtures from test_case_effect_candidate
+# This way we use real dal_core structures, not mocks
+pytest_plugins = ["tests.dal_core.test_case_effect_candidate"]
 
 
 # ---------------------------------------------------------------------------
@@ -279,7 +286,11 @@ def test_format_diagnosis_report_produces_readable_output():
 # ---------------------------------------------------------------------------
 
 
-def test_constitutional_registry_entry_id_is_trace_not_identity():
+def test_constitutional_registry_entry_id_is_trace_not_identity(
+    minimal_operator_candidate,
+    minimal_factor_equation,
+    minimal_matrix_row,
+):
     """
     Constitutional Test: registry_entry_id is TRACE, not identity.
 
@@ -291,31 +302,44 @@ def test_constitutional_registry_entry_id_is_trace_not_identity():
     The operator identity must be (display_name_ar, source, school),
     NOT the generated registry_entry_id.
     """
-    # This test is a PLACEHOLDER
-    # Actual test will create OperatorCandidate and CaseEffectCandidate
-    # and verify:
-    # 1. registry_entry_id is in trace_ids
-    # 2. registry_entry_id is NOT in identity_ids
-    # 3. Stable operator identity (name|source|school) IS in identity_ids
-
-    # For now, verify the pattern
-    registry_entry_id = "op-abc123"  # Generated UUID pattern
-    assert is_uuid_pattern(registry_entry_id.split('-')[1])
-    assert has_trace_prefix(registry_entry_id)
-    assert not is_stable_identity(registry_entry_id)
-
-    # Operator identity should be stable
-    from dal_core.nahw_operator_registry import NahwSchool, OperatorSource
-
-    operator_identity = make_operator_identity(
-        display_name_ar="إن",
-        source=OperatorSource.KITAB_SIBAWAYH,
-        school=NahwSchool.BASRI,
+    # Build real CaseEffectCandidate
+    case_effect = build_case_effect_candidate(
+        operator_candidate=minimal_operator_candidate,
+        factor_equation=minimal_factor_equation,
+        matrix_row=minimal_matrix_row,
     )
-    assert is_stable_identity(operator_identity)
+
+    # Get registry_entry_id
+    registry_entry_id = minimal_operator_candidate.registry_entry_id
+
+    # CRITICAL ASSERTIONS (PR #163):
+    # 1. registry_entry_id is in trace_ids
+    assert registry_entry_id in case_effect.trace_ids, (
+        f"registry_entry_id '{registry_entry_id}' must be in trace_ids"
+    )
+
+    # 2. registry_entry_id is NOT in identity_ids
+    assert registry_entry_id not in case_effect.identity_ids, (
+        f"registry_entry_id '{registry_entry_id}' must NOT be in identity_ids. "
+        f"Generated UUIDs are traces, not linguistic identities."
+    )
+
+    # 3. Stable operator identity IS in identity_ids
+    operator_identity = make_operator_identity(
+        minimal_operator_candidate.registry_entry.display_name_ar,
+        minimal_operator_candidate.registry_entry.source,
+        minimal_operator_candidate.registry_entry.school,
+    )
+    assert operator_identity in case_effect.identity_ids, (
+        f"Stable operator identity '{operator_identity}' must be in identity_ids"
+    )
 
 
-def test_constitutional_row_trace_id_must_remain_trace_only():
+def test_constitutional_row_trace_id_must_remain_trace_only(
+    minimal_operator_candidate,
+    minimal_factor_equation,
+    minimal_matrix_row,
+):
     """
     Constitutional Test: row_trace_id is TRACE, NEVER identity.
 
@@ -324,19 +348,34 @@ def test_constitutional_row_trace_id_must_remain_trace_only():
     CRITICAL: This test enforces that row_trace_id is placed in
     trace_ids, NOT identity_ids.
     """
-    # This test is a PLACEHOLDER
-    # Actual test will create CaseSignMatrixRow and CaseEffectCandidate
-    # and verify:
+    # Build real CaseEffectCandidate
+    case_effect = build_case_effect_candidate(
+        operator_candidate=minimal_operator_candidate,
+        factor_equation=minimal_factor_equation,
+        matrix_row=minimal_matrix_row,
+    )
+
+    # Get row_trace_id
+    row_trace_id = minimal_matrix_row.row_trace_id
+
+    # CRITICAL ASSERTIONS (PR #163):
     # 1. row_trace_id is in trace_ids
+    assert row_trace_id in case_effect.trace_ids, (
+        f"row_trace_id '{row_trace_id}' must be in trace_ids"
+    )
+
     # 2. row_trace_id is NOT in identity_ids
+    assert row_trace_id not in case_effect.identity_ids, (
+        f"row_trace_id '{row_trace_id}' must NOT be in identity_ids. "
+        f"Matrix rows are computational artifacts, not linguistic entities."
+    )
 
-    # For now, verify the pattern
-    row_trace_id = "trace-matrix-row-001"
-    assert has_trace_prefix(row_trace_id)
-    assert not is_stable_identity(row_trace_id)
 
-
-def test_constitutional_generated_candidate_ids_are_traces():
+def test_constitutional_generated_candidate_ids_are_traces(
+    minimal_operator_candidate,
+    minimal_factor_equation,
+    minimal_matrix_row,
+):
     """
     Constitutional Test: All generated candidate IDs are traces.
 
@@ -346,20 +385,25 @@ def test_constitutional_generated_candidate_ids_are_traces():
     CRITICAL: This test enforces that ALL *_id fields with UUID patterns
     are placed in trace_ids, NOT identity_ids.
     """
-    # This test is a PLACEHOLDER
-    # Actual test will create full chain and verify all candidate IDs
-    # are in trace_ids, NOT identity_ids
+    # Build real CaseEffectCandidate
+    case_effect = build_case_effect_candidate(
+        operator_candidate=minimal_operator_candidate,
+        factor_equation=minimal_factor_equation,
+        matrix_row=minimal_matrix_row,
+    )
 
-    # For now, verify patterns
-    candidate_ids = [
-        "case-effect-abc123",
-        "candidate-def456",
-        "equation-ghi789",
-    ]
+    # Get candidate IDs
+    case_effect_id = case_effect.case_effect_id
+    operator_candidate_id = case_effect.operator_candidate_id
+    factor_equation_id = case_effect.factor_equation_id
 
-    for cid in candidate_ids:
-        assert has_trace_prefix(cid)
-        assert not is_stable_identity(cid)
+    # CRITICAL ASSERTIONS (PR #163):
+    # All candidate IDs must NOT be in identity_ids
+    for cid in [case_effect_id, operator_candidate_id, factor_equation_id]:
+        assert cid not in case_effect.identity_ids, (
+            f"Candidate ID '{cid}' must NOT be in identity_ids. "
+            f"Generated candidate IDs are traces, not linguistic identities."
+        )
 
 
 def test_constitutional_stable_linguistic_ids_must_be_preserved():
@@ -390,7 +434,11 @@ def test_constitutional_stable_linguistic_ids_must_be_preserved():
     validate_identity_preservation(input_identities, output_identities)
 
 
-def test_constitutional_identity_and_trace_sets_disjoint():
+def test_constitutional_identity_and_trace_sets_disjoint(
+    minimal_operator_candidate,
+    minimal_factor_equation,
+    minimal_matrix_row,
+):
     """
     Constitutional Test: identity_ids ∩ trace_ids = ∅
 
@@ -400,35 +448,31 @@ def test_constitutional_identity_and_trace_sets_disjoint():
     CRITICAL: This test enforces the fundamental separation between
     linguistic identity and computational provenance.
     """
-    # This test is a PLACEHOLDER
-    # Actual test will create CaseEffectCandidate and verify disjoint
-
-    # For now, verify validation logic
-    from dal_core.nahw_operator_registry import NahwSchool, OperatorSource
-
-    identity_ids = (
-        make_operator_identity("إن", OperatorSource.KITAB_SIBAWAYH, NahwSchool.BASRI),
-        make_mufrad_identity("الكتاب", "ISM_COMMON"),
+    # Build real CaseEffectCandidate
+    case_effect = build_case_effect_candidate(
+        operator_candidate=minimal_operator_candidate,
+        factor_equation=minimal_factor_equation,
+        matrix_row=minimal_matrix_row,
     )
 
-    trace_ids = (
-        "trace-001",
-        "candidate-abc123",
-        "row-trace-xyz",
+    # Get identity and trace sets
+    identity_set = set(case_effect.identity_ids)
+    trace_set = set(case_effect.trace_ids)
+
+    # CRITICAL ASSERTION (PR #163):
+    # Identity and trace sets must be disjoint
+    overlap = identity_set & trace_set
+    assert overlap == set(), (
+        f"CONSTITUTIONAL VIOLATION: identity_ids and trace_ids overlap: {overlap}. "
+        f"An ID cannot be both identity and trace."
     )
 
-    # Should pass (disjoint)
-    validate_identity_trace_separation(identity_ids, trace_ids)
 
-    # Should fail (overlap)
-    with pytest.raises(ValueError, match="overlap"):
-        validate_identity_trace_separation(
-            identity_ids=("trace-001",) + identity_ids,
-            trace_ids=trace_ids,
-        )
-
-
-def test_constitutional_operator_identity_is_stable_not_uuid():
+def test_constitutional_operator_identity_is_stable_not_uuid(
+    minimal_operator_candidate,
+    minimal_factor_equation,
+    minimal_matrix_row,
+):
     """
     Constitutional Test: Operator identity is stable linguistic tuple.
 
@@ -437,30 +481,39 @@ def test_constitutional_operator_identity_is_stable_not_uuid():
     CRITICAL: This test enforces that operator identity is the
     linguistic triple, not the generated registry_entry_id.
     """
-    # This test is a PLACEHOLDER
-    # Actual test will create OperatorCandidate and CaseEffectCandidate
-    # and verify operator identity format
-
-    # For now, verify identity creation
-    from dal_core.nahw_operator_registry import NahwSchool, OperatorSource
-
-    operator_identity = make_operator_identity(
-        display_name_ar="إن",
-        source=OperatorSource.KITAB_SIBAWAYH,
-        school=NahwSchool.BASRI,
+    # Build real CaseEffectCandidate
+    case_effect = build_case_effect_candidate(
+        operator_candidate=minimal_operator_candidate,
+        factor_equation=minimal_factor_equation,
+        matrix_row=minimal_matrix_row,
     )
 
-    # Must be stable
-    assert is_stable_identity(operator_identity)
+    # Find operator identity in identity_ids
+    op_identities = [i for i in case_effect.identity_ids if i.startswith("op_identity:")]
 
-    # Must NOT be UUID
-    assert not is_uuid_pattern(operator_identity)
+    # CRITICAL ASSERTIONS (PR #163):
+    # 1. Must have at least one operator identity
+    assert len(op_identities) >= 1, (
+        "CaseEffectCandidate must contain at least one operator identity"
+    )
 
-    # Must have correct format
-    assert operator_identity.startswith("op_identity:")
-    assert "إن" in operator_identity
-    assert "KITAB_SIBAWAYH" in operator_identity
-    assert "BASRI" in operator_identity
+    # 2. Operator identity must be stable (not UUID)
+    for op_id in op_identities:
+        assert is_stable_identity(op_id), (
+            f"Operator identity '{op_id}' must be stable"
+        )
+        assert not is_uuid_pattern(op_id), (
+            f"Operator identity '{op_id}' must NOT be UUID"
+        )
+
+    # 3. Operator identity must have correct format
+    operator_identity = op_identities[0]
+    assert operator_identity.startswith("op_identity:"), (
+        f"Operator identity must start with 'op_identity:', got '{operator_identity}'"
+    )
+    assert minimal_operator_candidate.registry_entry.display_name_ar in operator_identity, (
+        f"Operator identity must contain operator name"
+    )
 
 
 # ---------------------------------------------------------------------------
