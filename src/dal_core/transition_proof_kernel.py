@@ -188,9 +188,10 @@ class IdentityNeutralCheck:
         All input identity IDs MUST appear in output identity IDs.
         Transitions may ADD identities but MUST NOT lose them.
 
-        CRITICAL: Empty identity_ids cannot be considered "preserved".
-        If identity_ids are empty, identity preservation fails.
-        This requires creating missing_identity residual.
+        CRITICAL: Empty identity_ids are trivially preserved set-theoretically
+        (∅ ⊆ ∅ = true), but linguistically incomplete. Such transitions must
+        carry has_missing_identity=True and a corresponding missing_identity
+        residual. Decision is DEFERRED (not REJECTED), allowing for resolution.
 
     Fields:
         check_id: Unique identifier
@@ -316,6 +317,31 @@ class TransitionProof:
     produces_meaning: bool = False
     produces_ifadah: bool = False
     produces_hukm: bool = False
+
+    def __post_init__(self):
+        """
+        Validate TransitionProof constitutional requirements.
+
+        Constitutional Law (PR #167 completion):
+            If identity_neutral.has_missing_identity is True,
+            then residual_ids MUST contain at least one residual
+            starting with "residual:missing_identity".
+
+            This closes the gap where has_missing_identity=True
+            but no corresponding residual is present.
+        """
+        # Validate missing identity requires residual
+        if self.identity_neutral.has_missing_identity:
+            has_missing_identity_residual = any(
+                str(r).startswith("residual:missing_identity")
+                for r in self.residual_ids
+            )
+            if not has_missing_identity_residual:
+                raise ValueError(
+                    f"TransitionProof {self.proof_id}: identity_neutral.has_missing_identity=True "
+                    f"requires at least one residual starting with 'residual:missing_identity' "
+                    f"in residual_ids. Current residual_ids: {self.residual_ids}"
+                )
 
     @property
     def decision(self) -> TransitionDecision:
