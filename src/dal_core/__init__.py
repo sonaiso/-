@@ -289,6 +289,13 @@ from .factor_mark_equation import (
     FactorMarkEquation,
     build_factor_mark_equation,
 )
+from .case_effect_candidate import (
+    CaseEffectCandidateType,  # PR #160
+    CaseEffectCandidateTrace,  # PR #160
+    CaseEffectCandidate,  # PR #160
+    CaseEffectCandidateSet,  # PR #160
+    build_case_effect_candidate,  # PR #160
+)
 
 __all__ = [
     "Rank",
@@ -483,4 +490,10 @@ __all__ = [
     "FactorMarkEquationType",
     "FactorMarkEquation",
     "build_factor_mark_equation",
+    # CaseEffectCandidate (Case effect candidates)
+    "CaseEffectCandidateType",  # PR #160
+    "CaseEffectCandidateTrace",  # PR #160
+    "CaseEffectCandidate",  # PR #160
+    "CaseEffectCandidateSet",  # PR #160
+    "build_case_effect_candidate",  # PR #160
 ]

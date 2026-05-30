@@ -173,6 +173,17 @@ class ResidualType(Enum):
     OPERATOR_CANDIDATE_COMPETITION_PRESERVED = "منافسة مرشحين عامليين محفوظة دون حسم"
     OPERATOR_CANDIDATE_TRACE_MISSING = "أثر المرشح العاملي مفقود"
 
+    # CaseEffectCandidate governance residuals (PR #160/#161)
+    # Case effect layer is post-operator-candidate: typed case effect candidates
+    # only. Never produces final case judgments, never produces syntax roles,
+    # never produces meaning/ifadah/hukm. Preserves ALL competing case effects.
+    CASE_EFFECT_COMPATIBILITY_CONFLICT = "تعارض توافق الأثر الإعرابي"
+    CASE_EFFECT_DEFERRED_MISSING_MARK = "تأجيل الأثر الإعرابي لغياب العلامة"
+    CASE_EFFECT_NO_POLICY = "لا سياسة أثر إعرابي للعامل"
+    CASE_EFFECT_UNRESOLVED_POLICY = "سياسة الأثر الإعرابي غير محسومة"
+    CASE_EFFECT_MIXED_POLICY_REQUIRES_SLOT = "سياسة مختلطة رفع/نصب تتطلب موقع معمول"
+    CASE_EFFECT_RELATION_MISSING = "علاقة مفقودة في مرشح الأثر الإعرابي"
+
 
 # TEMPORARY ADAPTER NOTE:
 # This DAL residual model remains for compatibility only. The constitutional
