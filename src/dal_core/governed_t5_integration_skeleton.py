@@ -526,6 +526,7 @@ class GovernedT5IntegrationSkeleton:
         ✅ run_preflight_checks(): Run preflight validation
         ✅ create_integration_report(): Create validation report
         ✅ scan_for_execution_markers(): Detect forbidden markers
+        ✅ scan_path_for_execution_markers(): Path-aware scanner with T5 carve-out
         ✅ create_integration_config_from_run_plan(): Create config from TrainingRunPlan
     """
 
@@ -643,6 +644,52 @@ class GovernedT5IntegrationSkeleton:
                 detected.append(marker)
 
         return tuple(detected)
+
+    @staticmethod
+    def scan_path_for_execution_markers(
+        path: str,
+        text: str,
+    ) -> Tuple[str, ...]:
+        """
+        Path-aware variant of scan_for_execution_markers (PR-A carve-out).
+
+        Behaviour:
+            - If ``path`` resolves to a location inside the T5 real-adapter
+              carve-out (``src/dal_core/adapters/t5/``), this function
+              returns an empty tuple. Execution markers are permitted there
+              under the constitutional carve-out documented in
+              ``docs/T5_REAL_ADAPTER_EXECUTION_BOUNDARY.md``.
+            - For any other path, this function delegates to the existing
+              :py:meth:`scan_for_execution_markers` so the strict
+              FORBIDDEN_EXECUTION_MARKERS regime is preserved bit-for-bit
+              (PR #150).
+
+        Constitutional Law:
+            The carve-out is a *path* filter only. It does NOT remove any
+            entry from ``FORBIDDEN_EXECUTION_MARKERS``. It does NOT relax
+            the rules anywhere else in the repository.
+
+        Args:
+            path: Filesystem path of the source being scanned. May be
+                absolute or relative; forward and back slashes are both
+                normalised.
+            text: Source text to scan.
+
+        Returns:
+            Tuple of detected forbidden markers. Always empty for the
+            carve-out path; otherwise identical to
+            ``scan_for_execution_markers(text)``.
+        """
+        if path:
+            # Normalise to forward slashes so the test works on every OS,
+            # and use a substring check so both absolute and repo-relative
+            # paths match identically.
+            normalised = path.replace("\\", "/")
+            if "/src/dal_core/adapters/t5/" in normalised or normalised.startswith(
+                "src/dal_core/adapters/t5/"
+            ) or "/dal_core/adapters/t5/" in normalised:
+                return ()
+        return GovernedT5IntegrationSkeleton.scan_for_execution_markers(text)
 
     @staticmethod
     def run_preflight_checks(
