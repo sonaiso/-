@@ -17,6 +17,21 @@ The framework consists of **four interconnected constitutional documents** that 
 
 ---
 
+## ML Integration Layer (governed carve-out)
+
+In addition to the four foundational constitutional documents above, the
+framework defines a tightly scoped carve-out that permits real T5
+inference inside a single, audited subpackage:
+
+- **[T5_ADAPTER_INTERFACE_CONTRACTS.md](./T5_ADAPTER_INTERFACE_CONTRACTS.md)** (PR #152) — interface-only adapter contracts.
+- **[NOOP_ADAPTER_FIXTURES.md](./NOOP_ADAPTER_FIXTURES.md)** (PR #153) — no-op fixtures proving the contracts are implementable without any model.
+- **[GOLDEN_NOOP_ADAPTER_CHAINS.md](./GOLDEN_NOOP_ADAPTER_CHAINS.md)** (PR #155) — golden chain fixtures proving deterministic binding preservation.
+- **[CONSTITUTIONAL_EVALUATION_HARNESS.md](./CONSTITUTIONAL_EVALUATION_HARNESS.md)** (PR #147) — `ConstitutionalEvaluator` (the gate that guards every model output).
+- **[T5_REAL_ADAPTER_EXECUTION_BOUNDARY.md](./T5_REAL_ADAPTER_EXECUTION_BOUNDARY.md)** — constitutional carve-out: the **only** path under `src/` where `transformers` / `torch` may be imported.
+- **[T5_REAL_ADAPTER.md](./T5_REAL_ADAPTER.md)** — **T5 Real Adapter (executes under carve-out)**: end-to-end runner (`dal_core.adapters.t5.T5AdapterRunner`) that satisfies PR #152 contracts, calls `transformers` for real, and routes every output through `ConstitutionalEvaluator`.
+
+---
+
 ## The Four Constitutional Documents
 
 ### 1. SLOT_GEOMETRY_ALGEBRA_CONSTITUTION.md (950+ lines)
