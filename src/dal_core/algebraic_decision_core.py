@@ -119,6 +119,7 @@ class CPBStatus(Enum):
     TRACE_LOSS = "trace_loss"                  # أثر مفقود
     FORBIDDEN_LEAP = "forbidden_leap"          # قفزة ممنوعة
     DAL_KERNEL_INCONSISTENCY = "dal_kernel_inconsistency"  # PR-122: تضارب kernel dal
+    PATH_IDENTITY_VIOLATION = "path_identity_violation"  # PR-129: انتهاك مسار هوية
 
 
 # ============================================================================
@@ -228,6 +229,11 @@ class CPBIdentityGuardian:
         """
         self.identity_registry = identity_registry
         self.domain_registry = domain_registry
+
+        # PR-129: Integrate PathAwareIdentityValidator
+        # Lazy import to avoid circular dependency
+        from dal_core.path_aware_identity_validator import PathAwareIdentityValidator
+        self.path_identity_validator = PathAwareIdentityValidator()
 
     def verify_identity(
         self,
@@ -451,10 +457,14 @@ class CPBIdentityGuardian:
             7. GATE_VIOLATION - Gate passage
             8. EVIDENCE_INSUFFICIENT - Evidence requirements
             9. DAL_KERNEL_INCONSISTENCY - Kernel mapping violations (PR-122)
+            10. PATH_IDENTITY_VIOLATION - Path-aware identity violations (PR-129)
 
         Constitutional Law:
             القفز الممنوع أعلى من كل خلل
             Forbidden leap dominates all other violations.
+
+            لا هوية بلا مسار مرخّص
+            No identity without licensed path (PR-129).
 
         Args:
             transition_id: Identifier for transition type
@@ -561,6 +571,44 @@ class CPBIdentityGuardian:
                 violations.append(f"Dal Kernel: {kernel_violation}")
             if cpb_status == CPBStatus.APPROVED:
                 cpb_status = CPBStatus.DAL_KERNEL_INCONSISTENCY
+
+        # PR-129: Verify path-aware identity transitions
+        # This check applies ONLY when domain == IDENTITY_DOMAIN or dal_domain == IDENTITY_AXIS
+        # Constitutional Law: لا هوية بلا مسار مرخّص (No identity without licensed path)
+        if domain == DomainType.IDENTITY_DOMAIN:
+            # For IDENTITY_DOMAIN transitions, path evidence is REQUIRED
+            # This prevents permissive holes where identity accepted without licensed path
+
+            # Note: This is a foundational check - we don't have full path evidence yet
+            # in the current signature. For now, we verify that the transition is
+            # attempting identity determination and flag if evidence is insufficient.
+            # Full path validation (with path_type, path evidence dict) will be added
+            # when layers explicitly pass PathEvidence structures.
+
+            # Current integration: Warn if IDENTITY_DOMAIN transition lacks
+            # path-specific evidence markers
+            path_evidence_markers = {
+                "weight_pattern", "root_or_stem",  # WEIGHT_PATH
+                "closed_class_marker",              # MABNI_PATH
+                "particle_type",                    # TOOL_PATH
+                "pronoun_class",                    # PRONOUN_PATH
+                "jamid_marker",                     # JAMID_PATH
+                "existing_identity", "residuals"    # RESIDUALIZED_PATH
+            }
+
+            # Check if ANY path evidence marker exists
+            evidence_set = set(evidence)
+            has_path_marker = bool(evidence_set & path_evidence_markers)
+
+            if not has_path_marker:
+                violations.append(
+                    f"Path Identity: IDENTITY_DOMAIN transition without path evidence. "
+                    f"Expected one of: {path_evidence_markers}. "
+                    f"Got: {evidence_set}. "
+                    f"Constitutional law: لا هوية بلا مسار مرخّص"
+                )
+                if cpb_status == CPBStatus.APPROVED:
+                    cpb_status = CPBStatus.PATH_IDENTITY_VIOLATION
 
         # Decision is allowed only if ALL checks pass
         allowed = len(violations) == 0
